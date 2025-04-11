@@ -19,44 +19,47 @@ import Profile from "./pages/Profile";
 import AdminClasses from "./pages/AdminClasses";
 import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <YogaClassProvider>
-            <Routes>
-              {/* Auth Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              
-              {/* Protected Routes */}
-              <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-              <Route path="/classes" element={<AuthGuard><Classes /></AuthGuard>} />
-              <Route path="/classes/:id" element={<AuthGuard><ClassDetail /></AuthGuard>} />
-              <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin/classes" element={<AuthGuard><AdminClasses /></AuthGuard>} />
-              <Route path="/admin/users" element={<AuthGuard><AdminUsers /></AuthGuard>} />
-              
-              {/* Redirects */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              
-              {/* 404 page */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </YogaClassProvider>
-        </AuthProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <YogaClassProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                {/* Auth Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<SignUp />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                
+                {/* Protected Routes */}
+                <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+                <Route path="/classes" element={<AuthGuard><Classes /></AuthGuard>} />
+                <Route path="/classes/:id" element={<AuthGuard><ClassDetail /></AuthGuard>} />
+                <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+                
+                {/* Admin Routes */}
+                <Route path="/admin/classes" element={<AuthGuard><AdminClasses /></AuthGuard>} />
+                <Route path="/admin/users" element={<AuthGuard><AdminUsers /></AuthGuard>} />
+                
+                {/* Redirects */}
+                <Route path="/" element={<Index />} />
+                
+                {/* 404 page */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </YogaClassProvider>
+          </AuthProvider>
+        </TooltipProvider>
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+};
 
 export default App;
