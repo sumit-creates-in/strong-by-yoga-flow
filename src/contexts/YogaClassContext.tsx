@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, isToday, isTomorrow } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -30,6 +30,15 @@ export type UserMembership = {
   type?: string;
 };
 
+export type MembershipTier = {
+  id: string;
+  name: string;
+  price: number;
+  duration: number; // in months
+  features: string[];
+  popular?: boolean;
+};
+
 type YogaClassContextType = {
   classes: YogaClass[];
   addClass: (classData: Omit<YogaClass, 'id'>) => void;
@@ -45,6 +54,9 @@ type YogaClassContextType = {
   setUserMembership: React.Dispatch<React.SetStateAction<UserMembership>>;
   formatClassDateTime: (date: Date) => string;
   formatRecurringPattern: (pattern: RecurringPattern | undefined) => string;
+  formatClassDate: (date: Date) => string;
+  membershipTiers: MembershipTier[];
+  purchaseMembership: (tierId: string) => void;
 };
 
 type FilterOptions = {
@@ -99,7 +111,7 @@ const initialClasses: YogaClass[] = [
     name: 'Power Yoga',
     teacher: 'Alex Rivera',
     description: 'Build strength and endurance in this challenging power yoga class. Previous yoga experience recommended.',
-    date: new Date(new Date().setDate(new Date().getDate() + 1)).setHours(12, 0, 0, 0),
+    date: new Date(addDays(new Date(), 1).setHours(12, 0, 0, 0)),
     duration: 60,
     tags: ['Afternoon', 'Advanced', 'Power'],
     joinLink: 'https://zoom.us/j/567891234',
@@ -110,7 +122,7 @@ const initialClasses: YogaClass[] = [
     name: 'Yoga for Flexibility',
     teacher: 'Emma Wilson',
     description: 'Improve your flexibility and range of motion with this targeted practice focusing on safe, deep stretching.',
-    date: new Date(new Date().setDate(new Date().getDate() + 2)).setHours(9, 0, 0, 0),
+    date: new Date(addDays(new Date(), 2).setHours(9, 0, 0, 0)),
     duration: 60,
     tags: ['Morning', 'All Levels', 'Flexibility'],
     joinLink: 'https://zoom.us/j/345678912',
@@ -121,12 +133,55 @@ const initialClasses: YogaClass[] = [
     name: 'Meditation & Breathwork',
     teacher: 'David Kumar',
     description: 'Calm your mind and connect with your breath in this meditation and pranayama practice.',
-    date: new Date(new Date().setDate(new Date().getDate() + 3)).setHours(19, 30, 0, 0),
+    date: new Date(addDays(new Date(), 3).setHours(19, 30, 0, 0)),
     duration: 45,
     tags: ['Evening', 'All Levels', 'Meditation'],
     joinLink: 'https://zoom.us/j/789123456',
     imageUrl: 'https://images.unsplash.com/photo-1536623975707-c4b3b2af565d?q=80&w=900',
   },
+];
+
+// Membership tiers
+const initialMembershipTiers: MembershipTier[] = [
+  {
+    id: 'basic',
+    name: 'Basic',
+    price: 19.99,
+    duration: 1, // 1 month
+    features: [
+      'Access to live classes',
+      '5 classes per month',
+      'Basic support',
+      'Community forum access'
+    ]
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    price: 49.99,
+    duration: 1, // 1 month
+    popular: true,
+    features: [
+      'Unlimited live classes',
+      'Class recordings for 7 days',
+      'Priority support',
+      'Community forum access',
+      'Personal guidance from teachers'
+    ]
+  },
+  {
+    id: 'yearly',
+    name: 'Annual Plan',
+    price: 399.99,
+    duration: 12, // 12 months
+    features: [
+      'All Premium features',
+      '2 months free',
+      'Exclusive workshops',
+      'Personal progress tracking',
+      'Custom program development'
+    ]
+  }
 ];
 
 // Create context
@@ -145,12 +200,24 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   const [userMembership, setUserMembership] = useState<UserMembership>({
     active: false,
   });
+  const [membershipTiers, setMembershipTiers] = useState<MembershipTier[]>(initialMembershipTiers);
   const { toast } = useToast();
 
   // Helper function for formatting class time in user's timezone
   const formatClassDateTime = (date: Date): string => {
     // Format date in user's timezone
     return formatInTimeZone(date, Intl.DateTimeFormat().resolvedOptions().timeZone, 'EEEE, MMMM d, yyyy • h:mm a');
+  };
+
+  // Format class date with "Today" and "Tomorrow" for upcoming days
+  const formatClassDate = (date: Date): string => {
+    if (isToday(date)) {
+      return 'Today';
+    } else if (isTomorrow(date)) {
+      return 'Tomorrow';
+    } else {
+      return formatInTimeZone(date, Intl.DateTimeFormat().resolvedOptions().timeZone, 'EEEE, MMMM d');
+    }
   };
 
   // Format recurring pattern as text (e.g., "Every Mon, Wed, Fri")
@@ -236,6 +303,35 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Purchase a membership
+  const purchaseMembership = (tierId: string) => {
+    const tier = membershipTiers.find(t => t.id === tierId);
+    
+    if (!tier) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Selected membership plan not found.',
+      });
+      return;
+    }
+    
+    // Calculate expiry date based on duration
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + tier.duration);
+    
+    setUserMembership({
+      active: true,
+      type: tier.name,
+      expiryDate: expiryDate
+    });
+    
+    toast({
+      title: 'Membership Activated',
+      description: `Your ${tier.name} membership is now active until ${format(expiryDate, 'MMMM d, yyyy')}.`,
+    });
+  };
+
   // Apply filters to get filtered classes
   const filteredClasses = classes
     .filter((yogaClass) => {
@@ -294,7 +390,10 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         userMembership,
         setUserMembership,
         formatClassDateTime,
-        formatRecurringPattern
+        formatRecurringPattern,
+        formatClassDate,
+        membershipTiers,
+        purchaseMembership
       }}
     >
       {children}

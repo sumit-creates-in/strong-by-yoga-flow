@@ -20,6 +20,7 @@ import AdminClasses from "./pages/AdminClasses";
 import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => {
               <Route path="/classes" element={<AuthGuard><Classes /></AuthGuard>} />
               <Route path="/classes/:id" element={<AuthGuard><ClassDetail /></AuthGuard>} />
               <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+              <Route path="/pricing" element={<AuthGuard><Pricing /></AuthGuard>} />
               
               {/* Admin Routes */}
               <Route path="/admin/classes" element={<AuthGuard><AdminClasses /></AuthGuard>} />

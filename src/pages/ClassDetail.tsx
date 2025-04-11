@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Calendar, Clock, Users, UserCheck, ChevronLeft } from 'lucide-react';
+import { Calendar, Clock, UserCheck, ChevronLeft, Repeat } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useYogaClasses } from '@/contexts/YogaClassContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 const ClassDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getClass, joinClass } = useYogaClasses();
+  const { getClass, joinClass, userMembership, formatRecurringPattern } = useYogaClasses();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -40,6 +40,7 @@ const ClassDetail = () => {
     new Date(new Date(yogaClass.date).getTime() + yogaClass.duration * 60000),
     'h:mm a'
   );
+  const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
   
   const handleJoinClass = () => {
     if (!isClassInFuture) {
@@ -48,6 +49,11 @@ const ClassDetail = () => {
         title: 'Cannot join class',
         description: 'This class has already ended.',
       });
+      return;
+    }
+    
+    if (!userMembership.active) {
+      navigate('/pricing');
       return;
     }
     
@@ -75,7 +81,7 @@ const ClassDetail = () => {
               <CardContent className="pt-6">
                 <h1 className="text-3xl font-bold mb-6">{yogaClass.name}</h1>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 gap-6 mb-6">
                   <div>
                     <h3 className="text-lg font-medium mb-2">When</h3>
                     <div className="space-y-2">
@@ -89,19 +95,12 @@ const ClassDetail = () => {
                           {formattedTime} - {endTime} ({yogaClass.duration} minutes)
                         </span>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium mb-2">Participants</h3>
-                    <div className="flex items-center text-gray-700">
-                      <Users size={18} className="mr-2 text-yoga-blue" />
-                      <span>
-                        {yogaClass.currentParticipants}{' '}
-                        {yogaClass.maxParticipants && (
-                          <>/ {yogaClass.maxParticipants} participants</>
-                        )}
-                      </span>
+                      {recurringText && (
+                        <div className="flex items-center text-gray-700">
+                          <Repeat size={18} className="mr-2 text-yoga-blue" />
+                          <span>{recurringText}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

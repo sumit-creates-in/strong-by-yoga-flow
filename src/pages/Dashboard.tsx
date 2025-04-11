@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Repeat, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,7 +30,8 @@ const Dashboard = () => {
     filteredClasses, 
     joinClass, 
     userMembership, 
-    formatClassDateTime, 
+    formatClassDateTime,
+    formatClassDate, 
     formatRecurringPattern 
   } = useYogaClasses();
   const navigate = useNavigate();
@@ -58,6 +59,8 @@ const Dashboard = () => {
     const isClassToday = new Date(yogaClass.date).toDateString() === new Date().toDateString();
     const canJoin = new Date() <= new Date(yogaClass.date);
     const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
+    const formattedDate = formatClassDate(yogaClass.date);
+    const formattedTime = format(new Date(yogaClass.date), 'h:mm a');
     
     return (
       <Card className="yoga-card h-full flex flex-col shadow-md overflow-hidden">
@@ -75,19 +78,20 @@ const Dashboard = () => {
             <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
             
             {recurringText && (
-              <div className="bg-yoga-light-blue/40 text-yoga-blue text-sm font-medium py-1 px-2 rounded mb-2 inline-block">
-                {recurringText}
+              <div className="bg-yoga-light-blue/40 text-yoga-blue text-sm font-medium py-1 px-2 rounded mb-2 inline-flex items-center">
+                <Repeat size={14} className="mr-1.5" />
+                <span>{recurringText}</span>
               </div>
             )}
             
-            <div className="flex items-center text-gray-600 mb-2">
-              <Calendar size={16} className="mr-2" />
-              <span>{formatClassDateTime(yogaClass.date)}</span>
+            <div className="flex items-center text-gray-600 mb-1.5">
+              <Calendar size={16} className="mr-2 text-yoga-blue" />
+              <span>{formattedDate}</span>
             </div>
             
             <div className="flex items-center text-gray-600 mb-2">
-              <Clock size={16} className="mr-2" />
-              <span>{yogaClass.duration} mins</span>
+              <Clock size={16} className="mr-2 text-yoga-blue" />
+              <span>{formattedTime} ({yogaClass.duration} mins)</span>
             </div>
             
             <div className="mb-3">
@@ -102,21 +106,14 @@ const Dashboard = () => {
               ))}
             </div>
             
-            <div className="mt-auto flex flex-wrap gap-2">
-              <Button
-                onClick={() => navigate(`/classes/${yogaClass.id}`)}
-                variant="outline"
-                className="flex-grow"
-              >
-                View Details
-              </Button>
-              
+            <div className="mt-auto">
               {canJoin && (
                 <Button 
-                  className="flex-grow bg-yoga-blue text-white hover:bg-yoga-blue/90"
+                  className="w-full bg-yoga-blue text-white hover:bg-yoga-blue/90 flex items-center justify-center"
                   onClick={() => handleJoinClass(yogaClass)}
                 >
                   Join Now
+                  <ChevronRight size={16} className="ml-1" />
                 </Button>
               )}
             </div>
@@ -221,12 +218,11 @@ const Dashboard = () => {
               <Button
                 className="bg-yoga-blue hover:bg-yoga-blue/90"
                 onClick={() => {
-                  // Here you would implement the actual membership signup
-                  // For this demo, we'll just close the dialog
                   setIsMembershipDialogOpen(false);
+                  navigate('/pricing');
                 }}
               >
-                Get Membership
+                View Plans
               </Button>
             </DialogFooter>
           </DialogContent>
