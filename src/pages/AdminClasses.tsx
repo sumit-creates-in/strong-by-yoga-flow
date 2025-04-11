@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Edit, Trash2, Plus, Calendar, Clock, Users, X } from 'lucide-react';
+import { Edit, Trash2, Plus, Calendar, Clock, Users, X, Repeat } from 'lucide-react';
 import Layout from '@/components/Layout';
 import AdminGuard from '@/components/AdminGuard';
-import { useYogaClasses, YogaClass } from '@/contexts/YogaClassContext';
+import { useYogaClasses, YogaClass, getDayNames, RecurringPattern } from '@/contexts/YogaClassContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 
 const AdminClasses = () => {
-  const { classes, addClass, editClass, deleteClass } = useYogaClasses();
+  const { classes, addClass, editClass, deleteClass, formatRecurringPattern } = useYogaClasses();
   const { toast } = useToast();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -37,7 +38,7 @@ const AdminClasses = () => {
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [deletingClassId, setDeletingClassId] = useState<string | null>(null);
   
-  const [formData, setFormData] = useState<Omit<YogaClass, 'id' | 'currentParticipants'>>({
+  const [formData, setFormData] = useState<Omit<YogaClass, 'id'>>({
     name: '',
     teacher: '',
     description: '',
@@ -45,10 +46,24 @@ const AdminClasses = () => {
     duration: 60,
     tags: [],
     joinLink: '',
-    maxParticipants: undefined,
+    imageUrl: '',
+    recurringPattern: {
+      isRecurring: false,
+      daysOfWeek: [],
+      frequency: 'weekly'
+    }
   });
   
   const [newTag, setNewTag] = useState('');
+  const daysOfWeek = [
+    { id: 0, name: 'Sunday' },
+    { id: 1, name: 'Monday' },
+    { id: 2, name: 'Tuesday' },
+    { id: 3, name: 'Wednesday' },
+    { id: 4, name: 'Thursday' },
+    { id: 5, name: 'Friday' },
+    { id: 6, name: 'Saturday' },
+  ];
   
   const resetForm = () => {
     setFormData({
@@ -59,7 +74,12 @@ const AdminClasses = () => {
       duration: 60,
       tags: [],
       joinLink: '',
-      maxParticipants: undefined,
+      imageUrl: '',
+      recurringPattern: {
+        isRecurring: false,
+        daysOfWeek: [],
+        frequency: 'weekly'
+      }
     });
     setEditingClassId(null);
     setNewTag('');
@@ -77,11 +97,18 @@ const AdminClasses = () => {
         name: yogaClass.name,
         teacher: yogaClass.teacher,
         description: yogaClass.description,
-        date: new Date(yogaClass.date),
+        date: yogaClass.date,
         duration: yogaClass.duration,
         tags: [...yogaClass.tags],
         joinLink: yogaClass.joinLink,
-        maxParticipants: yogaClass.maxParticipants,
+        imageUrl: yogaClass.imageUrl || '',
+        recurringPattern: yogaClass.recurringPattern ? { 
+          ...yogaClass.recurringPattern 
+        } : {
+          isRecurring: false,
+          daysOfWeek: [],
+          frequency: 'weekly'
+        }
       });
       setEditingClassId(id);
       setIsEditDialogOpen(true);
@@ -100,12 +127,12 @@ const AdminClasses = () => {
   
   const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value === '' ? undefined : Number(value) });
+    setFormData({ ...formData, [name]: value === '' ? 0 : Number(value) });
   };
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = e.target.value;
-    const timeValue = formData.date ? format(new Date(formData.date), 'HH:mm') : '00:00';
+    const timeValue = formData.date ? format(formData.date, 'HH:mm') : '00:00';
     
     // Combine date and time
     const [year, month, day] = dateValue.split('-').map(Number);
@@ -127,6 +154,50 @@ const AdminClasses = () => {
     newDate.setHours(hours, minutes);
     
     setFormData({ ...formData, date: newDate });
+  };
+  
+  const handleRecurringToggle = (checked: boolean) => {
+    const updatedPattern: RecurringPattern = {
+      ...formData.recurringPattern!,
+      isRecurring: checked,
+    };
+    
+    // If toggling on, initialize with some defaults
+    if (checked && (!updatedPattern.daysOfWeek || updatedPattern.daysOfWeek.length === 0)) {
+      // Default to the day of the selected date
+      const dayOfWeek = formData.date.getDay();
+      updatedPattern.daysOfWeek = [dayOfWeek];
+    }
+    
+    setFormData({ 
+      ...formData, 
+      recurringPattern: updatedPattern 
+    });
+  };
+  
+  const handleDayToggle = (day: number) => {
+    const currentDays = formData.recurringPattern?.daysOfWeek || [];
+    const updatedDays = currentDays.includes(day)
+      ? currentDays.filter((d) => d !== day)
+      : [...currentDays, day].sort();
+    
+    setFormData({
+      ...formData,
+      recurringPattern: {
+        ...formData.recurringPattern!,
+        daysOfWeek: updatedDays,
+      },
+    });
+  };
+  
+  const handleFrequencyChange = (frequency: 'daily' | 'weekly') => {
+    setFormData({
+      ...formData,
+      recurringPattern: {
+        ...formData.recurringPattern!,
+        frequency,
+      },
+    });
   };
   
   const handleAddTag = () => {
@@ -151,6 +222,18 @@ const AdminClasses = () => {
         description: 'Please fill out all required fields.',
       });
       return;
+    }
+    
+    // Validate recurring pattern if enabled
+    if (formData.recurringPattern?.isRecurring) {
+      if (!formData.recurringPattern.daysOfWeek || formData.recurringPattern.daysOfWeek.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Recurring pattern incomplete',
+          description: 'Please select at least one day of the week for recurring classes.',
+        });
+        return;
+      }
     }
     
     if (editingClassId) {
@@ -202,7 +285,15 @@ const AdminClasses = () => {
                   <CardContent className="pt-6">
                     <div className="flex flex-col md:flex-row justify-between">
                       <div className="flex-grow">
-                        <h2 className="text-2xl font-semibold mb-2">{yogaClass.name}</h2>
+                        <h2 className="text-2xl font-semibold mb-2">
+                          {yogaClass.name}
+                          {yogaClass.recurringPattern?.isRecurring && (
+                            <span className="ml-2 inline-flex items-center text-yoga-blue text-sm">
+                              <Repeat size={16} className="mr-1" />
+                              {formatRecurringPattern(yogaClass.recurringPattern)}
+                            </span>
+                          )}
+                        </h2>
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                           <div>
@@ -220,12 +311,6 @@ const AdminClasses = () => {
                             <div className="text-gray-600 mb-1">
                               <span className="font-medium">Teacher:</span> {yogaClass.teacher}
                             </div>
-                            {yogaClass.maxParticipants && (
-                              <div className="flex items-center text-gray-600">
-                                <Users size={16} className="mr-2" />
-                                {yogaClass.currentParticipants} / {yogaClass.maxParticipants}
-                              </div>
-                            )}
                           </div>
                           
                           <div>
@@ -367,17 +452,17 @@ const AdminClasses = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <label htmlFor="maxParticipants" className="block font-medium">
-                      Max Participants (Optional)
+                    <label htmlFor="imageUrl" className="block font-medium">
+                      Class Image URL
                     </label>
                     <Input
-                      id="maxParticipants"
-                      name="maxParticipants"
-                      type="number"
-                      value={formData.maxParticipants === undefined ? '' : formData.maxParticipants}
-                      onChange={handleNumberInputChange}
-                      min={1}
+                      id="imageUrl"
+                      name="imageUrl"
+                      type="url"
+                      value={formData.imageUrl}
+                      onChange={handleInputChange}
                       className="yoga-input"
+                      placeholder="https://example.com/image.jpg"
                     />
                   </div>
                   
@@ -420,6 +505,87 @@ const AdminClasses = () => {
                     </p>
                   </div>
                 </div>
+                
+                <div className="space-y-2 col-span-full">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="isRecurring" 
+                      checked={formData.recurringPattern?.isRecurring || false}
+                      onCheckedChange={handleRecurringToggle}
+                    />
+                    <label
+                      htmlFor="isRecurring"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      This is a recurring class
+                    </label>
+                  </div>
+                </div>
+                
+                {formData.recurringPattern?.isRecurring && (
+                  <div className="space-y-4 border rounded-md p-4 bg-slate-50">
+                    <div className="space-y-3">
+                      <label className="block font-medium">
+                        Frequency
+                      </label>
+                      <div className="flex space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            id="weekly" 
+                            name="frequency"
+                            checked={formData.recurringPattern?.frequency === 'weekly'} 
+                            onChange={() => handleFrequencyChange('weekly')}
+                            className="h-4 w-4 text-yoga-blue focus:ring-yoga-blue"
+                          />
+                          <label htmlFor="weekly">Weekly</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            id="daily" 
+                            name="frequency"
+                            checked={formData.recurringPattern?.frequency === 'daily'} 
+                            onChange={() => handleFrequencyChange('daily')}
+                            className="h-4 w-4 text-yoga-blue focus:ring-yoga-blue" 
+                          />
+                          <label htmlFor="daily">Daily</label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {formData.recurringPattern?.frequency === 'weekly' && (
+                      <div className="space-y-3">
+                        <label className="block font-medium">
+                          Days of the Week
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {daysOfWeek.map((day) => (
+                            <div key={day.id} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`day-${day.id}`}
+                                checked={(formData.recurringPattern?.daysOfWeek || []).includes(day.id)}
+                                onCheckedChange={() => handleDayToggle(day.id)}
+                              />
+                              <label
+                                htmlFor={`day-${day.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {day.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="pt-2">
+                      <p className="text-sm text-yoga-blue">
+                        <strong>Pattern:</strong> {formatRecurringPattern(formData.recurringPattern)}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="space-y-2 col-span-full">
                   <label htmlFor="description" className="block font-medium">
@@ -552,19 +718,19 @@ const AdminClasses = () => {
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <label htmlFor="maxParticipants" className="block font-medium">
-                      Max Participants (Optional)
+                    <label htmlFor="imageUrl" className="block font-medium">
+                      Class Image URL
                     </label>
                     <Input
-                      id="maxParticipants"
-                      name="maxParticipants"
-                      type="number"
-                      value={formData.maxParticipants === undefined ? '' : formData.maxParticipants}
-                      onChange={handleNumberInputChange}
-                      min={1}
+                      id="imageUrl"
+                      name="imageUrl"
+                      type="url"
+                      value={formData.imageUrl}
+                      onChange={handleInputChange}
                       className="yoga-input"
+                      placeholder="https://example.com/image.jpg"
                     />
                   </div>
                   
@@ -607,6 +773,87 @@ const AdminClasses = () => {
                     </p>
                   </div>
                 </div>
+                
+                <div className="space-y-2 col-span-full">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="isRecurring" 
+                      checked={formData.recurringPattern?.isRecurring || false}
+                      onCheckedChange={handleRecurringToggle}
+                    />
+                    <label
+                      htmlFor="isRecurring"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      This is a recurring class
+                    </label>
+                  </div>
+                </div>
+                
+                {formData.recurringPattern?.isRecurring && (
+                  <div className="space-y-4 border rounded-md p-4 bg-slate-50">
+                    <div className="space-y-3">
+                      <label className="block font-medium">
+                        Frequency
+                      </label>
+                      <div className="flex space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            id="weekly" 
+                            name="frequency"
+                            checked={formData.recurringPattern?.frequency === 'weekly'} 
+                            onChange={() => handleFrequencyChange('weekly')}
+                            className="h-4 w-4 text-yoga-blue focus:ring-yoga-blue"
+                          />
+                          <label htmlFor="weekly">Weekly</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            id="daily" 
+                            name="frequency"
+                            checked={formData.recurringPattern?.frequency === 'daily'} 
+                            onChange={() => handleFrequencyChange('daily')}
+                            className="h-4 w-4 text-yoga-blue focus:ring-yoga-blue" 
+                          />
+                          <label htmlFor="daily">Daily</label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {formData.recurringPattern?.frequency === 'weekly' && (
+                      <div className="space-y-3">
+                        <label className="block font-medium">
+                          Days of the Week
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {daysOfWeek.map((day) => (
+                            <div key={day.id} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`day-${day.id}`}
+                                checked={(formData.recurringPattern?.daysOfWeek || []).includes(day.id)}
+                                onCheckedChange={() => handleDayToggle(day.id)}
+                              />
+                              <label
+                                htmlFor={`day-${day.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {day.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="pt-2">
+                      <p className="text-sm text-yoga-blue">
+                        <strong>Pattern:</strong> {formatRecurringPattern(formData.recurringPattern)}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="space-y-2 col-span-full">
                   <label htmlFor="description" className="block font-medium">

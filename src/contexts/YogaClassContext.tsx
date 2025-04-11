@@ -1,9 +1,16 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useToast } from '@/components/ui/use-toast';
 
 // Define types
+export type RecurringPattern = {
+  isRecurring: boolean;
+  daysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, etc.
+  frequency?: 'daily' | 'weekly';
+};
+
 export type YogaClass = {
   id: string;
   name: string;
@@ -13,14 +20,19 @@ export type YogaClass = {
   duration: number; // in minutes
   tags: string[];
   joinLink: string;
-  maxParticipants?: number;
-  currentParticipants: number;
   imageUrl?: string;
+  recurringPattern?: RecurringPattern;
+};
+
+export type UserMembership = {
+  active: boolean;
+  expiryDate?: Date;
+  type?: string;
 };
 
 type YogaClassContextType = {
   classes: YogaClass[];
-  addClass: (classData: Omit<YogaClass, 'id' | 'currentParticipants'>) => void;
+  addClass: (classData: Omit<YogaClass, 'id'>) => void;
   editClass: (id: string, classData: Partial<YogaClass>) => void;
   deleteClass: (id: string) => void;
   getClass: (id: string) => YogaClass | undefined;
@@ -29,6 +41,10 @@ type YogaClassContextType = {
   setFilters: React.Dispatch<React.SetStateAction<FilterOptions>>;
   viewMode: 'card' | 'calendar';
   setViewMode: React.Dispatch<React.SetStateAction<'card' | 'calendar'>>;
+  userMembership: UserMembership;
+  setUserMembership: React.Dispatch<React.SetStateAction<UserMembership>>;
+  formatClassDateTime: (date: Date) => string;
+  formatRecurringPattern: (pattern: RecurringPattern | undefined) => string;
 };
 
 type FilterOptions = {
@@ -36,6 +52,12 @@ type FilterOptions = {
   teacher: string;
   timeSlot: '' | 'morning' | 'afternoon' | 'evening';
   search: string;
+};
+
+// Helper function to get day names
+export const getDayNames = (days: number[]): string[] => {
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return days.map(day => dayNames[day]);
 };
 
 // Sample class data
@@ -49,9 +71,12 @@ const initialClasses: YogaClass[] = [
     duration: 60,
     tags: ['Morning', 'All Levels', 'Vinyasa'],
     joinLink: 'https://zoom.us/j/123456789',
-    currentParticipants: 8,
-    maxParticipants: 20,
-    imageUrl: '/assets/morning-flow.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=900',
+    recurringPattern: {
+      isRecurring: true,
+      daysOfWeek: [1, 3, 5], // Monday, Wednesday, Friday
+      frequency: 'weekly'
+    }
   },
   {
     id: '2',
@@ -62,9 +87,12 @@ const initialClasses: YogaClass[] = [
     duration: 75,
     tags: ['Evening', 'Beginners', 'Restorative'],
     joinLink: 'https://zoom.us/j/987654321',
-    currentParticipants: 5,
-    maxParticipants: 15,
-    imageUrl: '/assets/restorative.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=900',
+    recurringPattern: {
+      isRecurring: true,
+      daysOfWeek: [2, 4], // Tuesday, Thursday
+      frequency: 'weekly'
+    }
   },
   {
     id: '3',
@@ -75,9 +103,7 @@ const initialClasses: YogaClass[] = [
     duration: 60,
     tags: ['Afternoon', 'Advanced', 'Power'],
     joinLink: 'https://zoom.us/j/567891234',
-    currentParticipants: 12,
-    maxParticipants: 20,
-    imageUrl: '/assets/power-yoga.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?q=80&w=900',
   },
   {
     id: '4',
@@ -88,8 +114,7 @@ const initialClasses: YogaClass[] = [
     duration: 60,
     tags: ['Morning', 'All Levels', 'Flexibility'],
     joinLink: 'https://zoom.us/j/345678912',
-    currentParticipants: 7,
-    imageUrl: '/assets/flexibility.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1593164842264-854604db2260?q=80&w=900',
   },
   {
     id: '5',
@@ -100,9 +125,7 @@ const initialClasses: YogaClass[] = [
     duration: 45,
     tags: ['Evening', 'All Levels', 'Meditation'],
     joinLink: 'https://zoom.us/j/789123456',
-    currentParticipants: 9,
-    maxParticipants: 30,
-    imageUrl: '/assets/meditation.jpg',
+    imageUrl: 'https://images.unsplash.com/photo-1536623975707-c4b3b2af565d?q=80&w=900',
   },
 ];
 
@@ -119,7 +142,40 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
     search: '',
   });
   const [viewMode, setViewMode] = useState<'card' | 'calendar'>('card');
+  const [userMembership, setUserMembership] = useState<UserMembership>({
+    active: false,
+  });
   const { toast } = useToast();
+
+  // Helper function for formatting class time in user's timezone
+  const formatClassDateTime = (date: Date): string => {
+    // Format date in user's timezone
+    return formatInTimeZone(date, Intl.DateTimeFormat().resolvedOptions().timeZone, 'EEEE, MMMM d, yyyy • h:mm a');
+  };
+
+  // Format recurring pattern as text (e.g., "Every Mon, Wed, Fri")
+  const formatRecurringPattern = (pattern: RecurringPattern | undefined): string => {
+    if (!pattern || !pattern.isRecurring || !pattern.daysOfWeek || pattern.daysOfWeek.length === 0) {
+      return '';
+    }
+
+    const dayNames = getDayNames(pattern.daysOfWeek);
+    
+    if (pattern.frequency === 'daily') {
+      return 'Every day';
+    }
+
+    if (dayNames.length === 1) {
+      return `Every ${dayNames[0]}`;
+    } 
+    
+    if (dayNames.length === 2) {
+      return `Every ${dayNames[0]} & ${dayNames[1]}`;
+    }
+    
+    const lastDay = dayNames.pop();
+    return `Every ${dayNames.join(', ')} & ${lastDay}`;
+  };
 
   // Load initial classes
   useEffect(() => {
@@ -127,14 +183,14 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Add a new class
-  const addClass = (classData: Omit<YogaClass, 'id' | 'currentParticipants'>) => {
+  const addClass = (classData: Omit<YogaClass, 'id'>) => {
+    const newClassId = Math.random().toString(36).substr(2, 9);
     const newClass: YogaClass = {
       ...classData,
-      id: Math.random().toString(36).substr(2, 9),
-      currentParticipants: 0,
+      id: newClassId,
     };
     
-    setClasses([...classes, newClass]);
+    setClasses((prevClasses) => [...prevClasses, newClass]);
     
     toast({
       title: 'Class added',
@@ -172,12 +228,6 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
 
   // Join a class
   const joinClass = (id: string) => {
-    setClasses(
-      classes.map((c) =>
-        c.id === id ? { ...c, currentParticipants: c.currentParticipants + 1 } : c
-      )
-    );
-    
     const joinedClass = classes.find(c => c.id === id);
     
     toast({
@@ -187,45 +237,46 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Apply filters to get filtered classes
-  const filteredClasses = classes.filter((yogaClass) => {
-    // Filter by tags
-    if (filters.tags.length > 0 && !filters.tags.some(tag => yogaClass.tags.includes(tag))) {
-      return false;
-    }
-
-    // Filter by teacher
-    if (filters.teacher && yogaClass.teacher !== filters.teacher) {
-      return false;
-    }
-
-    // Filter by time slot
-    if (filters.timeSlot) {
-      const hour = yogaClass.date.getHours();
-      
-      if (
-        (filters.timeSlot === 'morning' && (hour < 5 || hour >= 12)) ||
-        (filters.timeSlot === 'afternoon' && (hour < 12 || hour >= 17)) ||
-        (filters.timeSlot === 'evening' && (hour < 17 || hour >= 21))
-      ) {
+  const filteredClasses = classes
+    .filter((yogaClass) => {
+      // Filter by tags
+      if (filters.tags.length > 0 && !filters.tags.some(tag => yogaClass.tags.includes(tag))) {
         return false;
       }
-    }
 
-    // Filter by search term
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      const nameMatch = yogaClass.name.toLowerCase().includes(searchLower);
-      const teacherMatch = yogaClass.teacher.toLowerCase().includes(searchLower);
-      const descriptionMatch = yogaClass.description.toLowerCase().includes(searchLower);
-      const tagsMatch = yogaClass.tags.some(tag => tag.toLowerCase().includes(searchLower));
-      
-      if (!(nameMatch || teacherMatch || descriptionMatch || tagsMatch)) {
+      // Filter by teacher
+      if (filters.teacher && yogaClass.teacher !== filters.teacher) {
         return false;
       }
-    }
 
-    return true;
-  });
+      // Filter by time slot
+      if (filters.timeSlot) {
+        const hour = yogaClass.date.getHours();
+        
+        if (
+          (filters.timeSlot === 'morning' && (hour < 5 || hour >= 12)) ||
+          (filters.timeSlot === 'afternoon' && (hour < 12 || hour >= 17)) ||
+          (filters.timeSlot === 'evening' && (hour < 17 || hour >= 21))
+        ) {
+          return false;
+        }
+      }
+
+      // Filter by search term
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const nameMatch = yogaClass.name.toLowerCase().includes(searchLower);
+        const teacherMatch = yogaClass.teacher.toLowerCase().includes(searchLower);
+        const descriptionMatch = yogaClass.description.toLowerCase().includes(searchLower);
+        const tagsMatch = yogaClass.tags.some(tag => tag.toLowerCase().includes(searchLower));
+        
+        if (!(nameMatch || teacherMatch || descriptionMatch || tagsMatch)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
   return (
     <YogaClassContext.Provider
@@ -240,6 +291,10 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         setFilters,
         viewMode,
         setViewMode,
+        userMembership,
+        setUserMembership,
+        formatClassDateTime,
+        formatRecurringPattern
       }}
     >
       {children}
