@@ -2,94 +2,142 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
-// Define user type
-export type User = {
+// Define user type with extended profile information
+export type Profile = {
   id: string;
-  name: string;
-  email: string;
-  phone?: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+};
+
+export type UserWithProfile = User & {
+  profile?: Profile;
   role: 'user' | 'admin';
 };
 
-// Mock users for demo
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@strongbyyoga.com',
-    phone: '1234567890',
-    role: 'admin',
-  },
-  {
-    id: '2',
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '9876543210',
-    role: 'user',
-  },
-];
-
 // Create the context
 type AuthContextType = {
-  user: User | null;
+  user: UserWithProfile | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, phone: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
   resetPassword: (email: string) => Promise<void>;
+  updateProfile: (profile: Partial<Profile>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserWithProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check for existing session on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('yogaUser');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  // Fetch user profile
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+      
+      return data as Profile;
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      return null;
     }
-    setIsLoading(false);
+  };
+
+  // Update user state with profile data
+  const updateUserState = async (session: Session | null) => {
+    if (session?.user) {
+      const profile = await fetchUserProfile(session.user.id);
+      
+      // Check if user is admin (for demo purposes)
+      const isAdmin = session.user.email === 'admin@strongbyyoga.com';
+      
+      setUser({
+        ...session.user,
+        profile,
+        role: isAdmin ? 'admin' : 'user',
+      });
+    } else {
+      setUser(null);
+    }
+  };
+
+  // Initialize auth state
+  useEffect(() => {
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        console.log('Auth state changed:', event);
+        setSession(currentSession);
+        
+        // Use setTimeout to prevent potential deadlocks
+        if (currentSession?.user) {
+          setTimeout(() => {
+            updateUserState(currentSession);
+          }, 0);
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      
+      if (currentSession?.user) {
+        updateUserState(currentSession);
+      }
+      
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      // Find user by email (in a real app, this would be a server call)
-      const foundUser = MOCK_USERS.find(u => u.email === email);
-      
-      if (!foundUser) {
-        throw new Error('Invalid email or password');
+      if (error) {
+        throw error;
       }
-      
-      // In a real app, you would validate the password here
-      // For this demo, we'll just accept any password
-      
-      // Set the logged-in user
-      setUser(foundUser);
-      localStorage.setItem('yogaUser', JSON.stringify(foundUser));
       
       toast({
         title: 'Login successful',
-        description: `Welcome back, ${foundUser.name}!`,
+        description: `Welcome back!`,
       });
       
       navigate('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: error instanceof Error ? error.message : 'Something went wrong',
+        description: error.message || 'Something went wrong',
       });
     } finally {
       setIsLoading(false);
@@ -99,71 +147,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (name: string, email: string, phone: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Split name into first and last name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
       
-      // Check if user already exists
-      if (MOCK_USERS.some(u => u.email === email)) {
-        throw new Error('User with this email already exists');
-      }
-      
-      // Create new user
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9), // Generate random ID
-        name,
+      const { data, error } = await supabase.auth.signUp({
         email,
-        phone,
-        role: 'user',
-      };
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone,
+          },
+        },
+      });
       
-      // In a real app, you would save this to a database
-      MOCK_USERS.push(newUser);
-      
-      // Set the logged-in user
-      setUser(newUser);
-      localStorage.setItem('yogaUser', JSON.stringify(newUser));
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: 'Registration successful',
-        description: `Welcome to Strong By Yoga, ${name}!`,
+        description: `Welcome to Strong By Yoga!`,
       });
       
       navigate('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Registration failed',
-        description: error instanceof Error ? error.message : 'Something went wrong',
+        description: error.message || 'Something went wrong',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('yogaUser');
-    toast({
-      title: 'Logged out',
-      description: 'You have been logged out successfully.',
-    });
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      
+      toast({
+        title: 'Logged out',
+        description: 'You have been logged out successfully.',
+      });
+      
+      navigate('/login');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Logout failed',
+        description: error.message || 'Something went wrong',
+      });
+    }
   };
 
   const resetPassword = async (email: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/login',
+      });
       
-      // Check if user exists
-      const foundUser = MOCK_USERS.find(u => u.email === email);
-      
-      if (!foundUser) {
-        throw new Error('No account found with this email');
+      if (error) {
+        throw error;
       }
-      
-      // In a real app, you would send a password reset email
       
       toast({
         title: 'Password reset email sent',
@@ -171,26 +221,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Password reset failed',
-        description: error instanceof Error ? error.message : 'Something went wrong',
+        description: error.message || 'Something went wrong',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const updateProfile = async (profileData: Partial<Profile>) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update local user state with new profile data
+      if (user.profile) {
+        setUser({
+          ...user,
+          profile: {
+            ...user.profile,
+            ...profileData,
+          },
+        });
+      }
+      
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been updated successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Profile update failed',
+        description: error.message || 'Something went wrong',
+      });
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
+      session,
       login, 
       signup, 
       logout, 
-      isAuthenticated: !!user,
+      isAuthenticated: !!session,
       isLoading,
-      resetPassword
+      resetPassword,
+      updateProfile
     }}>
       {children}
     </AuthContext.Provider>

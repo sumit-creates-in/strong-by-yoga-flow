@@ -7,21 +7,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import MembershipManager from '@/components/MembershipManager';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const { toast } = useToast();
   
   const [editMode, setEditMode] = useState(false);
-  const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [firstName, setFirstName] = useState(user?.profile?.first_name || '');
+  const [lastName, setLastName] = useState(user?.profile?.last_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   
-  const handleSaveProfile = () => {
-    // In a real app, this would update the user profile on the server
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile information has been updated successfully.',
+  const handleSaveProfile = async () => {
+    // Update profile in Supabase
+    await updateProfile({
+      first_name: firstName,
+      last_name: lastName,
     });
     
     setEditMode(false);
@@ -51,8 +53,14 @@ const Profile = () => {
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Your Profile</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <Tabs defaultValue="personal" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="personal">Personal Information</TabsTrigger>
+            <TabsTrigger value="membership">Membership</TabsTrigger>
+            <TabsTrigger value="settings">Account Settings</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="personal" className="space-y-6">
             <Card className="yoga-card">
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center mb-6">
@@ -70,19 +78,36 @@ const Profile = () => {
                 
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label htmlFor="name" className="flex items-center text-gray-700">
+                    <label htmlFor="firstName" className="flex items-center text-gray-700">
                       <User size={18} className="mr-2" />
-                      Full Name
+                      First Name
                     </label>
                     {editMode ? (
                       <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
                         className="yoga-input"
                       />
                     ) : (
-                      <p className="text-lg">{user?.name}</p>
+                      <p className="text-lg">{user?.profile?.first_name || 'Not provided'}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="lastName" className="flex items-center text-gray-700">
+                      <User size={18} className="mr-2" />
+                      Last Name
+                    </label>
+                    {editMode ? (
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="yoga-input"
+                      />
+                    ) : (
+                      <p className="text-lg">{user?.profile?.last_name || 'Not provided'}</p>
                     )}
                   </div>
                   
@@ -91,17 +116,7 @@ const Profile = () => {
                       <Mail size={18} className="mr-2" />
                       Email
                     </label>
-                    {editMode ? (
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="yoga-input"
-                      />
-                    ) : (
-                      <p className="text-lg">{user?.email}</p>
-                    )}
+                    <p className="text-lg">{user?.email}</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -134,8 +149,8 @@ const Profile = () => {
                       <Button 
                         onClick={() => {
                           setEditMode(false);
-                          setName(user?.name || '');
-                          setEmail(user?.email || '');
+                          setFirstName(user?.profile?.first_name || '');
+                          setLastName(user?.profile?.last_name || '');
                           setPhone(user?.phone || '');
                         }} 
                         variant="outline"
@@ -147,8 +162,18 @@ const Profile = () => {
                 </div>
               </CardContent>
             </Card>
-            
-            <Card className="yoga-card mt-6">
+          </TabsContent>
+          
+          <TabsContent value="membership">
+            <Card className="yoga-card">
+              <CardContent className="pt-6">
+                <MembershipManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="settings" className="space-y-6">
+            <Card className="yoga-card">
               <CardContent className="pt-6">
                 <h2 className="text-2xl font-semibold mb-6">Account Settings</h2>
                 
@@ -185,7 +210,7 @@ const Profile = () => {
                   </div>
                   
                   <div className="pt-4 border-t border-yoga-light-blue">
-                    <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
+                    <h3 className="text-lg font-medium text-destructive mb-2">Danger Zone</h3>
                     <p className="text-gray-600 text-sm mb-4">
                       Once you delete your account, there is no going back. Please be certain.
                     </p>
@@ -199,50 +224,27 @@ const Profile = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
-          
-          <div>
-            <Card className="yoga-card sticky top-6">
-              <CardContent className="pt-6">
-                <div className="text-center mb-6">
-                  <div className="w-24 h-24 rounded-full bg-yoga-light-blue mx-auto flex items-center justify-center">
-                    <span className="text-4xl text-yoga-blue font-bold">
-                      {user?.name.charAt(0)}
-                    </span>
-                  </div>
-                  <h2 className="text-xl font-medium mt-4">{user?.name}</h2>
-                  <p className="text-gray-600">{user?.role === 'admin' ? 'Administrator' : 'Member'}</p>
+            
+            <Card className="yoga-card">
+              <CardContent className="pt-6 flex flex-col items-center text-center">
+                <div className="w-24 h-24 rounded-full bg-yoga-light-blue flex items-center justify-center">
+                  <span className="text-4xl text-yoga-blue font-bold">
+                    {user?.profile?.first_name?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
+                  </span>
                 </div>
+                <h2 className="text-xl font-medium mt-4">{user?.profile?.first_name} {user?.profile?.last_name}</h2>
+                <p className="text-gray-600 mb-6">{user?.role === 'admin' ? 'Administrator' : 'Member'}</p>
                 
-                <div className="space-y-3">
-                  <div className="bg-yoga-yellow/30 p-4 rounded-lg">
-                    <h3 className="font-medium mb-1">Membership Status</h3>
-                    <p className="text-gray-700">Active</p>
-                  </div>
-                  
-                  <div className="bg-yoga-light-blue/30 p-4 rounded-lg">
-                    <h3 className="font-medium mb-1">Classes Attended</h3>
-                    <p className="text-gray-700">12 classes</p>
-                  </div>
-                  
-                  <div className="p-4 border border-yoga-light-blue rounded-lg">
-                    <h3 className="font-medium mb-1">Member Since</h3>
-                    <p className="text-gray-700">January 2025</p>
-                  </div>
-                </div>
-                
-                <div className="mt-6">
-                  <Button
-                    onClick={logout}
-                    className="w-full bg-yoga-yellow text-gray-800 hover:bg-yoga-yellow/90"
-                  >
-                    Log Out
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => logout()}
+                  className="w-full bg-yoga-yellow text-gray-800 hover:bg-yoga-yellow/90"
+                >
+                  Log Out
+                </Button>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

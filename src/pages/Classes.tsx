@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Users, Clock, Search, LayoutGrid, CalendarDays, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, Users, Clock, Search, LayoutGrid, CalendarDays, Check, Zap } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useYogaClasses } from '@/contexts/YogaClassContext';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,9 @@ const Classes = () => {
     setFilters, 
     joinClass, 
     viewMode, 
-    setViewMode 
+    setViewMode,
+    isClassLive,
+    isClassVisible
   } = useYogaClasses();
   const navigate = useNavigate();
   
@@ -253,7 +255,15 @@ const Classes = () => {
               <Card key={yogaClass.id} className="yoga-card h-full flex flex-col">
                 <CardContent className="pt-6 flex flex-col h-full">
                   <div className="flex flex-col flex-grow">
-                    <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
+                    <div className="flex justify-between">
+                      <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
+                      {isClassLive(yogaClass) && (
+                        <span className="bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-md animate-pulse">
+                          <Zap size={14} className="mr-1.5" />
+                          <span className="font-medium">LIVE</span>
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="flex items-center text-gray-600 mb-2">
                       <CalendarIcon size={16} className="mr-2" />
@@ -279,15 +289,6 @@ const Classes = () => {
                       ))}
                     </div>
                     
-                    {yogaClass.maxParticipants && (
-                      <div className="flex items-center text-gray-600 mb-3">
-                        <Users size={16} className="mr-2" />
-                        <span>
-                          {yogaClass.currentParticipants} / {yogaClass.maxParticipants} participants
-                        </span>
-                      </div>
-                    )}
-                    
                     <p className="text-gray-700 mb-4 line-clamp-2">
                       {yogaClass.description}
                     </p>
@@ -306,7 +307,7 @@ const Classes = () => {
                           className="flex-grow bg-yoga-blue text-white hover:bg-yoga-blue/90"
                           onClick={() => joinClass(yogaClass.id)}
                         >
-                          Join Class
+                          {isClassLive(yogaClass) ? 'Join Live Now' : 'Join Class'}
                         </Button>
                       )}
                     </div>
@@ -334,7 +335,15 @@ const Classes = () => {
                         className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 hover:bg-yoga-light-yellow/20 rounded-lg"
                       >
                         <div className="mb-4 md:mb-0">
-                          <h3 className="text-lg font-medium">{yogaClass.name}</h3>
+                          <div className="flex items-center">
+                            <h3 className="text-lg font-medium">{yogaClass.name}</h3>
+                            {isClassLive(yogaClass) && (
+                              <span className="ml-2 bg-red-500 text-white py-0.5 px-2 rounded-md flex items-center text-xs shadow-md animate-pulse">
+                                <Zap size={12} className="mr-1" />
+                                <span className="font-medium">LIVE</span>
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center text-gray-600 text-sm">
                             <Clock size={14} className="mr-1" />
                             <span>
@@ -369,7 +378,7 @@ const Classes = () => {
                               size="sm"
                               onClick={() => joinClass(yogaClass.id)}
                             >
-                              Join Class
+                              {isClassLive(yogaClass) ? 'Join Live Now' : 'Join Class'}
                             </Button>
                           )}
                         </div>

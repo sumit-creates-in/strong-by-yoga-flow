@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Repeat, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Repeat, ChevronRight, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +32,9 @@ const Dashboard = () => {
     userMembership, 
     formatClassDateTime,
     formatClassDate, 
-    formatRecurringPattern 
+    formatRecurringPattern,
+    isClassLive,
+    isClassVisible
   } = useYogaClasses();
   const navigate = useNavigate();
   const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
@@ -42,7 +44,7 @@ const Dashboard = () => {
     .filter((yogaClass) => {
       const classDate = new Date(yogaClass.date);
       const now = new Date();
-      return classDate >= now;
+      return classDate >= now && isClassVisible(yogaClass);
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 6); // Limit to 6 classes
@@ -56,7 +58,7 @@ const Dashboard = () => {
   };
 
   const ClassCard = ({ yogaClass }: { yogaClass: YogaClass }) => {
-    const isClassToday = new Date(yogaClass.date).toDateString() === new Date().toDateString();
+    const isLive = isClassLive(yogaClass);
     const canJoin = new Date() <= new Date(yogaClass.date);
     const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
     const formattedDate = formatClassDate(yogaClass.date);
@@ -71,27 +73,35 @@ const Dashboard = () => {
               alt={yogaClass.name} 
               className="w-full h-full object-cover"
             />
+            {isLive && (
+              <div className="absolute top-2 left-2 bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-lg animate-pulse">
+                <Zap size={14} className="mr-1.5" />
+                <span className="font-medium">LIVE</span>
+              </div>
+            )}
           </div>
         )}
         <CardContent className="pt-6 flex flex-col h-full">
           <div className="flex flex-col flex-grow">
             <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
             
-            {recurringText && (
-              <div className="bg-yoga-light-blue/40 text-yoga-blue text-sm font-medium py-1 px-2 rounded mb-2 inline-flex items-center">
-                <Repeat size={14} className="mr-1.5" />
-                <span>{recurringText}</span>
+            <div className="space-y-2 mb-3">
+              <div className="flex items-center text-gray-600">
+                <Calendar size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
+                <span>{formattedDate}</span>
               </div>
-            )}
-            
-            <div className="flex items-center text-gray-600 mb-1.5">
-              <Calendar size={16} className="mr-2 text-yoga-blue" />
-              <span>{formattedDate}</span>
-            </div>
-            
-            <div className="flex items-center text-gray-600 mb-2">
-              <Clock size={16} className="mr-2 text-yoga-blue" />
-              <span>{formattedTime} ({yogaClass.duration} mins)</span>
+              
+              <div className="flex items-center text-gray-600">
+                <Clock size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
+                <span>{formattedTime} ({yogaClass.duration} mins)</span>
+              </div>
+              
+              {recurringText && (
+                <div className="flex items-center text-gray-600">
+                  <Repeat size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
+                  <span>{recurringText}</span>
+                </div>
+              )}
             </div>
             
             <div className="mb-3">
@@ -112,7 +122,7 @@ const Dashboard = () => {
                   className="w-full bg-yoga-blue text-white hover:bg-yoga-blue/90 flex items-center justify-center"
                   onClick={() => handleJoinClass(yogaClass)}
                 >
-                  Join Now
+                  {isLive ? 'Join Live Now' : 'Join Class'}
                   <ChevronRight size={16} className="ml-1" />
                 </Button>
               )}
@@ -129,7 +139,7 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-1">
-              Welcome back, {user?.name}!
+              Welcome back, {user?.profile?.first_name || user?.email || "Yogi"}!
             </h1>
             <p className="text-gray-600">
               Here's your upcoming yoga sessions
