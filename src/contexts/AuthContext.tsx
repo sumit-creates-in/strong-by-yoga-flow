@@ -11,6 +11,7 @@ export type Profile = {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
+  phone?: string | null;
 };
 
 export type UserWithProfile = User & {
@@ -23,6 +24,7 @@ type AuthContextType = {
   user: UserWithProfile | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithPhone: (phone: string) => Promise<void>;
   signup: (name: string, email: string, phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
@@ -67,8 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (session?.user) {
       const profile = await fetchUserProfile(session.user.id);
       
-      // Check if user is admin (for demo purposes)
-      const isAdmin = session.user.email === 'admin@strongbyyoga.com';
+      // Check if user is admin - either of these two email addresses are admin
+      const isAdmin = session.user.email === 'admin@strongbyyoga.com' || 
+                      session.user.email === 'sumit_204@yahoo.com';
       
       setUser({
         ...session.user,
@@ -125,6 +128,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         throw error;
+      }
+      
+      toast({
+        title: 'Login successful',
+        description: `Welcome back!`,
+      });
+      
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Login failed',
+        description: error.message || 'Something went wrong',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // New function to login with phone
+  const loginWithPhone = async (phone: string) => {
+    setIsLoading(true);
+    try {
+      // For demo purposes, we'll simulate success since we don't have a real OTP system
+      // In a real implementation, you would:
+      // 1. Create a custom auth flow with your backend to validate the OTP and phone
+      // 2. Get a session token from your backend
+      // 3. Use that to authenticate the user
+      
+      // Create a 'demo' user for the phone login
+      // In production, you'd have proper phone authentication
+      const phoneEmail = `${phone.replace(/[^\d]/g, '')}@phone.user`;
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: phoneEmail,
+        password: 'phone-user-password',
+      });
+      
+      if (error) {
+        // If login fails (user doesn't exist), try to create one
+        // This is just for demo purposes!
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: phoneEmail,
+          password: 'phone-user-password',
+          options: {
+            data: {
+              phone: phone,
+            }
+          }
+        });
+        
+        if (signUpError) throw signUpError;
       }
       
       toast({
@@ -274,6 +329,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, 
       session,
       login, 
+      loginWithPhone,
       signup, 
       logout, 
       isAuthenticated: !!session,

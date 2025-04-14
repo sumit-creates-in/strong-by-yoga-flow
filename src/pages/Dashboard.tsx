@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, Repeat, ChevronRight, Zap } from 'lucide-react';
@@ -22,6 +23,7 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 import { format } from 'date-fns';
+import ClassJoinPrompt from '@/components/ClassJoinPrompt';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -37,6 +39,8 @@ const Dashboard = () => {
   } = useYogaClasses();
   const navigate = useNavigate();
   const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<YogaClass | null>(null);
+  const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
 
   // Get upcoming classes (including today, next several days)
   const upcomingClasses = filteredClasses
@@ -50,7 +54,21 @@ const Dashboard = () => {
 
   const handleJoinClass = (yogaClass: YogaClass) => {
     if (userMembership.active) {
-      joinClass(yogaClass.id);
+      // Check if class is live or within 3 minutes of starting
+      const classDate = new Date(yogaClass.date);
+      const now = new Date();
+      const threeMinutesBefore = new Date(classDate);
+      threeMinutesBefore.setMinutes(classDate.getMinutes() - 3);
+      
+      if (now >= threeMinutesBefore) {
+        // Class is live or within 3 minutes of starting - join directly
+        joinClass(yogaClass.id);
+        window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
+      } else {
+        // Show countdown dialog
+        setSelectedClass(yogaClass);
+        setIsJoinPromptOpen(true);
+      }
     } else {
       setIsMembershipDialogOpen(true);
     }
@@ -78,6 +96,18 @@ const Dashboard = () => {
                 <span className="font-medium">LIVE</span>
               </div>
             )}
+            
+            {/* Tags overlay on image */}
+            <div className="absolute bottom-0 left-0 right-0 p-1 flex flex-wrap gap-1 bg-gradient-to-t from-black/70 to-transparent">
+              {yogaClass.tags.map((tag, idx) => (
+                <span 
+                  key={idx} 
+                  className="text-xs font-medium bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
         )}
         <CardContent className="pt-6 flex flex-col h-full">
@@ -105,14 +135,6 @@ const Dashboard = () => {
             
             <div className="mb-3">
               <span className="font-medium">Teacher:</span> {yogaClass.teacher}
-            </div>
-            
-            <div className="mb-3 flex flex-wrap">
-              {yogaClass.tags.map((tag) => (
-                <span key={tag} className="yoga-tag">
-                  {tag}
-                </span>
-              ))}
             </div>
             
             <div className="mt-auto">
@@ -236,6 +258,17 @@ const Dashboard = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        
+        {/* Class Join Prompt */}
+        {selectedClass && (
+          <ClassJoinPrompt
+            isOpen={isJoinPromptOpen}
+            onClose={() => setIsJoinPromptOpen(false)}
+            classDate={selectedClass.date}
+            className={selectedClass.name}
+            joinLink={selectedClass.joinLink}
+          />
+        )}
       </div>
     </Layout>
   );

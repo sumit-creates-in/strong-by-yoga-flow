@@ -1,408 +1,330 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Users, Clock, Search, LayoutGrid, CalendarDays, Check, Zap } from 'lucide-react';
-import Layout from '@/components/Layout';
-import { useYogaClasses } from '@/contexts/YogaClassContext';
+
+import React, { useState, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Calendar, Clock, Repeat, ChevronRight, Zap, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import Layout from '@/components/Layout';
+import { useYogaClasses, YogaClass } from '@/contexts/YogaClassContext';
+import { format } from 'date-fns';
+import ClassJoinPrompt from '@/components/ClassJoinPrompt';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const Classes = () => {
   const { 
     filteredClasses, 
     setFilters, 
-    joinClass, 
-    viewMode, 
-    setViewMode,
-    isClassLive,
-    isClassVisible
+    formatClassDateTime,
+    formatClassDate,
+    formatRecurringPattern,
+    joinClass,
+    userMembership,
+    isClassLive
   } = useYogaClasses();
-  const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClass, setSelectedClass] = useState<YogaClass | null>(null);
+  const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
+  const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<'' | 'morning' | 'afternoon' | 'evening'>('');
-  
-  const allTags = Array.from(
-    new Set(filteredClasses.flatMap((yogaClass) => yogaClass.tags))
-  ).sort();
-  
-  const allTeachers = Array.from(
-    new Set(filteredClasses.map((yogaClass) => yogaClass.teacher))
-  ).sort();
-  
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    setFilters((prev) => ({ ...prev, search: value }));
-  };
-  
-  const toggleTag = (tag: string) => {
-    const newTags = selectedTags.includes(tag)
-      ? selectedTags.filter((t) => t !== tag)
-      : [...selectedTags, tag];
-    
-    setSelectedTags(newTags);
-    setFilters((prev) => ({ ...prev, tags: newTags }));
-  };
-  
-  const selectTeacher = (teacher: string) => {
-    const newTeacher = selectedTeacher === teacher ? '' : teacher;
-    setSelectedTeacher(newTeacher);
-    setFilters((prev) => ({ ...prev, teacher: newTeacher }));
-  };
-  
-  const selectTimeSlot = (timeSlot: '' | 'morning' | 'afternoon' | 'evening') => {
-    setSelectedTimeSlot(timeSlot);
-    setFilters((prev) => ({ ...prev, timeSlot }));
-  };
-  
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedTags([]);
-    setSelectedTeacher('');
-    setSelectedTimeSlot('');
-    setFilters({
-      tags: [],
-      teacher: '',
-      timeSlot: '',
-      search: '',
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Extract unique tags from all classes
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    filteredClasses.forEach(yogaClass => {
+      yogaClass.tags.forEach(tag => tagSet.add(tag));
     });
+    return Array.from(tagSet).sort();
+  }, [filteredClasses]);
+  
+  // Sort classes by date and time
+  const sortedClasses = useMemo(() => {
+    return [...filteredClasses].sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+  }, [filteredClasses]);
+
+  // Filter classes based on search and tags
+  const displayedClasses = useMemo(() => {
+    return sortedClasses.filter((yogaClass) => {
+      // Search term filter
+      const searchLower = searchTerm.toLowerCase();
+      const nameMatch = yogaClass.name.toLowerCase().includes(searchLower);
+      const teacherMatch = yogaClass.teacher.toLowerCase().includes(searchLower);
+      const descMatch = yogaClass.description.toLowerCase().includes(searchLower);
+      const searchMatch = !searchTerm || nameMatch || teacherMatch || descMatch;
+      
+      // Tags filter
+      const tagsMatch = selectedTags.length === 0 || 
+                        selectedTags.some(tag => yogaClass.tags.includes(tag));
+      
+      return searchMatch && tagsMatch;
+    });
+  }, [sortedClasses, searchTerm, selectedTags]);
+
+  // Handle tag selection
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
   };
   
-  const classesByDate = filteredClasses.reduce((acc, yogaClass) => {
-    const dateKey = format(new Date(yogaClass.date), 'yyyy-MM-dd');
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
+  const handleJoinClass = (yogaClass: YogaClass) => {
+    if (userMembership.active) {
+      // Check if class is live or within 3 minutes of starting
+      const classDate = new Date(yogaClass.date);
+      const now = new Date();
+      const threeMinutesBefore = new Date(classDate);
+      threeMinutesBefore.setMinutes(classDate.getMinutes() - 3);
+      
+      if (now >= threeMinutesBefore) {
+        // Class is live or within 3 minutes of starting - join directly
+        joinClass(yogaClass.id);
+        window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
+      } else {
+        // Show countdown dialog
+        setSelectedClass(yogaClass);
+        setIsJoinPromptOpen(true);
+      }
+    } else {
+      setIsMembershipDialogOpen(true);
     }
-    acc[dateKey].push(yogaClass);
-    return acc;
-  }, {} as Record<string, typeof filteredClasses>);
-  
-  const sortedDates = Object.keys(classesByDate).sort();
-  
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <h1 className="text-3xl font-bold">Yoga Classes</h1>
-          
-          <div className="flex mt-4 md:mt-0">
-            <Button
-              variant={viewMode === 'card' ? 'secondary' : 'outline'}
-              className="rounded-r-none"
-              onClick={() => setViewMode('card')}
-            >
-              <LayoutGrid size={20} className="mr-2" />
-              Card View
-            </Button>
-            <Button
-              variant={viewMode === 'calendar' ? 'secondary' : 'outline'}
-              className="rounded-l-none"
-              onClick={() => setViewMode('calendar')}
-            >
-              <CalendarDays size={20} className="mr-2" />
-              Calendar View
-            </Button>
-          </div>
         </div>
         
-        <div className="yoga-card">
-          <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-grow">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                  <Input
-                    placeholder="Search by class name, teacher, or tag..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="yoga-input pl-10 w-full"
-                  />
-                </div>
-              </div>
+        {/* Search and Filter */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <Input
+              placeholder="Search classes, teachers, or styles..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            className="flex gap-2"
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+          >
+            <Filter size={18} />
+            Filter {selectedTags.length > 0 && `(${selectedTags.length})`}
+          </Button>
+        </div>
+        
+        {/* Filter tags */}
+        {isFilterOpen && (
+          <div className="flex flex-wrap gap-2 pb-2">
+            {allTags.map(tag => (
+              <Badge 
+                key={tag}
+                variant={selectedTags.includes(tag) ? "default" : "outline"}
+                className={`cursor-pointer ${
+                  selectedTags.includes(tag) 
+                    ? "bg-yoga-blue text-white" 
+                    : "hover:bg-yoga-blue/10"
+                }`}
+                onClick={() => toggleTag(tag)}
+              >
+                {tag}
+              </Badge>
+            ))}
+            {selectedTags.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedTags([])}
+                className="text-gray-500 hover:text-red-500"
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+        
+        {/* Class Cards */}
+        {displayedClasses.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {displayedClasses.map((yogaClass) => {
+              const isLive = isClassLive(yogaClass);
+              const canJoin = new Date() <= new Date(yogaClass.date);
+              const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
+              const formattedDate = formatClassDate(yogaClass.date);
+              const formattedTime = format(new Date(yogaClass.date), 'h:mm a');
               
-              <div className="flex flex-wrap gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="border-yoga-light-blue">
-                      Tags {selectedTags.length > 0 && `(${selectedTags.length})`}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56">
-                    <div className="space-y-2">
-                      {allTags.map((tag) => (
-                        <div
-                          key={tag}
-                          onClick={() => toggleTag(tag)}
-                          className={`flex items-center p-2 rounded-md cursor-pointer ${
-                            selectedTags.includes(tag)
-                              ? 'bg-yoga-light-blue text-yoga-blue'
-                              : 'hover:bg-gray-100'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 border rounded-sm mr-2 flex items-center justify-center ${
-                            selectedTags.includes(tag) ? 'bg-yoga-blue border-yoga-blue' : 'border-gray-300'
-                          }`}>
-                            {selectedTags.includes(tag) && <Check size={14} className="text-white" />}
-                          </div>
-                          {tag}
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="border-yoga-light-blue">
-                      Teacher {selectedTeacher && `(${selectedTeacher})`}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56">
-                    <div className="space-y-2">
-                      {allTeachers.map((teacher) => (
-                        <div
-                          key={teacher}
-                          onClick={() => selectTeacher(teacher)}
-                          className={`flex items-center p-2 rounded-md cursor-pointer ${
-                            selectedTeacher === teacher
-                              ? 'bg-yoga-light-blue text-yoga-blue'
-                              : 'hover:bg-gray-100'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 border rounded-full mr-2 flex items-center justify-center ${
-                            selectedTeacher === teacher ? 'bg-yoga-blue border-yoga-blue' : 'border-gray-300'
-                          }`}>
-                            {selectedTeacher === teacher && <Check size={14} className="text-white" />}
-                          </div>
-                          {teacher}
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="border-yoga-light-blue">
-                      Time {selectedTimeSlot && `(${selectedTimeSlot})`}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56">
-                    <div className="space-y-2">
-                      {[
-                        { value: 'morning', label: 'Morning (5am - 12pm)' },
-                        { value: 'afternoon', label: 'Afternoon (12pm - 5pm)' },
-                        { value: 'evening', label: 'Evening (5pm - 9pm)' },
-                      ].map((option) => (
-                        <div
-                          key={option.value}
-                          onClick={() => selectTimeSlot(option.value as any)}
-                          className={`flex items-center p-2 rounded-md cursor-pointer ${
-                            selectedTimeSlot === option.value
-                              ? 'bg-yoga-light-blue text-yoga-blue'
-                              : 'hover:bg-gray-100'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 border rounded-full mr-2 flex items-center justify-center ${
-                            selectedTimeSlot === option.value ? 'bg-yoga-blue border-yoga-blue' : 'border-gray-300'
-                          }`}>
-                            {selectedTimeSlot === option.value && <Check size={14} className="text-white" />}
-                          </div>
-                          {option.label}
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                
-                {(selectedTags.length > 0 || selectedTeacher || selectedTimeSlot || searchTerm) && (
-                  <Button variant="ghost" onClick={clearFilters} className="text-yoga-blue">
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {filteredClasses.length === 0 ? (
-          <div className="yoga-card bg-yoga-light-blue/30 text-center py-12">
-            <p className="text-xl">No classes match your search</p>
-            <p className="text-gray-600 mt-2">
-              Try adjusting your filters or search term
-            </p>
-            <Button onClick={clearFilters} className="yoga-button mt-4">
-              Clear All Filters
-            </Button>
-          </div>
-        ) : viewMode === 'card' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredClasses.map((yogaClass) => (
-              <Card key={yogaClass.id} className="yoga-card h-full flex flex-col relative">
-                {yogaClass.imageUrl && (
-                  <div className="w-full h-48 relative overflow-hidden">
+              return (
+                <Card key={yogaClass.id} className="yoga-card h-full flex flex-col shadow-md overflow-hidden">
+                  <div className="w-full h-40 relative overflow-hidden">
                     <img 
-                      src={yogaClass.imageUrl} 
+                      src={yogaClass.imageUrl || "/placeholder.svg"} 
                       alt={yogaClass.name} 
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-                      {yogaClass.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="bg-white/80 text-xs">
+                    {isLive && (
+                      <div className="absolute top-2 left-2 bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-lg animate-pulse">
+                        <Zap size={14} className="mr-1.5" />
+                        <span className="font-medium">LIVE</span>
+                      </div>
+                    )}
+                    
+                    {/* Tags overlay on image */}
+                    <div className="absolute bottom-0 left-0 right-0 p-1 flex flex-wrap gap-1 bg-gradient-to-t from-black/70 to-transparent">
+                      {yogaClass.tags.map((tag, idx) => (
+                        <span 
+                          key={idx} 
+                          className="text-xs font-medium bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full"
+                        >
                           {tag}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
-                    {isClassLive(yogaClass) && (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-md animate-pulse">
-                        <Zap size={14} className="mr-1.5" />
-                        <span className="font-medium text-xs">LIVE</span>
-                      </span>
-                    )}
                   </div>
-                )}
-                <CardContent className="pt-6 flex flex-col h-full">
-                  <div className="flex flex-col flex-grow">
-                    <div className="flex justify-between">
-                      <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
-                      {isClassLive(yogaClass) && (
-                        <span className="bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-md animate-pulse">
-                          <Zap size={14} className="mr-1.5" />
-                          <span className="font-medium">LIVE</span>
-                        </span>
+                  
+                  <CardContent className="pt-6 flex flex-col flex-grow">
+                    <Link to={`/classes/${yogaClass.id}`}>
+                      <h2 className="text-xl font-semibold mb-2 hover:text-yoga-blue transition-colors">
+                        {yogaClass.name}
+                      </h2>
+                    </Link>
+                    
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-gray-600">
+                        <Calendar size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
+                        <span>{formattedDate}</span>
+                      </div>
+                      
+                      <div className="flex items-center text-gray-600">
+                        <Clock size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
+                        <span>{formattedTime} ({yogaClass.duration} mins)</span>
+                      </div>
+                      
+                      {recurringText && (
+                        <div className="flex items-center text-gray-600">
+                          <Repeat size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
+                          <span>{recurringText}</span>
+                        </div>
                       )}
-                    </div>
-                    
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <CalendarIcon size={16} className="mr-2" />
-                      <span>{format(new Date(yogaClass.date), 'EEEE, MMMM d, yyyy')}</span>
-                    </div>
-                    
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <Clock size={16} className="mr-2" />
-                      <span>
-                        {format(new Date(yogaClass.date), 'h:mm a')} • {yogaClass.duration} mins
-                      </span>
                     </div>
                     
                     <div className="mb-3">
                       <span className="font-medium">Teacher:</span> {yogaClass.teacher}
                     </div>
                     
-                    <div className="mb-3 flex flex-wrap">
-                      {yogaClass.tags.map((tag) => (
-                        <span key={tag} className="yoga-tag">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="text-gray-700 mb-4 line-clamp-2">{yogaClass.description}</p>
                     
-                    <p className="text-gray-700 mb-4 line-clamp-2">
-                      {yogaClass.description}
-                    </p>
-                    
-                    <div className="mt-auto flex flex-wrap gap-2">
-                      <Button
-                        onClick={() => navigate(`/classes/${yogaClass.id}`)}
-                        variant="outline"
-                        className="flex-grow"
-                      >
-                        View Details
-                      </Button>
-                      
-                      {new Date() <= new Date(yogaClass.date) && (
+                    <div className="mt-auto flex flex-col md:flex-row gap-2">
+                      {canJoin && (
                         <Button 
-                          className="flex-grow bg-yoga-blue text-white hover:bg-yoga-blue/90"
-                          onClick={() => joinClass(yogaClass.id)}
+                          className="yoga-button flex-1 flex items-center justify-center"
+                          onClick={() => handleJoinClass(yogaClass)}
                         >
-                          {isClassLive(yogaClass) ? 'Join Live Now' : 'Join Class'}
+                          {isLive ? 'Join Live Now' : 'Join Class'}
+                          <ChevronRight size={16} className="ml-1" />
                         </Button>
                       )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {sortedDates.map((dateKey) => {
-              const date = new Date(dateKey);
-              const classes = classesByDate[dateKey];
-              
-              return (
-                <div key={dateKey} className="yoga-card">
-                  <h2 className="text-xl font-semibold mb-4 pb-2 border-b border-yoga-light-blue">
-                    {format(date, 'EEEE, MMMM d, yyyy')}
-                  </h2>
-                  
-                  <div className="space-y-4">
-                    {classes.map((yogaClass) => (
-                      <div 
-                        key={yogaClass.id} 
-                        className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 hover:bg-yoga-light-yellow/20 rounded-lg"
+                      
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => navigate(`/classes/${yogaClass.id}`)}
                       >
-                        <div className="mb-4 md:mb-0">
-                          <div className="flex items-center">
-                            <h3 className="text-lg font-medium">{yogaClass.name}</h3>
-                            {isClassLive(yogaClass) && (
-                              <span className="ml-2 bg-red-500 text-white py-0.5 px-2 rounded-md flex items-center text-xs shadow-md animate-pulse">
-                                <Zap size={12} className="mr-1" />
-                                <span className="font-medium text-xs">LIVE</span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <Clock size={14} className="mr-1" />
-                            <span>
-                              {format(new Date(yogaClass.date), 'h:mm a')} - {format(new Date(new Date(yogaClass.date).getTime() + yogaClass.duration * 60000), 'h:mm a')} ({yogaClass.duration} mins)
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Teacher:</span> {yogaClass.teacher}
-                          </div>
-                          <div className="mt-2 flex flex-wrap">
-                            {yogaClass.tags.map((tag) => (
-                              <span key={tag} className="yoga-tag">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                          <Button
-                            onClick={() => navigate(`/classes/${yogaClass.id}`)}
-                            variant="outline"
-                            size="sm"
-                            className="flex-grow md:flex-grow-0"
-                          >
-                            View Details
-                          </Button>
-                          
-                          {new Date() <= new Date(yogaClass.date) && (
-                            <Button 
-                              className="flex-grow md:flex-grow-0 bg-yoga-blue text-white hover:bg-yoga-blue/90"
-                              size="sm"
-                              onClick={() => joinClass(yogaClass.id)}
-                            >
-                              {isClassLive(yogaClass) ? 'Join Live Now' : 'Join Class'}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                        Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
+        ) : (
+          <div className="yoga-card bg-yoga-light-blue/30 text-center py-12">
+            <p className="text-xl">No classes match your search</p>
+            <p className="text-gray-600 mt-2">
+              Try adjusting your filters or search terms
+            </p>
+            
+            <Button 
+              className="mt-4"
+              variant="outline"
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedTags([]);
+              }}
+            >
+              Clear all filters
+            </Button>
+          </div>
+        )}
+        
+        {/* Membership Dialog */}
+        <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Membership Required</DialogTitle>
+              <DialogDescription>
+                You need an active membership to join yoga classes. Would you like to get a membership now?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm font-medium">
+                Benefits of membership:
+              </p>
+              <ul className="list-disc pl-5 text-sm pt-2">
+                <li>Access to all live yoga classes</li>
+                <li>Recordings of past sessions</li>
+                <li>Personal guidance from instructors</li>
+                <li>Monthly progress tracking</li>
+              </ul>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsMembershipDialogOpen(false)}
+              >
+                Later
+              </Button>
+              <Button
+                className="bg-yoga-blue hover:bg-yoga-blue/90"
+                onClick={() => {
+                  setIsMembershipDialogOpen(false);
+                  navigate('/pricing');
+                }}
+              >
+                View Plans
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Class Join Prompt */}
+        {selectedClass && (
+          <ClassJoinPrompt
+            isOpen={isJoinPromptOpen}
+            onClose={() => setIsJoinPromptOpen(false)}
+            classDate={selectedClass.date}
+            className={selectedClass.name}
+            joinLink={selectedClass.joinLink}
+          />
         )}
       </div>
     </Layout>
