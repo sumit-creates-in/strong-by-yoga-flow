@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Edit, Trash2, Plus, Calendar, Clock, Users, X, Repeat } from 'lucide-react';
@@ -42,7 +41,7 @@ const AdminClasses = () => {
     name: '',
     teacher: '',
     description: '',
-    date: new Date(),
+    date: new Date().toISOString(),
     duration: 60,
     tags: [],
     joinLink: '',
@@ -70,7 +69,7 @@ const AdminClasses = () => {
       name: '',
       teacher: '',
       description: '',
-      date: new Date(),
+      date: new Date().toISOString(),
       duration: 60,
       tags: [],
       joinLink: '',
@@ -132,28 +131,35 @@ const AdminClasses = () => {
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = e.target.value;
-    const timeValue = formData.date ? format(formData.date, 'HH:mm') : '00:00';
+    const currentDate = new Date(formData.date);
+    const timeValue = isNaN(currentDate.getTime()) 
+      ? '00:00' 
+      : format(currentDate, 'HH:mm');
     
-    // Combine date and time
     const [year, month, day] = dateValue.split('-').map(Number);
     const [hours, minutes] = timeValue.split(':').map(Number);
     
     const newDate = new Date(year, month - 1, day, hours, minutes);
-    setFormData({ ...formData, date: newDate });
+    setFormData({ ...formData, date: newDate.toISOString() });
   };
   
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const timeValue = e.target.value;
-    const dateValue = formData.date || new Date();
+    const currentDate = new Date(formData.date);
     
-    // Extract hours and minutes
-    const [hours, minutes] = timeValue.split(':').map(Number);
-    
-    // Create a new date with the same day but updated time
-    const newDate = new Date(dateValue);
-    newDate.setHours(hours, minutes);
-    
-    setFormData({ ...formData, date: newDate });
+    if (isNaN(currentDate.getTime())) {
+      const newDate = new Date();
+      const [hours, minutes] = timeValue.split(':').map(Number);
+      newDate.setHours(hours, minutes);
+      setFormData({ ...formData, date: newDate.toISOString() });
+    } else {
+      const [hours, minutes] = timeValue.split(':').map(Number);
+      
+      const newDate = new Date(currentDate);
+      newDate.setHours(hours, minutes);
+      
+      setFormData({ ...formData, date: newDate.toISOString() });
+    }
   };
   
   const handleRecurringToggle = (checked: boolean) => {
@@ -162,10 +168,9 @@ const AdminClasses = () => {
       isRecurring: checked,
     };
     
-    // If toggling on, initialize with some defaults
     if (checked && (!updatedPattern.daysOfWeek || updatedPattern.daysOfWeek.length === 0)) {
-      // Default to the day of the selected date
-      const dayOfWeek = formData.date.getDay();
+      const dateObj = new Date(formData.date);
+      const dayOfWeek = dateObj.getDay();
       updatedPattern.daysOfWeek = [dayOfWeek];
     }
     
@@ -214,7 +219,6 @@ const AdminClasses = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate the form
     if (!formData.name || !formData.teacher || !formData.description || !formData.joinLink || formData.tags.length === 0) {
       toast({
         variant: 'destructive',
@@ -224,7 +228,6 @@ const AdminClasses = () => {
       return;
     }
     
-    // Validate recurring pattern if enabled
     if (formData.recurringPattern?.isRecurring) {
       if (!formData.recurringPattern.daysOfWeek || formData.recurringPattern.daysOfWeek.length === 0) {
         toast({
@@ -352,7 +355,6 @@ const AdminClasses = () => {
             </div>
           )}
           
-          {/* Add Class Dialog */}
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -396,7 +398,7 @@ const AdminClasses = () => {
                       id="date"
                       name="date"
                       type="date"
-                      value={format(formData.date, 'yyyy-MM-dd')}
+                      value={format(new Date(formData.date), 'yyyy-MM-dd')}
                       onChange={handleDateChange}
                       className="yoga-input"
                       required
@@ -411,7 +413,7 @@ const AdminClasses = () => {
                       id="time"
                       name="time"
                       type="time"
-                      value={format(formData.date, 'HH:mm')}
+                      value={format(new Date(formData.date), 'HH:mm')}
                       onChange={handleTimeChange}
                       className="yoga-input"
                       required
@@ -620,7 +622,6 @@ const AdminClasses = () => {
             </DialogContent>
           </Dialog>
           
-          {/* Edit Class Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -664,7 +665,7 @@ const AdminClasses = () => {
                       id="date"
                       name="date"
                       type="date"
-                      value={format(formData.date, 'yyyy-MM-dd')}
+                      value={format(new Date(formData.date), 'yyyy-MM-dd')}
                       onChange={handleDateChange}
                       className="yoga-input"
                       required
@@ -679,7 +680,7 @@ const AdminClasses = () => {
                       id="time"
                       name="time"
                       type="time"
-                      value={format(formData.date, 'HH:mm')}
+                      value={format(new Date(formData.date), 'HH:mm')}
                       onChange={handleTimeChange}
                       className="yoga-input"
                       required
@@ -718,7 +719,7 @@ const AdminClasses = () => {
                       required
                     />
                   </div>
-
+                  
                   <div className="space-y-2">
                     <label htmlFor="imageUrl" className="block font-medium">
                       Class Image URL
@@ -888,7 +889,6 @@ const AdminClasses = () => {
             </DialogContent>
           </Dialog>
           
-          {/* Delete Confirmation Dialog */}
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
