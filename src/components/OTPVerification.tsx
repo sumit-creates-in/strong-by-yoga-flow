@@ -104,7 +104,6 @@ const OTPVerification: React.FC<OTPVerificationProps> = ({
         title: "Verification Failed",
         description: error.message || "Invalid verification code. Please try again.",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };

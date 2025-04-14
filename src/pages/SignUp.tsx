@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Phone, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Phone, Mail } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 import OTPVerification from '@/components/OTPVerification';
 import { supabase } from '@/integrations/supabase/client';
+import PhoneSignUpForm from '@/components/PhoneSignUpForm';
+import EmailSignUpForm from '@/components/EmailSignUpForm';
 
 const SignUp = () => {
   const [name, setName] = useState('');
@@ -52,23 +52,30 @@ const SignUp = () => {
     }
   };
   
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  const handleSendOtp = async (formattedPhone: string) => {
+    if (!name) {
+      toast({
+        variant: "destructive",
+        title: "Name required",
+        description: "Please enter your name."
+      });
+      return;
+    }
     
     try {
       // In a real implementation, you would call your backend to send the OTP
       const { error } = await supabase.functions.invoke('send-otp', {
-        body: { phoneNumber: phone, via: 'sms' }
+        body: { phoneNumber: formattedPhone, via: 'sms' }
       });
       
       if (error) throw new Error(error.message);
       
       toast({
         title: "Verification Code Sent",
-        description: `A verification code has been sent to ${phone}.`,
+        description: `A verification code has been sent to ${formattedPhone}.`,
       });
       
+      setPhone(formattedPhone);
       setStep('verify');
     } catch (error: any) {
       toast({
@@ -82,8 +89,6 @@ const SignUp = () => {
   const handleVerificationComplete = async () => {
     try {
       // Create the user after successful verification
-      // This is a simplified example. In a real app, you might want to
-      // create a custom function in your backend to handle this
       await signup(name, email || `${phone}@placeholder.com`, phone, password || 'temporary-pw');
       
       toast({
@@ -128,122 +133,27 @@ const SignUp = () => {
                 </TabsList>
                 
                 <TabsContent value="phone">
-                  <form onSubmit={handleSendOtp} className="space-y-6">
-                    <div className="space-y-2">
-                      <label htmlFor="name-phone" className="block text-gray-700 text-lg">
-                        Full Name
-                      </label>
-                      <Input
-                        id="name-phone"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="yoga-input w-full"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="phone" className="block text-gray-700 text-lg">
-                        Phone Number
-                      </label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="yoga-input w-full"
-                        required
-                      />
-                      <p className="text-xs text-gray-500">
-                        We'll send you a verification code via SMS
-                      </p>
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="yoga-button w-full"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <ArrowRight size={16} className="mr-2" />
-                      )}
-                      Continue with Phone
-                    </Button>
-                  </form>
+                  <PhoneSignUpForm 
+                    name={name}
+                    setName={setName}
+                    phone={phone}
+                    setPhone={setPhone}
+                    onSendOtp={handleSendOtp}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="email">
-                  <form onSubmit={handleSubmitEmail} className="space-y-6">
-                    <div className="space-y-2">
-                      <label htmlFor="name-email" className="block text-gray-700 text-lg">
-                        Full Name
-                      </label>
-                      <Input
-                        id="name-email"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="yoga-input w-full"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="email" className="block text-gray-700 text-lg">
-                        Email
-                      </label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="yoga-input w-full"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="phone-optional" className="block text-gray-700 text-lg">
-                        Phone Number (optional)
-                      </label>
-                      <Input
-                        id="phone-optional"
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="yoga-input w-full"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="password" className="block text-gray-700 text-lg">
-                        Password
-                      </label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="yoga-input w-full"
-                        required
-                      />
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="yoga-button w-full"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Signing up...' : 'Sign up'}
-                    </Button>
-                  </form>
+                  <EmailSignUpForm
+                    name={name}
+                    setName={setName}
+                    email={email}
+                    setEmail={setEmail}
+                    phone={phone}
+                    setPhone={setPhone}
+                    password={password}
+                    setPassword={setPassword}
+                    onSubmit={handleSubmitEmail}
+                  />
                 </TabsContent>
               </Tabs>
               
