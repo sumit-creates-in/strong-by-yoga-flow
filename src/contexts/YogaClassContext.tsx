@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { format, addDays, isToday, isTomorrow, isAfter, subMinutes, addMinutes } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -630,6 +629,11 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       }
 
       return true;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA.getTime() - dateB.getTime();
     });
 
   return (

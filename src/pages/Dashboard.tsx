@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, Repeat, ChevronRight, Zap } from 'lucide-react';
@@ -47,8 +46,8 @@ const Dashboard = () => {
       return classDate >= now && isClassVisible(yogaClass);
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 6); // Limit to 6 classes
-  
+    .slice(0, 6);
+
   const handleJoinClass = (yogaClass: YogaClass) => {
     if (userMembership.active) {
       joinClass(yogaClass.id);

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 
 const Classes = () => {
   const { 
@@ -27,7 +27,6 @@ const Classes = () => {
   const [selectedTeacher, setSelectedTeacher] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<'' | 'morning' | 'afternoon' | 'evening'>('');
   
-  // Get unique tags and teachers for filters
   const allTags = Array.from(
     new Set(filteredClasses.flatMap((yogaClass) => yogaClass.tags))
   ).sort();
@@ -36,14 +35,12 @@ const Classes = () => {
     new Set(filteredClasses.map((yogaClass) => yogaClass.teacher))
   ).sort();
   
-  // Handle search
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
     setFilters((prev) => ({ ...prev, search: value }));
   };
   
-  // Handle tag selection
   const toggleTag = (tag: string) => {
     const newTags = selectedTags.includes(tag)
       ? selectedTags.filter((t) => t !== tag)
@@ -53,20 +50,17 @@ const Classes = () => {
     setFilters((prev) => ({ ...prev, tags: newTags }));
   };
   
-  // Handle teacher selection
   const selectTeacher = (teacher: string) => {
     const newTeacher = selectedTeacher === teacher ? '' : teacher;
     setSelectedTeacher(newTeacher);
     setFilters((prev) => ({ ...prev, teacher: newTeacher }));
   };
   
-  // Handle time slot selection
   const selectTimeSlot = (timeSlot: '' | 'morning' | 'afternoon' | 'evening') => {
     setSelectedTimeSlot(timeSlot);
     setFilters((prev) => ({ ...prev, timeSlot }));
   };
   
-  // Clear all filters
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedTags([]);
@@ -80,7 +74,6 @@ const Classes = () => {
     });
   };
   
-  // Group classes by date for calendar view
   const classesByDate = filteredClasses.reduce((acc, yogaClass) => {
     const dateKey = format(new Date(yogaClass.date), 'yyyy-MM-dd');
     if (!acc[dateKey]) {
@@ -90,7 +83,6 @@ const Classes = () => {
     return acc;
   }, {} as Record<string, typeof filteredClasses>);
   
-  // Sort dates for calendar view
   const sortedDates = Object.keys(classesByDate).sort();
   
   return (
@@ -252,7 +244,29 @@ const Classes = () => {
         ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredClasses.map((yogaClass) => (
-              <Card key={yogaClass.id} className="yoga-card h-full flex flex-col">
+              <Card key={yogaClass.id} className="yoga-card h-full flex flex-col relative">
+                {yogaClass.imageUrl && (
+                  <div className="w-full h-48 relative overflow-hidden">
+                    <img 
+                      src={yogaClass.imageUrl} 
+                      alt={yogaClass.name} 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+                      {yogaClass.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="bg-white/80 text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    {isClassLive(yogaClass) && (
+                      <span className="absolute top-2 right-2 bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-md animate-pulse">
+                        <Zap size={14} className="mr-1.5" />
+                        <span className="font-medium text-xs">LIVE</span>
+                      </span>
+                    )}
+                  </div>
+                )}
                 <CardContent className="pt-6 flex flex-col h-full">
                   <div className="flex flex-col flex-grow">
                     <div className="flex justify-between">
@@ -340,7 +354,7 @@ const Classes = () => {
                             {isClassLive(yogaClass) && (
                               <span className="ml-2 bg-red-500 text-white py-0.5 px-2 rounded-md flex items-center text-xs shadow-md animate-pulse">
                                 <Zap size={12} className="mr-1" />
-                                <span className="font-medium">LIVE</span>
+                                <span className="font-medium text-xs">LIVE</span>
                               </span>
                             )}
                           </div>
