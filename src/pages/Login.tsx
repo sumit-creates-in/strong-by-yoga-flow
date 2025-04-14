@@ -7,34 +7,45 @@ import { Phone, Mail } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import OTPVerification from '@/components/OTPVerification';
 import { supabase } from '@/integrations/supabase/client';
-import PhoneLoginForm from '@/components/PhoneLoginForm';
 import EmailLoginForm from '@/components/EmailLoginForm';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('email');
   const [step, setStep] = useState<'credentials' | 'verify'>('credentials');
   const { login, loginWithPhone, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const handleSendOtp = async (formattedPhone: string) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!phone) {
+      toast({
+        variant: "destructive",
+        title: "Phone number required",
+        description: "Please enter your phone number."
+      });
+      return;
+    }
+    
     try {
       // In a real implementation, you would call your backend to send the OTP
       const { error } = await supabase.functions.invoke('send-otp', {
-        body: { phoneNumber: formattedPhone, via: 'sms' }
+        body: { phoneNumber: phone, via: 'sms' }
       });
       
       if (error) throw new Error(error.message);
       
       toast({
         title: "Verification Code Sent",
-        description: `A verification code has been sent to ${formattedPhone}.`,
+        description: `A verification code has been sent to ${phone}.`,
       });
       
-      setPhone(formattedPhone);
       setStep('verify');
     } catch (error: any) {
       toast({
@@ -84,7 +95,32 @@ const Login = () => {
                 </TabsList>
                 
                 <TabsContent value="phone">
-                  <PhoneLoginForm onSendOtp={handleSendOtp} />
+                  <form onSubmit={handleSendOtp} className="space-y-6">
+                    <div className="space-y-2">
+                      <label htmlFor="phone" className="block text-gray-700 text-lg">
+                        Phone Number
+                      </label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="yoga-input w-full"
+                        required
+                      />
+                      <p className="text-xs text-gray-500">
+                        We'll send you a verification code via SMS
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="yoga-button w-full"
+                    >
+                      Continue with Phone
+                    </Button>
+                  </form>
                 </TabsContent>
                 
                 <TabsContent value="email">
