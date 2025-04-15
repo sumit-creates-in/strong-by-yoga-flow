@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { format, addDays, isToday, isTomorrow, isAfter, subMinutes, addMinutes } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -446,6 +447,166 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       const dateB = new Date(b.date);
       return dateA.getTime() - dateB.getTime();
     });
+
+  // Implement the missing functions
+  // Add class function
+  const addClass = (classData: Omit<YogaClass, 'id'>) => {
+    const newClass: YogaClass = {
+      ...classData,
+      id: `${Date.now()}`, // Generate a unique ID
+    };
+    
+    setBaseClasses(prevClasses => [...prevClasses, newClass]);
+    
+    toast({
+      title: "Class added",
+      description: `${newClass.name} has been added to the schedule.`,
+    });
+  };
+
+  // Edit class function
+  const editClass = (id: string, classData: Partial<YogaClass>) => {
+    setBaseClasses(prevClasses => 
+      prevClasses.map(yogaClass => 
+        yogaClass.id === id ? { ...yogaClass, ...classData } : yogaClass
+      )
+    );
+    
+    toast({
+      title: "Class updated",
+      description: "The class has been updated successfully.",
+    });
+  };
+
+  // Delete class function
+  const deleteClass = (id: string) => {
+    setBaseClasses(prevClasses => 
+      prevClasses.filter(yogaClass => yogaClass.id !== id)
+    );
+    
+    toast({
+      title: "Class deleted",
+      description: "The class has been removed from the schedule.",
+    });
+  };
+
+  // Get class by ID
+  const getClass = (id: string): YogaClass | undefined => {
+    return expandedClasses.find(yogaClass => yogaClass.id === id);
+  };
+
+  // Join class function
+  const joinClass = async (id: string): Promise<void> => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: "Authentication required",
+        description: "Please log in to join this class.",
+      });
+      return;
+    }
+    
+    try {
+      // In a real app, this would create an enrollment record in the database
+      const { error } = await supabase
+        .from('class_enrollments')
+        .insert({
+          user_id: user.id,
+          class_id: id,
+          enrolled_at: new Date().toISOString(),
+        });
+      
+      if (error) {
+        console.error('Error joining class:', error);
+        toast({
+          variant: 'destructive',
+          title: "Failed to join class",
+          description: error.message,
+        });
+        return;
+      }
+      
+      // Update local state
+      setExpandedClasses(prevClasses =>
+        prevClasses.map(yogaClass =>
+          yogaClass.id === id ? { ...yogaClass, isEnrolled: true } : yogaClass
+        )
+      );
+      
+      toast({
+        title: "Joined class",
+        description: "You have successfully joined the class.",
+      });
+    } catch (error) {
+      console.error('Error joining class:', error);
+    }
+  };
+
+  // Purchase membership function
+  const purchaseMembership = async (tierId: string): Promise<void> => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: "Authentication required",
+        description: "Please log in to purchase a membership.",
+      });
+      return;
+    }
+    
+    try {
+      // Get the selected membership tier
+      const tier = membershipTiers.find(t => t.id === tierId);
+      
+      if (!tier) {
+        toast({
+          variant: 'destructive',
+          title: "Invalid membership tier",
+          description: "The selected membership tier doesn't exist.",
+        });
+        return;
+      }
+      
+      // Calculate expiry date (current date + duration in months)
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + tier.duration);
+      
+      // In a real app, this would create a membership record in the database and handle payment
+      const { error } = await supabase
+        .from('memberships')
+        .insert({
+          user_id: user.id,
+          tier: tier.id,
+          price: tier.price,
+          is_active: true,
+          start_date: new Date().toISOString(),
+          expiry_date: expiryDate.toISOString(),
+        });
+      
+      if (error) {
+        console.error('Error purchasing membership:', error);
+        toast({
+          variant: 'destructive',
+          title: "Failed to purchase membership",
+          description: error.message,
+        });
+        return;
+      }
+      
+      // Update local state
+      setUserMembership({
+        active: true,
+        expiryDate,
+        type: tier.id
+      });
+      
+      toast({
+        title: "Membership activated",
+        description: `Your ${tier.name} membership has been activated successfully.`,
+      });
+    } catch (error) {
+      console.error('Error purchasing membership:', error);
+    }
+  };
 
   return (
     <YogaClassContext.Provider
