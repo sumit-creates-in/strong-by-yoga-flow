@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/carousel';
 import { format } from 'date-fns';
 import ClassJoinPrompt from '@/components/ClassJoinPrompt';
+import TeacherShowcase from '@/components/TeacherShowcase';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -157,7 +158,7 @@ const Dashboard = () => {
   
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-1">
@@ -175,6 +176,9 @@ const Dashboard = () => {
             Browse All Classes
           </Button>
         </div>
+        
+        {/* Teacher Showcase */}
+        <TeacherShowcase />
         
         <div>
           <h2 className="text-2xl font-semibold mb-4">Upcoming Classes</h2>
