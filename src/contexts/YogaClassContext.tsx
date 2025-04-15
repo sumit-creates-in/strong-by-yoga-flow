@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { format, addDays, isToday, isTomorrow, isAfter, subMinutes, addMinutes } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useToast } from '@/components/ui/use-toast';
@@ -81,7 +81,6 @@ export const getDayNames = (days: number[]): string[] => {
 const generateRecurringInstances = (baseClass: YogaClass, weeks: number = 4): YogaClass[] => {
   const instances: YogaClass[] = [];
   
-  // If not recurring, just return the original class
   if (!baseClass.recurringPattern?.isRecurring || !baseClass.recurringPattern.daysOfWeek?.length) {
     return [baseClass];
   }
@@ -89,22 +88,16 @@ const generateRecurringInstances = (baseClass: YogaClass, weeks: number = 4): Yo
   const baseDate = new Date(baseClass.date);
   const baseDayOfWeek = baseDate.getDay();
   
-  // Loop through the specified number of weeks
   for (let week = 0; week < weeks; week++) {
-    // Loop through each day of the week in the recurring pattern
     baseClass.recurringPattern.daysOfWeek?.forEach(dayOfWeek => {
-      // Skip the base instance as it's already included
       if (week === 0 && dayOfWeek === baseDayOfWeek) return;
       
-      // Calculate how many days to add to the base date
       let daysToAdd = dayOfWeek - baseDayOfWeek;
-      if (daysToAdd < 0) daysToAdd += 7; // Wrap around to the next week
-      daysToAdd += week * 7; // Add weeks
+      if (daysToAdd < 0) daysToAdd += 7;
+      daysToAdd += week * 7;
       
-      // Create the new date for this instance
       const newDate = addDays(baseDate, daysToAdd);
       
-      // Create a new class instance with the calculated date
       const instance: YogaClass = {
         ...baseClass,
         id: `${baseClass.id}-${format(newDate, 'yyyy-MM-dd')}`,
@@ -115,28 +108,26 @@ const generateRecurringInstances = (baseClass: YogaClass, weeks: number = 4): Yo
     });
   }
 
-  // Include the original instance
   instances.push(baseClass);
   
-  // Sort by date
   return instances.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
-// Sample class data
+// Sample class data with fixed dates that won't change
 const initialClasses: YogaClass[] = [
   {
     id: '1',
     name: 'Morning Flow',
     teacher: 'Sarah Johnson',
     description: 'Start your day with an energizing flow that will wake up your body and mind. Suitable for all levels.',
-    date: new Date().toISOString(),
+    date: new Date('2025-04-15T08:00:00').toISOString(),
     duration: 60,
     tags: ['Morning', 'All Levels', 'Vinyasa'],
     joinLink: 'https://zoom.us/j/123456789',
     imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=900',
     recurringPattern: {
       isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Monday, Wednesday, Friday
+      daysOfWeek: [1, 3, 5],
       frequency: 'weekly'
     }
   },
@@ -145,14 +136,14 @@ const initialClasses: YogaClass[] = [
     name: 'Gentle Restorative',
     teacher: 'Michael Chen',
     description: 'Unwind and restore with this gentle practice focused on deep relaxation and stress relief.',
-    date: new Date().toISOString(),
+    date: new Date('2025-04-15T18:30:00').toISOString(),
     duration: 75,
     tags: ['Evening', 'Beginners', 'Restorative'],
     joinLink: 'https://zoom.us/j/987654321',
     imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=900',
     recurringPattern: {
       isRecurring: true,
-      daysOfWeek: [2, 4], // Tuesday, Thursday
+      daysOfWeek: [2, 4],
       frequency: 'weekly'
     }
   },
@@ -161,7 +152,7 @@ const initialClasses: YogaClass[] = [
     name: 'Power Yoga',
     teacher: 'Alex Rivera',
     description: 'Build strength and endurance in this challenging power yoga class. Previous yoga experience recommended.',
-    date: addDays(new Date(), 1).toISOString(),
+    date: new Date('2025-04-16T14:00:00').toISOString(),
     duration: 60,
     tags: ['Afternoon', 'Advanced', 'Power'],
     joinLink: 'https://zoom.us/j/567891234',
@@ -172,7 +163,7 @@ const initialClasses: YogaClass[] = [
     name: 'Yoga for Flexibility',
     teacher: 'Emma Wilson',
     description: 'Improve your flexibility and range of motion with this targeted practice focusing on safe, deep stretching.',
-    date: addDays(new Date(), 2).toISOString(),
+    date: new Date('2025-04-17T09:15:00').toISOString(),
     duration: 60,
     tags: ['Morning', 'All Levels', 'Flexibility'],
     joinLink: 'https://zoom.us/j/345678912',
@@ -183,7 +174,7 @@ const initialClasses: YogaClass[] = [
     name: 'Meditation & Breathwork',
     teacher: 'David Kumar',
     description: 'Calm your mind and connect with your breath in this meditation and pranayama practice.',
-    date: addDays(new Date(), 3).toISOString(),
+    date: new Date('2025-04-18T19:00:00').toISOString(),
     duration: 45,
     tags: ['Evening', 'All Levels', 'Meditation'],
     joinLink: 'https://zoom.us/j/789123456',
@@ -197,7 +188,7 @@ const initialMembershipTiers: MembershipTier[] = [
     id: 'basic',
     name: 'Basic',
     price: 19.99,
-    duration: 1, // 1 month
+    duration: 1,
     features: [
       'Access to live classes',
       '5 classes per month',
@@ -209,7 +200,7 @@ const initialMembershipTiers: MembershipTier[] = [
     id: 'premium',
     name: 'Premium',
     price: 49.99,
-    duration: 1, // 1 month
+    duration: 1,
     popular: true,
     features: [
       'Unlimited live classes',
@@ -223,7 +214,7 @@ const initialMembershipTiers: MembershipTier[] = [
     id: 'yearly',
     name: 'Annual Plan',
     price: 399.99,
-    duration: 12, // 12 months
+    duration: 12,
     features: [
       'All Premium features',
       '2 months free',
@@ -254,13 +245,13 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   const [membershipTiers, setMembershipTiers] = useState<MembershipTier[]>(initialMembershipTiers);
   const { toast } = useToast();
   const { user } = useAuth();
+  const classesLoaded = useRef(false);
 
   // Helper function for checking if a class is currently live
   const isClassLive = (yogaClass: YogaClass): boolean => {
     const classDate = new Date(yogaClass.date);
     const now = new Date();
     
-    // Class is live if current time is within the class duration
     return (
       isAfter(now, classDate) && 
       isAfter(addMinutes(classDate, yogaClass.duration), now)
@@ -272,13 +263,11 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
     const classDate = new Date(yogaClass.date);
     const now = new Date();
     
-    // Hide class if it started more than 15 minutes ago
     return isAfter(addMinutes(classDate, 15), now);
   };
 
   // Helper function for formatting class time in user's timezone
   const formatClassDateTime = (date: string): string => {
-    // Format date in user's timezone
     return formatInTimeZone(
       new Date(date), 
       Intl.DateTimeFormat().resolvedOptions().timeZone, 
@@ -326,6 +315,30 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
     return `Every ${dayNames.join(', ')} & ${lastDay}`;
   };
 
+  // Load initial classes
+  useEffect(() => {
+    if (!classesLoaded.current) {
+      setBaseClasses(initialClasses);
+      classesLoaded.current = true;
+    }
+  }, []);
+
+  // Generate expanded class instances for recurring classes
+  useEffect(() => {
+    const allInstances: YogaClass[] = [];
+    
+    baseClasses.forEach(baseClass => {
+      const instances = generateRecurringInstances(baseClass);
+      allInstances.push(...instances);
+    });
+    
+    const sortedInstances = allInstances.sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    setExpandedClasses(sortedInstances);
+  }, [baseClasses]);
+
   // Check user's enrollment status for all classes
   const checkEnrollmentStatus = async () => {
     if (!user) return;
@@ -344,7 +357,6 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         const enrolledClassIds = data.map(enrollment => enrollment.class_id);
         
-        // Mark enrolled classes
         const updatedClasses = expandedClasses.map(yogaClass => ({
           ...yogaClass,
           isEnrolled: enrolledClassIds.includes(yogaClass.id)
@@ -371,7 +383,7 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         .limit(1)
         .single();
         
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching membership:', error);
         return;
       }
@@ -388,221 +400,21 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Load initial classes
-  useEffect(() => {
-    setBaseClasses(initialClasses);
-  }, []);
-
-  // Generate expanded class instances for recurring classes
-  useEffect(() => {
-    const allInstances: YogaClass[] = [];
-    
-    baseClasses.forEach(baseClass => {
-      const instances = generateRecurringInstances(baseClass);
-      allInstances.push(...instances);
-    });
-    
-    setExpandedClasses(allInstances);
-  }, [baseClasses]);
-
-  // Check enrollment status when user or classes change
-  useEffect(() => {
-    if (user && expandedClasses.length > 0) {
-      checkEnrollmentStatus();
-      checkMembershipStatus();
-    }
-  }, [user, expandedClasses.length]);
-
-  // Add a new class
-  const addClass = (classData: Omit<YogaClass, 'id'>) => {
-    const newClassId = Math.random().toString(36).substr(2, 9);
-    const newClass: YogaClass = {
-      ...classData,
-      id: newClassId,
-    };
-    
-    setBaseClasses((prevClasses) => [...prevClasses, newClass]);
-    
-    toast({
-      title: 'Class added',
-      description: `${classData.name} has been added to the schedule.`,
-    });
-  };
-
-  // Edit an existing class
-  const editClass = (id: string, classData: Partial<YogaClass>) => {
-    setBaseClasses(
-      baseClasses.map((c) => (c.id === id ? { ...c, ...classData } : c))
-    );
-    
-    toast({
-      title: 'Class updated',
-      description: `The class has been updated successfully.`,
-    });
-  };
-
-  // Delete a class
-  const deleteClass = (id: string) => {
-    const classToDelete = baseClasses.find(c => c.id === id);
-    setBaseClasses(baseClasses.filter((c) => c.id !== id));
-    
-    toast({
-      title: 'Class deleted',
-      description: `${classToDelete?.name || 'The class'} has been removed from the schedule.`,
-    });
-  };
-
-  // Get a specific class by ID
-  const getClass = (id: string) => {
-    return expandedClasses.find((c) => c.id === id);
-  };
-
-  // Join a class
-  const joinClass = async (id: string) => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication required',
-        description: 'Please log in to join classes.',
-      });
-      return;
-    }
-    
-    try {
-      // Check if user is already enrolled
-      const { data: existingEnrollment, error: checkError } = await supabase
-        .from('class_enrollments')
-        .select()
-        .eq('user_id', user.id)
-        .eq('class_id', id)
-        .single();
-        
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-        throw checkError;
-      }
-      
-      if (existingEnrollment) {
-        toast({
-          title: 'Already enrolled',
-          description: 'You are already enrolled in this class.',
-        });
-        return;
-      }
-      
-      // Add enrollment
-      const { error } = await supabase
-        .from('class_enrollments')
-        .insert({
-          user_id: user.id,
-          class_id: id
-        });
-        
-      if (error) {
-        throw error;
-      }
-      
-      // Update local state
-      setExpandedClasses(classes =>
-        classes.map(c => 
-          c.id === id ? { ...c, isEnrolled: true } : c
-        )
-      );
-      
-      const joinedClass = expandedClasses.find(c => c.id === id);
-      
-      toast({
-        title: 'Class joined',
-        description: `You've successfully joined ${joinedClass?.name}. Check your email for details.`,
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error joining class',
-        description: error.message || 'Something went wrong',
-      });
-    }
-  };
-
-  // Purchase a membership
-  const purchaseMembership = async (tierId: string) => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication required',
-        description: 'Please log in to purchase a membership.',
-      });
-      return;
-    }
-    
-    const tier = membershipTiers.find(t => t.id === tierId);
-    
-    if (!tier) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Selected membership plan not found.',
-      });
-      return;
-    }
-    
-    try {
-      // Calculate expiry date based on duration
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + tier.duration);
-      
-      // Store membership in database
-      const { error } = await supabase
-        .from('memberships')
-        .insert({
-          user_id: user.id,
-          tier: tier.name,
-          expiry_date: expiryDate.toISOString(),
-          payment_id: `demo-${Date.now()}`
-        });
-        
-      if (error) {
-        throw error;
-      }
-      
-      // Update local state
-      setUserMembership({
-        active: true,
-        type: tier.name,
-        expiryDate
-      });
-      
-      toast({
-        title: 'Membership Activated',
-        description: `Your ${tier.name} membership is now active until ${format(expiryDate, 'MMMM d, yyyy')}.`,
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error purchasing membership',
-        description: error.message || 'Something went wrong',
-      });
-    }
-  };
-
   // Apply filters to get filtered classes
   const filteredClasses = expandedClasses
     .filter((yogaClass) => {
-      // Filter out classes that are 15+ minutes after start
       if (!isClassVisible(yogaClass)) {
         return false;
       }
       
-      // Filter by tags
       if (filters.tags.length > 0 && !filters.tags.some(tag => yogaClass.tags.includes(tag))) {
         return false;
       }
 
-      // Filter by teacher
       if (filters.teacher && yogaClass.teacher !== filters.teacher) {
         return false;
       }
 
-      // Filter by time slot
       if (filters.timeSlot) {
         const hour = new Date(yogaClass.date).getHours();
         
@@ -615,7 +427,6 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Filter by search term
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         const nameMatch = yogaClass.name.toLowerCase().includes(searchLower);

@@ -43,6 +43,7 @@ const Dashboard = () => {
   const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
 
   // Get upcoming classes (including today, next several days)
+  // Sort classes by date/time to ensure consistent ordering
   const upcomingClasses = filteredClasses
     .filter((yogaClass) => {
       const classDate = new Date(yogaClass.date);
