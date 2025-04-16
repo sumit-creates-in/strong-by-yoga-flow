@@ -22,6 +22,7 @@ import AdminTeachers from "./pages/AdminTeachers";
 import AdminZoomSettings from "./pages/AdminZoomSettings";
 import AdminCredits from "./pages/AdminCredits";
 import AdminBookings from "./pages/AdminBookings";
+import AdminNotifications from "./pages/AdminNotifications";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
@@ -68,6 +69,7 @@ const App = () => {
               <Route path="/admin/teachers" element={<AuthGuard><AdminTeachers /></AuthGuard>} />
               <Route path="/admin/zoom-settings" element={<AuthGuard><AdminZoomSettings /></AuthGuard>} />
               <Route path="/admin/credits" element={<AuthGuard><AdminCredits /></AuthGuard>} />
+              <Route path="/admin/notifications" element={<AuthGuard><AdminNotifications /></AuthGuard>} />
               
               {/* Redirects */}
               <Route path="/" element={<Index />} />

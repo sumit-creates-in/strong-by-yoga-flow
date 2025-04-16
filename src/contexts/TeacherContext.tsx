@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -93,12 +94,55 @@ export interface CreditPackage {
   mostValue?: boolean;
 }
 
+export interface NotificationTemplate {
+  id: string;
+  name: string;
+  type: 'email' | 'sms' | 'whatsapp' | 'in-app';
+  subject?: string;
+  body: string;
+  enabled: boolean;
+  recipientType: 'student' | 'teacher' | 'both';
+  triggerType: 'scheduled' | 'action';
+  triggerAction?: 'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'booking_reminder';
+  scheduledTime?: {
+    when: 'before' | 'after' | 'same-day';
+    time: number; // minutes
+  };
+  placeholders?: Record<string, string>;
+}
+
+export interface NotificationSettings {
+  email: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
+  sms: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
+  whatsapp: {
+    enabled: boolean;
+    phoneNumberId: string;
+    accessToken: string;
+    businessAccountId: string;
+    verifyToken: string;
+    autoReplyEnabled: boolean;
+    autoReplyMessage: string;
+    templates: NotificationTemplate[];
+  };
+  inApp: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
+}
+
 interface TeacherContextType {
   teachers: Teacher[];
   bookings: BookingData[];
   creditPackages: CreditPackage[];
   creditTransactions: CreditTransaction[];
   userCredits: number;
+  notificationSettings: NotificationSettings;
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   deleteTeacher: (id: string) => void;
@@ -113,6 +157,11 @@ interface TeacherContextType {
   disconnectZoomAccount: (teacherId: string) => void;
   addTeacherAvailability: (teacherId: string, slot: Omit<AvailabilitySlot, 'id'>) => void;
   removeTeacherAvailability: (teacherId: string, slotId: string) => void;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
+  addNotificationTemplate: (template: Omit<NotificationTemplate, 'id'>) => void;
+  updateNotificationTemplate: (template: NotificationTemplate) => void;
+  deleteNotificationTemplate: (id: string) => void;
+  sendTestNotification: (templateId: string, recipientId: string) => void;
 }
 
 const TeacherContext = createContext<TeacherContextType>({
@@ -121,6 +170,21 @@ const TeacherContext = createContext<TeacherContextType>({
   creditPackages: [],
   creditTransactions: [],
   userCredits: 0,
+  notificationSettings: {
+    email: { enabled: false, templates: [] },
+    sms: { enabled: false, templates: [] },
+    whatsapp: {
+      enabled: false,
+      phoneNumberId: '',
+      accessToken: '',
+      businessAccountId: '',
+      verifyToken: '',
+      autoReplyEnabled: false,
+      autoReplyMessage: '',
+      templates: []
+    },
+    inApp: { enabled: false, templates: [] }
+  },
   addTeacher: () => {},
   updateTeacher: () => {},
   deleteTeacher: () => {},
@@ -135,6 +199,11 @@ const TeacherContext = createContext<TeacherContextType>({
   disconnectZoomAccount: () => {},
   addTeacherAvailability: () => {},
   removeTeacherAvailability: () => {},
+  updateNotificationSettings: () => {},
+  addNotificationTemplate: () => {},
+  updateNotificationTemplate: () => {},
+  deleteNotificationTemplate: () => {},
+  sendTestNotification: () => {},
 });
 
 // Sample data
@@ -223,12 +292,34 @@ const sampleTeachers: Teacher[] = [
       }
     ],
     availability: [
-      { day: 'monday', startTime: '10:00', endTime: '15:00' },
-      { day: 'wednesday', startTime: '13:00', endTime: '18:00' },
-      { day: 'friday', startTime: '09:00', endTime: '14:00' }
+      { 
+        id: 'avail-1',
+        day: 'monday', 
+        startTime: '10:00', 
+        endTime: '15:00',
+        isRecurring: true
+      },
+      { 
+        id: 'avail-2',
+        day: 'wednesday', 
+        startTime: '13:00', 
+        endTime: '18:00',
+        isRecurring: true
+      },
+      { 
+        id: 'avail-3',
+        day: 'friday', 
+        startTime: '09:00', 
+        endTime: '14:00',
+        isRecurring: true
+      }
     ],
-    zoomEmail: 'sarah.johnson@example.com',
-    zoomConnected: true
+    zoomAccount: {
+      id: 'zoom-1',
+      email: 'sarah.johnson@example.com',
+      accountName: 'Sarah Johnson',
+      connected: true
+    }
   },
   {
     id: 'teacher-2',
@@ -314,12 +405,34 @@ const sampleTeachers: Teacher[] = [
       }
     ],
     availability: [
-      { day: 'tuesday', startTime: '08:00', endTime: '12:00' },
-      { day: 'thursday', startTime: '14:00', endTime: '19:00' },
-      { day: 'saturday', startTime: '09:00', endTime: '13:00' }
+      { 
+        id: 'avail-4',
+        day: 'tuesday', 
+        startTime: '08:00', 
+        endTime: '12:00',
+        isRecurring: true
+      },
+      { 
+        id: 'avail-5',
+        day: 'thursday', 
+        startTime: '14:00', 
+        endTime: '19:00',
+        isRecurring: true
+      },
+      { 
+        id: 'avail-6',
+        day: 'saturday', 
+        startTime: '09:00', 
+        endTime: '13:00',
+        isRecurring: true
+      }
     ],
-    zoomEmail: 'raj.patel@example.com',
-    zoomConnected: true
+    zoomAccount: {
+      id: 'zoom-2',
+      email: 'raj.patel@example.com',
+      accountName: 'Raj Patel',
+      connected: true
+    }
   },
   {
     id: 'teacher-3',
@@ -405,12 +518,34 @@ const sampleTeachers: Teacher[] = [
       }
     ],
     availability: [
-      { day: 'monday', startTime: '15:00', endTime: '20:00' },
-      { day: 'wednesday', startTime: '09:00', endTime: '13:00' },
-      { day: 'friday', startTime: '14:00', endTime: '18:00' }
+      { 
+        id: 'avail-7',
+        day: 'monday', 
+        startTime: '15:00', 
+        endTime: '20:00',
+        isRecurring: true
+      },
+      { 
+        id: 'avail-8',
+        day: 'wednesday', 
+        startTime: '09:00', 
+        endTime: '13:00',
+        isRecurring: true
+      },
+      { 
+        id: 'avail-9',
+        day: 'friday', 
+        startTime: '14:00', 
+        endTime: '18:00',
+        isRecurring: true
+      }
     ],
-    zoomEmail: 'maya.gonzalez@example.com',
-    zoomConnected: true
+    zoomAccount: {
+      id: 'zoom-3',
+      email: 'maya.gonzalez@example.com',
+      accountName: 'Maya Gonzalez',
+      connected: true
+    }
   }
 ];
 
@@ -444,6 +579,75 @@ const sampleCreditPackages: CreditPackage[] = [
   }
 ];
 
+// Sample notification templates
+const sampleNotificationTemplates: NotificationTemplate[] = [
+  {
+    id: 'notif-1',
+    name: 'Booking Confirmation',
+    type: 'email',
+    subject: 'Your booking is confirmed - %service_name%',
+    body: `<p>Hello %customer_full_name%,</p>
+<p>Your booking with %employee_full_name% has been confirmed for %appointment_date_time%.</p>
+<p>Class: %service_name%</p>
+<p>With: %employee_full_name%</p>
+<p>When: %appointment_date_time%</p>
+<p>Zoom Link: %zoom_join_url%</p>
+<p>We look forward to seeing you!</p>`,
+    enabled: true,
+    recipientType: 'student',
+    triggerType: 'action',
+    triggerAction: 'booking_confirmed'
+  },
+  {
+    id: 'notif-2',
+    name: 'Reminder: 30 min before',
+    type: 'email',
+    subject: 'Reminder: %service_name% coming up in 30 minutes at %appointment_date_time%',
+    body: `<p>Hello %customer_full_name%,</p>
+<p>Your appointment is coming up in 30 minutes:</p>
+<ul>
+<li>Class: %service_name%</li>
+<li>When: %appointment_date_time%</li>
+<li>With: %employee_full_name%</li>
+<li>Class Link: %zoom_join_url%</li>
+</ul>
+<p>We use Zoom for classes. If you don't have Zoom installed please click on the meeting link above and download it.</p>
+<p><strong>Points to be taken care of for the session:</strong></p>
+<ul>
+<li>Avoid eating a heavy meal at least 3 hours prior to the session.</li>
+<li>A Yoga Mat will be a great help.</li>
+<li>We suggest that you use a tablet, laptop, or TV for this session. Bigger the screen better the experience.</li>
+<li>We highly recommend the use of wireless earbuds/Air Pods to listen and interact with the teacher</li>
+<li>Set up your device and yoga mat at least 6 steps away from each other.</li>
+</ul>`,
+    enabled: true,
+    recipientType: 'student',
+    triggerType: 'scheduled',
+    scheduledTime: {
+      when: 'before',
+      time: 30
+    }
+  },
+  {
+    id: 'notif-3',
+    name: 'Booking Confirmed',
+    type: 'whatsapp',
+    body: `Namaste, %customer_full_name%!
+
+Your booking has been confirmed:
+
+• Class: %service_name%
+• When: %appointment_date_time%
+• With: %employee_full_name%
+
+We look forward to seeing you!`,
+    enabled: true,
+    recipientType: 'student',
+    triggerType: 'action',
+    triggerAction: 'booking_confirmed'
+  }
+];
+
 export const TeacherProvider = ({ children }: { children: ReactNode }) => {
   const [teachers, setTeachers] = useState<Teacher[]>(sampleTeachers);
   const [bookings, setBookings] = useState<BookingData[]>([]);
@@ -459,6 +663,31 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
       date: new Date(new Date().setDate(new Date().getDate() - 30))
     }
   ]);
+  
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    email: {
+      enabled: true,
+      templates: sampleNotificationTemplates.filter(t => t.type === 'email')
+    },
+    sms: {
+      enabled: false,
+      templates: []
+    },
+    whatsapp: {
+      enabled: false,
+      phoneNumberId: '',
+      accessToken: '',
+      businessAccountId: '',
+      verifyToken: '',
+      autoReplyEnabled: false,
+      autoReplyMessage: 'Dear %customer_full_name%, This message does not have an option for responding. If you need additional information about your booking, please contact us at %company_phone%',
+      templates: sampleNotificationTemplates.filter(t => t.type === 'whatsapp')
+    },
+    inApp: {
+      enabled: true,
+      templates: []
+    }
+  });
   
   const { toast } = useToast();
   
@@ -503,6 +732,19 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
       date: new Date(),
       sessionId: newBooking.id
     });
+    
+    // Send notifications
+    const emailTemplate = notificationSettings.email.templates.find(t => t.triggerAction === 'booking_confirmed');
+    if (notificationSettings.email.enabled && emailTemplate && emailTemplate.enabled) {
+      // In a real app, this would send an actual email
+      console.log(`Sending email notification: ${emailTemplate.subject}`);
+    }
+    
+    const whatsappTemplate = notificationSettings.whatsapp.templates.find(t => t.triggerAction === 'booking_confirmed');
+    if (notificationSettings.whatsapp.enabled && whatsappTemplate && whatsappTemplate.enabled) {
+      // In a real app, this would send a WhatsApp message
+      console.log(`Sending WhatsApp notification`);
+    }
     
     toast({
       title: "Session booked!",
@@ -616,6 +858,121 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
     ));
   };
   
+  const updateNotificationSettings = (settings: Partial<NotificationSettings>) => {
+    setNotificationSettings(prev => ({
+      ...prev,
+      ...settings
+    }));
+    
+    toast({
+      title: "Notification settings updated",
+      description: "Your notification settings have been saved."
+    });
+  };
+  
+  const addNotificationTemplate = (template: Omit<NotificationTemplate, 'id'>) => {
+    const newTemplate: NotificationTemplate = {
+      id: `template-${Date.now()}`,
+      ...template
+    };
+    
+    setNotificationSettings(prev => {
+      const section = template.type === 'email' ? 'email' : 
+                      template.type === 'sms' ? 'sms' : 
+                      template.type === 'whatsapp' ? 'whatsapp' : 'inApp';
+      
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          templates: [...prev[section].templates, newTemplate]
+        }
+      };
+    });
+    
+    toast({
+      title: "Template added",
+      description: `${template.name} notification template has been created.`
+    });
+  };
+  
+  const updateNotificationTemplate = (template: NotificationTemplate) => {
+    setNotificationSettings(prev => {
+      const section = template.type === 'email' ? 'email' : 
+                      template.type === 'sms' ? 'sms' : 
+                      template.type === 'whatsapp' ? 'whatsapp' : 'inApp';
+      
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          templates: prev[section].templates.map(t => 
+            t.id === template.id ? template : t
+          )
+        }
+      };
+    });
+    
+    toast({
+      title: "Template updated",
+      description: `${template.name} notification template has been updated.`
+    });
+  };
+  
+  const deleteNotificationTemplate = (id: string) => {
+    setNotificationSettings(prev => {
+      const updatedSettings = { ...prev };
+      
+      // Check each section for the template
+      ['email', 'sms', 'whatsapp', 'inApp'].forEach((section) => {
+        const sectionKey = section as keyof NotificationSettings;
+        if (updatedSettings[sectionKey].templates.some(t => t.id === id)) {
+          updatedSettings[sectionKey] = {
+            ...updatedSettings[sectionKey],
+            templates: updatedSettings[sectionKey].templates.filter(t => t.id !== id)
+          };
+        }
+      });
+      
+      return updatedSettings;
+    });
+    
+    toast({
+      title: "Template deleted",
+      description: "The notification template has been removed."
+    });
+  };
+  
+  const sendTestNotification = (templateId: string, recipientId: string) => {
+    // Find template in any section
+    let template: NotificationTemplate | undefined;
+    let section: keyof NotificationSettings | undefined;
+    
+    ['email', 'sms', 'whatsapp', 'inApp'].forEach((s) => {
+      const sectionKey = s as keyof NotificationSettings;
+      const found = notificationSettings[sectionKey].templates.find(t => t.id === templateId);
+      if (found) {
+        template = found;
+        section = sectionKey;
+      }
+    });
+    
+    if (!template || !section) {
+      toast({
+        title: "Error",
+        description: "Template not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // In a real app, this would send an actual notification
+    toast({
+      title: "Test notification sent",
+      description: `A test ${section} notification has been sent.`
+    });
+  };
+  
   return (
     <TeacherContext.Provider value={{
       teachers,
@@ -623,6 +980,7 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
       creditPackages,
       creditTransactions,
       userCredits,
+      notificationSettings,
       addTeacher,
       updateTeacher,
       deleteTeacher,
@@ -636,7 +994,12 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
       connectZoomAccount,
       disconnectZoomAccount,
       addTeacherAvailability,
-      removeTeacherAvailability
+      removeTeacherAvailability,
+      updateNotificationSettings,
+      addNotificationTemplate,
+      updateNotificationTemplate,
+      deleteNotificationTemplate,
+      sendTestNotification
     }}>
       {children}
     </TeacherContext.Provider>
