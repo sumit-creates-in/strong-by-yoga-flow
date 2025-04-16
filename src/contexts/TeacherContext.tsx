@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -8,6 +9,7 @@ export interface SessionType {
   type: 'video' | 'call' | 'chat';
   duration: number;
   price: number;
+  credits: number;
 }
 
 export interface Review {
@@ -17,6 +19,21 @@ export interface Review {
   rating: number;
   comment: string;
   date: string;
+}
+
+export interface AvailabilitySlot {
+  id: string;
+  day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+}
+
+export interface ZoomAccount {
+  id: string;
+  email: string;
+  connected: boolean;
+  accountName: string;
 }
 
 export interface Teacher {
@@ -37,6 +54,8 @@ export interface Teacher {
   reviews: Review[];
   lastReviewDate: string;
   sessionTypes: SessionType[];
+  availability: AvailabilitySlot[];
+  zoomAccount: ZoomAccount | null;
 }
 
 export interface BookingData {
@@ -46,29 +65,90 @@ export interface BookingData {
   date: Date;
   time: string;
   status: 'scheduled' | 'completed' | 'cancelled';
+  zoomMeetingId?: string;
+  zoomMeetingUrl?: string;
+}
+
+export interface CreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+  popular?: boolean;
+  mostValue?: boolean;
 }
 
 interface TeacherContextType {
   teachers: Teacher[];
   bookings: BookingData[];
+  creditPackages: CreditPackage[];
+  userCredits: number;
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (teacher: Teacher) => void;
   deleteTeacher: (id: string) => void;
   getTeacher: (id: string) => Teacher | undefined;
   bookSession: (booking: Omit<BookingData, 'id' | 'status'>) => void;
   getBooking: () => BookingData | null;
+  addTeacherAvailability: (teacherId: string, availability: AvailabilitySlot) => void;
+  updateTeacherAvailability: (teacherId: string, availability: AvailabilitySlot) => void;
+  removeTeacherAvailability: (teacherId: string, availabilityId: string) => void;
+  connectZoomAccount: (teacherId: string, zoomAccount: ZoomAccount) => void;
+  disconnectZoomAccount: (teacherId: string) => void;
+  purchaseCredits: (packageId: string) => void;
+  useCredits: (amount: number) => boolean;
 }
 
 const TeacherContext = createContext<TeacherContextType>({
   teachers: [],
   bookings: [],
+  creditPackages: [],
+  userCredits: 0,
   addTeacher: () => {},
   updateTeacher: () => {},
   deleteTeacher: () => {},
   getTeacher: () => undefined,
   bookSession: () => {},
   getBooking: () => null,
+  addTeacherAvailability: () => {},
+  updateTeacherAvailability: () => {},
+  removeTeacherAvailability: () => {},
+  connectZoomAccount: () => {},
+  disconnectZoomAccount: () => {},
+  purchaseCredits: () => {},
+  useCredits: () => false,
 });
+
+// Sample credit packages
+const sampleCreditPackages: CreditPackage[] = [
+  {
+    id: 'credits-1',
+    name: 'Starter Package',
+    credits: 50,
+    price: 45,
+    popular: false,
+  },
+  {
+    id: 'credits-2',
+    name: 'Standard Package',
+    credits: 100,
+    price: 85,
+    popular: true,
+  },
+  {
+    id: 'credits-3',
+    name: 'Premium Package',
+    credits: 200,
+    price: 160,
+    mostValue: true,
+  },
+  {
+    id: 'credits-4',
+    name: 'Professional Package',
+    credits: 500,
+    price: 375,
+    popular: false,
+  }
+];
 
 // Sample data
 const sampleTeachers: Teacher[] = [
@@ -120,23 +200,55 @@ const sampleTeachers: Teacher[] = [
         name: 'Personalized Yoga Session',
         type: 'video',
         duration: 60,
-        price: 80
+        price: 80,
+        credits: 80
       },
       {
         id: 'session-2',
         name: 'Yoga Therapy Consultation',
         type: 'video',
         duration: 90,
-        price: 110
+        price: 110,
+        credits: 110
       },
       {
         id: 'session-3',
         name: 'Quick Guidance Call',
         type: 'call',
         duration: 30,
-        price: 45
+        price: 45,
+        credits: 45
       }
-    ]
+    ],
+    availability: [
+      {
+        id: 'avail-1',
+        day: 'monday',
+        startTime: '09:00',
+        endTime: '12:00',
+        isRecurring: true
+      },
+      {
+        id: 'avail-2',
+        day: 'wednesday',
+        startTime: '14:00',
+        endTime: '18:00',
+        isRecurring: true
+      },
+      {
+        id: 'avail-3',
+        day: 'friday',
+        startTime: '10:00',
+        endTime: '15:00',
+        isRecurring: true
+      }
+    ],
+    zoomAccount: {
+      id: 'zoom-1',
+      email: 'sarah.johnson@example.com',
+      connected: true,
+      accountName: 'Sarah Johnson'
+    }
   },
   {
     id: 'teacher-2',
@@ -186,23 +298,55 @@ const sampleTeachers: Teacher[] = [
         name: 'Dynamic Flow Session',
         type: 'video',
         duration: 60,
-        price: 75
+        price: 75,
+        credits: 75
       },
       {
         id: 'session-5',
         name: 'Strength & Flexibility Focus',
         type: 'video',
         duration: 75,
-        price: 90
+        price: 90,
+        credits: 90
       },
       {
         id: 'session-6',
         name: 'Quick Form Check',
         type: 'call',
         duration: 20,
-        price: 35
+        price: 35,
+        credits: 35
       }
-    ]
+    ],
+    availability: [
+      {
+        id: 'avail-4',
+        day: 'tuesday',
+        startTime: '08:00',
+        endTime: '12:00',
+        isRecurring: true
+      },
+      {
+        id: 'avail-5',
+        day: 'thursday',
+        startTime: '15:00',
+        endTime: '20:00',
+        isRecurring: true
+      },
+      {
+        id: 'avail-6',
+        day: 'saturday',
+        startTime: '09:00',
+        endTime: '14:00',
+        isRecurring: true
+      }
+    ],
+    zoomAccount: {
+      id: 'zoom-2',
+      email: 'raj.patel@example.com',
+      connected: true,
+      accountName: 'Raj Patel'
+    }
   },
   {
     id: 'teacher-3',
@@ -252,23 +396,50 @@ const sampleTeachers: Teacher[] = [
         name: 'Yin Yoga Session',
         type: 'video',
         duration: 75,
-        price: 85
+        price: 85,
+        credits: 85
       },
       {
         id: 'session-8',
         name: 'Meditation & Mindfulness',
         type: 'video',
         duration: 45,
-        price: 60
+        price: 60,
+        credits: 60
       },
       {
         id: 'session-9',
         name: 'Stress Relief Guidance',
         type: 'call',
         duration: 30,
-        price: 50
+        price: 50,
+        credits: 50
       }
-    ]
+    ],
+    availability: [
+      {
+        id: 'avail-7',
+        day: 'monday',
+        startTime: '15:00',
+        endTime: '20:00',
+        isRecurring: true
+      },
+      {
+        id: 'avail-8',
+        day: 'wednesday',
+        startTime: '09:00',
+        endTime: '13:00',
+        isRecurring: true
+      },
+      {
+        id: 'avail-9',
+        day: 'sunday',
+        startTime: '10:00',
+        endTime: '15:00',
+        isRecurring: true
+      }
+    ],
+    zoomAccount: null
   }
 ];
 
@@ -276,6 +447,8 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
   const [teachers, setTeachers] = useState<Teacher[]>(sampleTeachers);
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [currentBooking, setCurrentBooking] = useState<BookingData | null>(null);
+  const [creditPackages] = useState<CreditPackage[]>(sampleCreditPackages);
+  const [userCredits, setUserCredits] = useState<number>(100); // Starting with 100 credits
   const { toast } = useToast();
   
   const addTeacher = (teacher: Teacher) => {
@@ -315,17 +488,136 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
   const getBooking = () => {
     return currentBooking;
   };
+
+  // Teacher availability management
+  const addTeacherAvailability = (teacherId: string, availability: AvailabilitySlot) => {
+    setTeachers(teachers.map(teacher => {
+      if (teacher.id === teacherId) {
+        return {
+          ...teacher,
+          availability: [...(teacher.availability || []), availability]
+        };
+      }
+      return teacher;
+    }));
+
+    toast({
+      title: "Availability added",
+      description: "The teacher's availability has been updated successfully."
+    });
+  };
+
+  const updateTeacherAvailability = (teacherId: string, updatedAvailability: AvailabilitySlot) => {
+    setTeachers(teachers.map(teacher => {
+      if (teacher.id === teacherId) {
+        return {
+          ...teacher,
+          availability: teacher.availability.map(slot => 
+            slot.id === updatedAvailability.id ? updatedAvailability : slot
+          )
+        };
+      }
+      return teacher;
+    }));
+
+    toast({
+      title: "Availability updated",
+      description: "The teacher's availability has been updated successfully."
+    });
+  };
+
+  const removeTeacherAvailability = (teacherId: string, availabilityId: string) => {
+    setTeachers(teachers.map(teacher => {
+      if (teacher.id === teacherId) {
+        return {
+          ...teacher,
+          availability: teacher.availability.filter(slot => slot.id !== availabilityId)
+        };
+      }
+      return teacher;
+    }));
+
+    toast({
+      title: "Availability removed",
+      description: "The time slot has been removed from the teacher's schedule."
+    });
+  };
+
+  // Zoom account management
+  const connectZoomAccount = (teacherId: string, zoomAccount: ZoomAccount) => {
+    setTeachers(teachers.map(teacher => {
+      if (teacher.id === teacherId) {
+        return {
+          ...teacher,
+          zoomAccount
+        };
+      }
+      return teacher;
+    }));
+
+    toast({
+      title: "Zoom connected",
+      description: `Zoom account ${zoomAccount.email} connected successfully.`
+    });
+  };
+
+  const disconnectZoomAccount = (teacherId: string) => {
+    setTeachers(teachers.map(teacher => {
+      if (teacher.id === teacherId) {
+        return {
+          ...teacher,
+          zoomAccount: null
+        };
+      }
+      return teacher;
+    }));
+
+    toast({
+      title: "Zoom disconnected",
+      description: "The Zoom account has been disconnected from this teacher."
+    });
+  };
+
+  // Credit system
+  const purchaseCredits = (packageId: string) => {
+    const selectedPackage = creditPackages.find(pkg => pkg.id === packageId);
+    if (selectedPackage) {
+      setUserCredits(prevCredits => prevCredits + selectedPackage.credits);
+      
+      toast({
+        title: "Credits purchased!",
+        description: `You have added ${selectedPackage.credits} credits to your account.`,
+      });
+    }
+  };
+
+  const useCredits = (amount: number): boolean => {
+    if (userCredits >= amount) {
+      setUserCredits(prevCredits => prevCredits - amount);
+      return true;
+    }
+    return false;
+  };
   
   return (
     <TeacherContext.Provider value={{
       teachers,
       bookings,
+      creditPackages,
+      userCredits,
       addTeacher,
       updateTeacher,
       deleteTeacher,
       getTeacher,
       bookSession,
-      getBooking
+      getBooking,
+      addTeacherAvailability,
+      updateTeacherAvailability,
+      removeTeacherAvailability,
+      connectZoomAccount,
+      disconnectZoomAccount,
+      purchaseCredits,
+      useCredits
     }}>
       {children}
     </TeacherContext.Provider>

@@ -1,288 +1,371 @@
 
-import React, { useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { 
-  Calendar, 
-  Clock, 
-  ChevronLeft,
-  ChevronRight,
-  Video,
-  Phone,
-  MessageCircle,
-  Check
-} from 'lucide-react';
-import { format, addDays, startOfDay, isEqual } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { format, addDays, startOfWeek } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Layout from '@/components/Layout';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useTeachers } from '@/contexts/TeacherContext';
 import { useToast } from '@/components/ui/use-toast';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Clock, 
+  Video, 
+  Phone, 
+  MessageCircle, 
+  Calendar as CalendarIcon, 
+  Check,
+  CreditCard,
+  Coins
+} from 'lucide-react';
+import { useTeachers } from '@/contexts/TeacherContext';
+import Layout from '@/components/Layout';
+import LowCreditsDialog from '@/components/LowCreditsDialog';
+
+const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const TeacherBooking = () => {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const sessionTypeId = searchParams.get('type');
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getTeacher, bookSession } = useTeachers();
-  const teacher = getTeacher(id || '');
+  const { getTeacher, bookSession, userCredits } = useTeachers();
   
-  const [currentDate, setCurrentDate] = useState(startOfDay(new Date()));
-  const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
+  const [teacher, setTeacher] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [selectedSessionType, setSelectedSessionType] = useState(
-    sessionTypeId ? 
-    teacher?.sessionTypes.find(s => s.id === sessionTypeId) || teacher?.sessionTypes[0] : 
-    teacher?.sessionTypes[0]
-  );
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [selectedSessionType, setSelectedSessionType] = useState<any>(null);
+  const [isLowCreditsModalOpen, setIsLowCreditsModalOpen] = useState(false);
   
-  // Generate date range for the next 7 days
-  const dateRange = Array.from({ length: 7 }, (_, i) => addDays(currentDate, i));
+  useEffect(() => {
+    if (id) {
+      const teacherData = getTeacher(id);
+      if (teacherData) {
+        setTeacher(teacherData);
+        if (teacherData.sessionTypes.length > 0) {
+          setSelectedSessionType(teacherData.sessionTypes[0]);
+        }
+      }
+    }
+  }, [id, getTeacher]);
   
-  // Mock available times
-  const availableTimes = [
-    '09:00 AM', '10:00 AM', '11:00 AM', 
-    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
-  ];
+  // When a date is selected, calculate available times based on teacher availability
+  useEffect(() => {
+    if (teacher && selectedDate) {
+      const dayOfWeek = selectedDate.getDay();
+      const dayName = dayNames[dayOfWeek].toLowerCase();
+      
+      // Find availability for this day
+      const dayAvailability = teacher.availability.filter(
+        (slot: any) => slot.day.toLowerCase() === dayName
+      );
+      
+      // Generate time slots in 30-minute increments
+      const times: string[] = [];
+      
+      dayAvailability.forEach((slot: any) => {
+        let [startHour, startMinute] = slot.startTime.split(':').map(Number);
+        const [endHour, endMinute] = slot.endTime.split(':').map(Number);
+        
+        // Convert to minutes for easier calculation
+        let currentTimeInMinutes = startHour * 60 + startMinute;
+        const endTimeInMinutes = endHour * 60 + endMinute;
+        
+        // Generate 30-minute slots
+        while (currentTimeInMinutes + 30 <= endTimeInMinutes) {
+          const hours = Math.floor(currentTimeInMinutes / 60);
+          const minutes = currentTimeInMinutes % 60;
+          times.push(
+            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+          );
+          currentTimeInMinutes += 30;
+        }
+      });
+      
+      setAvailableTimes(times);
+      setSelectedTime(null);
+    }
+  }, [teacher, selectedDate]);
+  
+  const formatTimeDisplay = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+  
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+  };
+  
+  const handleSessionTypeSelect = (sessionType: any) => {
+    setSelectedSessionType(sessionType);
+  };
+
+  const handleBookSession = () => {
+    if (selectedSessionType.credits > userCredits) {
+      setIsLowCreditsModalOpen(true);
+      return;
+    }
+
+    processBooking();
+  };
+
+  const processBooking = () => {
+    if (teacher && selectedDate && selectedTime && selectedSessionType) {
+      bookSession({
+        teacherId: teacher.id,
+        sessionType: selectedSessionType,
+        date: selectedDate,
+        time: selectedTime
+      });
+      
+      navigate(`/teachers/${id}/booking/confirmation`);
+      
+      toast({
+        title: "Session Booked!",
+        description: `Your ${selectedSessionType.name} with ${teacher.name} is confirmed.`,
+        duration: 5000
+      });
+    }
+  };
   
   if (!teacher) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-4">Teacher not found</h2>
-          <Button onClick={() => navigate('/teachers')}>Back to Teachers</Button>
+        <div className="flex items-center justify-center h-64">
+          <p>Loading teacher information...</p>
         </div>
       </Layout>
     );
   }
   
-  const handleBookSession = () => {
-    if (!selectedSessionType || !selectedDate || !selectedTime) {
-      toast({
-        title: "Booking Error",
-        description: "Please select a session type, date and time",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    bookSession({
-      teacherId: teacher.id,
-      sessionType: selectedSessionType,
-      date: selectedDate,
-      time: selectedTime
-    });
-    
-    // Navigate to confirmation page
-    navigate(`/teachers/${teacher.id}/booking/confirmation`);
-  };
-  
-  const getSessionTypeIcon = (type: string) => {
-    switch (type) {
-      case 'video':
-        return <Video className="mr-2" size={18} />;
-      case 'call':
-        return <Phone className="mr-2" size={18} />;
-      case 'chat':
-        return <MessageCircle className="mr-2" size={18} />;
-      default:
-        return null;
-    }
-  };
-  
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="container max-w-6xl mx-auto px-4 py-8">
         <Button 
           variant="ghost" 
-          className="mb-4 pl-0"
-          onClick={() => navigate(`/teachers/${teacher.id}`)}
+          className="mb-6"
+          onClick={() => navigate(`/teachers/${id}`)}
         >
-          <ChevronLeft className="mr-1" size={18} />
-          Back to {teacher.name}'s profile
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back to Teacher Profile
         </Button>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left column - Booking */}
-          <div className="md:col-span-2 space-y-6">
-            <h1 className="text-2xl md:text-3xl font-bold">Book a session with {teacher.name}</h1>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="col-span-2 space-y-6">
+            <div className="flex items-center space-x-4">
+              <div className="h-16 w-16 rounded-full overflow-hidden">
+                <img 
+                  src={teacher.avatarUrl} 
+                  alt={teacher.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{teacher.name}</h1>
+                <p className="text-gray-600">{teacher.shortBio}</p>
+              </div>
+            </div>
             
             <Card>
               <CardHeader>
                 <CardTitle>Select Session Type</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {teacher.sessionTypes.map((session) => (
-                    <Button
-                      key={session.id}
-                      variant={selectedSessionType?.id === session.id ? "default" : "outline"}
-                      className={`w-full justify-start h-auto py-3 px-4 ${
-                        selectedSessionType?.id === session.id ? "bg-yoga-blue" : ""
-                      }`}
-                      onClick={() => setSelectedSessionType(session)}
-                    >
-                      <div className="flex-1 text-left">
-                        <div className="flex items-start mb-1">
-                          {getSessionTypeIcon(session.type)}
-                          <span className="font-medium">{session.name}</span>
-                          {selectedSessionType?.id === session.id && (
-                            <Check className="ml-auto" size={18} />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between text-gray-500">
-                          <div className="flex items-center">
-                            <Clock size={14} className="mr-1" />
-                            <span className="text-sm">{session.duration} mins</span>
+              <CardContent className="grid gap-4">
+                {teacher.sessionTypes.map((sessionType: any) => (
+                  <div 
+                    key={sessionType.id}
+                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedSessionType?.id === sessionType.id 
+                        ? 'border-2 border-yoga-blue bg-yoga-light-blue/10' 
+                        : 'hover:border-gray-300'
+                    }`}
+                    onClick={() => handleSessionTypeSelect(sessionType)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center space-x-3">
+                        {sessionType.type === 'video' && <Video className="h-5 w-5 text-yoga-blue" />}
+                        {sessionType.type === 'call' && <Phone className="h-5 w-5 text-yoga-blue" />}
+                        {sessionType.type === 'chat' && <MessageCircle className="h-5 w-5 text-yoga-blue" />}
+                        
+                        <div>
+                          <h3 className="font-medium">{sessionType.name}</h3>
+                          <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
+                            <Clock size={14} />
+                            <span>{sessionType.duration} minutes</span>
                           </div>
-                          <span className="font-medium">${session.price}</span>
                         </div>
                       </div>
-                    </Button>
-                  ))}
-                </div>
+                      
+                      <div className="text-right">
+                        <div className="font-semibold">${sessionType.price}</div>
+                        <div className="flex items-center space-x-1 text-sm">
+                          <Coins size={12} className="text-amber-500" />
+                          <span className="text-gray-500">{sessionType.credits} credits</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {selectedSessionType?.id === sessionType.id && (
+                      <div className="mt-2 pt-2 border-t flex items-center justify-end">
+                        <Check size={16} className="text-green-500 mr-1" />
+                        <span className="text-green-500 text-sm">Selected</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader>
-                <CardTitle>Select Date</CardTitle>
+                <CardTitle>Select Date & Time</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-between items-center mb-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentDate(addDays(currentDate, -7))}
-                    disabled={isEqual(startOfDay(currentDate), startOfDay(new Date()))}
-                  >
-                    <ChevronLeft size={16} />
-                    Previous week
-                  </Button>
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex-1">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      className="rounded-md border shadow"
+                      disabled={(date) => {
+                        // Disable dates in the past
+                        return date < new Date(new Date().setHours(0, 0, 0, 0));
+                      }}
+                    />
+                  </div>
                   
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentDate(addDays(currentDate, 7))}
-                  >
-                    Next week
-                    <ChevronRight size={16} />
-                  </Button>
-                </div>
-                
-                <div className="grid grid-cols-7 gap-2 mb-6">
-                  {dateRange.map((date) => {
-                    const dayStr = format(date, 'EEE');
-                    const dayNum = format(date, 'd');
-                    const isSelected = isEqual(date, selectedDate);
-                    const isToday = isEqual(date, startOfDay(new Date()));
+                  <div className="flex-1">
+                    <h3 className="font-medium mb-4">Available Times for {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : ''}</h3>
                     
-                    return (
-                      <Button
-                        key={dayNum}
-                        variant={isSelected ? "default" : "outline"}
-                        className={`
-                          h-auto flex flex-col py-2
-                          ${isSelected ? "bg-yoga-blue" : ""}
-                          ${isToday && !isSelected ? "border-yoga-blue text-yoga-blue" : ""}
-                        `}
-                        onClick={() => setSelectedDate(date)}
-                      >
-                        <span className="text-xs">{dayStr}</span>
-                        <span className="text-lg font-bold">{dayNum}</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-                
-                <CardTitle className="mb-4">Select Time</CardTitle>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {availableTimes.map((time) => (
-                    <Button
-                      key={time}
-                      variant={selectedTime === time ? "default" : "outline"}
-                      className={selectedTime === time ? "bg-yoga-blue" : ""}
-                      onClick={() => setSelectedTime(time)}
-                    >
-                      {time}
-                    </Button>
-                  ))}
+                    {availableTimes.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg">
+                        <CalendarIcon className="mx-auto h-10 w-10 text-gray-400" />
+                        <p className="mt-2 text-gray-500">
+                          No available time slots for this date
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {availableTimes.map((time) => (
+                          <button
+                            key={time}
+                            className={`py-2 px-4 rounded-md text-center transition-colors ${
+                              selectedTime === time
+                                ? 'bg-yoga-blue text-white'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                            onClick={() => handleTimeSelect(time)}
+                          >
+                            {formatTimeDisplay(time)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
           
-          {/* Right column - Summary */}
           <div>
-            <Card className="sticky top-24">
+            <Card className="sticky top-6">
               <CardHeader>
-                <CardTitle>Booking Summary</CardTitle>
+                <CardTitle>Session Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 rounded-full overflow-hidden mr-3">
-                    <img 
-                      src={teacher.avatarUrl || "/placeholder.svg"} 
-                      alt={teacher.name} 
-                      className="w-full h-full object-cover"
-                    />
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Session:</span>
+                    <span className="font-medium">{selectedSessionType?.name || 'Not selected'}</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">{teacher.name}</h3>
-                    <Badge className="mt-1 bg-pink-500">Yoga Therapist</Badge>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Date:</span>
+                    <span className="font-medium">
+                      {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Not selected'}
+                    </span>
                   </div>
-                </div>
-                
-                <div className="border-t border-b border-gray-200 py-4 space-y-3">
-                  {selectedSessionType && (
-                    <div className="flex justify-between">
-                      <div className="flex items-center">
-                        {getSessionTypeIcon(selectedSessionType.type)}
-                        <span>{selectedSessionType.name}</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Time:</span>
+                    <span className="font-medium">
+                      {selectedTime ? formatTimeDisplay(selectedTime) : 'Not selected'}
+                    </span>
+                  </div>
+                  <div className="pt-3 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Price:</span>
+                      <span className="text-xl font-bold">
+                        ${selectedSessionType?.price || '0'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <div className="flex items-center text-gray-500 text-sm">
+                        <Coins size={14} className="mr-1 text-amber-500" /> Required credits
                       </div>
-                      <span className="font-medium">${selectedSessionType.price}</span>
+                      <Badge className="bg-amber-500">
+                        {selectedSessionType?.credits || '0'} credits
+                      </Badge>
                     </div>
-                  )}
-                  
-                  {selectedDate && (
-                    <div className="flex items-center">
-                      <Calendar className="mr-2" size={18} />
-                      <span>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
-                    </div>
-                  )}
-                  
-                  {selectedTime && (
-                    <div className="flex items-center">
-                      <Clock className="mr-2" size={18} />
-                      <span>{selectedTime}</span>
-                    </div>
-                  )}
+                  </div>
                 </div>
                 
-                {selectedSessionType && (
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>${selectedSessionType.price}</span>
+                <div className="py-3 px-4 bg-gray-50 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Coins size={16} className="mr-2 text-indigo-500" />
+                      <span className="font-medium">Your credits:</span>
+                    </div>
+                    <span className="font-bold">{userCredits}</span>
                   </div>
-                )}
-                
-                <Button 
-                  className="w-full bg-orange-500 hover:bg-orange-600"
-                  disabled={!selectedSessionType || !selectedDate || !selectedTime}
+                  
+                  {selectedSessionType && (
+                    <>
+                      {userCredits < selectedSessionType.credits ? (
+                        <div className="mt-2 text-sm text-red-600">
+                          You need {selectedSessionType.credits - userCredits} more credits for this session
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-sm text-green-600">
+                          You have enough credits for this session
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-3">
+                <Button
+                  className="w-full"
+                  disabled={!selectedDate || !selectedTime || !selectedSessionType}
                   onClick={handleBookSession}
                 >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
                   Book Session
                 </Button>
                 
-                <p className="text-gray-500 text-sm text-center">
-                  You won't be charged yet. Payment will be processed after your session is confirmed.
-                </p>
-              </CardContent>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => navigate('/pricing')}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Purchase Credits
+                </Button>
+              </CardFooter>
             </Card>
           </div>
         </div>
       </div>
+      
+      <LowCreditsDialog
+        open={isLowCreditsModalOpen}
+        onOpenChange={setIsLowCreditsModalOpen}
+        requiredCredits={selectedSessionType?.credits || 0}
+        onProceed={processBooking}
+      />
     </Layout>
   );
 };
