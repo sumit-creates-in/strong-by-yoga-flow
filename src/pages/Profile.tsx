@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
-import { User, Mail, Phone, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, Save, Coins, History, Calendar, CalendarPlus } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,15 +9,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import MembershipManager from '@/components/MembershipManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTeachers } from '@/contexts/TeacherContext';
+import CreditHistoryModal from '@/components/CreditHistoryModal';
 
 const Profile = () => {
   const { user, logout, updateProfile } = useAuth();
   const { toast } = useToast();
+  const { userCredits } = useTeachers();
+  const navigate = useNavigate();
   
   const [editMode, setEditMode] = useState(false);
   const [firstName, setFirstName] = useState(user?.profile?.first_name || '');
   const [lastName, setLastName] = useState(user?.profile?.last_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [isCreditHistoryOpen, setIsCreditHistoryOpen] = useState(false);
   
   const handleSaveProfile = async () => {
     // Update profile in Supabase
@@ -52,6 +57,50 @@ const Profile = () => {
     <Layout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Your Profile</h1>
+        
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Card className="flex-1 p-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                <Coins className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Credit Balance</h3>
+                <p className="text-2xl font-bold">{userCredits}</p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsCreditHistoryOpen(true)}
+              className="flex items-center"
+            >
+              <History className="h-3.5 w-3.5 mr-1" />
+              History
+            </Button>
+          </Card>
+          
+          <Card className="flex-1 p-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="h-10 w-10 rounded-full bg-yoga-light-blue flex items-center justify-center mr-3">
+                <Calendar className="h-5 w-5 text-yoga-blue" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Upcoming Sessions</h3>
+                <p className="text-2xl font-bold">0</p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/teachers')}
+              className="flex items-center"
+            >
+              <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+              Book
+            </Button>
+          </Card>
+        </div>
         
         <Tabs defaultValue="personal" className="w-full">
           <TabsList className="mb-6">
@@ -246,6 +295,12 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Credit History Modal */}
+      <CreditHistoryModal
+        open={isCreditHistoryOpen}
+        onOpenChange={setIsCreditHistoryOpen}
+      />
     </Layout>
   );
 };

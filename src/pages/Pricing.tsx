@@ -4,10 +4,13 @@ import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, CreditCard, Zap, Clock, Award, Sparkles } from 'lucide-react';
+import { Check, CreditCard, Zap, Clock, Award, Sparkles, Plus, Minus, Coins, LockKeyhole } from 'lucide-react';
 import { useYogaClasses } from '@/contexts/YogaClassContext';
 import { useTeachers } from '@/contexts/TeacherContext';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -26,7 +29,9 @@ const Pricing = () => {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedCreditPackage, setSelectedCreditPackage] = useState<string | null>(null);
-  const [paymentType, setPaymentType] = useState<'membership' | 'credits'>('membership');
+  const [paymentType, setPaymentType] = useState<'membership' | 'credits' | 'custom'>('membership');
+  const [customCredits, setCustomCredits] = useState(50);
+  const [paymentMethod, setPaymentMethod] = useState<'onetime' | 'subscription'>('onetime');
   
   const handleSelectTier = (tierId: string) => {
     setSelectedTier(tierId);
@@ -39,6 +44,11 @@ const Pricing = () => {
     setPaymentType('credits');
     setIsPaymentDialogOpen(true);
   };
+
+  const handleCustomCreditPurchase = () => {
+    setPaymentType('custom');
+    setIsPaymentDialogOpen(true);
+  }
   
   const handlePurchase = () => {
     if (paymentType === 'membership' && selectedTier) {
@@ -47,7 +57,16 @@ const Pricing = () => {
     } else if (paymentType === 'credits' && selectedCreditPackage) {
       purchaseCredits(selectedCreditPackage);
       setIsPaymentDialogOpen(false);
+    } else if (paymentType === 'custom') {
+      // Create a custom package ID
+      const customPackageId = `custom-${Date.now()}`;
+      purchaseCredits(customPackageId);
+      setIsPaymentDialogOpen(false);
     }
+  };
+
+  const incrementCredits = (amount: number) => {
+    setCustomCredits(prev => Math.max(10, Math.min(1000, prev + amount)));
   };
   
   const FeatureItem = ({ text }: { text: string }) => (
@@ -146,6 +165,104 @@ const Pricing = () => {
               </div>
             </div>
             
+            {/* Custom Credit Purchase Card */}
+            <Card className="mb-8 border-2 border-indigo-200">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Coins className="h-5 w-5 mr-2 text-indigo-600" />
+                  Buy Custom Amount
+                </CardTitle>
+                <CardDescription>
+                  Purchase exactly how many credits you need
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">Buying 1-on-1 Credits</h3>
+                    <div className="text-gray-600 mb-4">1 Credit = $1 USD</div>
+                    
+                    <div className="space-y-4">
+                      <div className="mb-6">
+                        <label htmlFor="custom-credits" className="block text-sm font-medium text-gray-700 mb-2">
+                          How many credits would you like to buy?
+                        </label>
+                        <div className="flex items-center">
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => incrementCredits(-10)}
+                            disabled={customCredits <= 10}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <div className="relative mx-2 flex-grow">
+                            <Input
+                              id="custom-credits"
+                              type="number"
+                              min="10"
+                              max="1000"
+                              value={customCredits}
+                              onChange={(e) => setCustomCredits(Number(e.target.value))}
+                              className="text-center"
+                            />
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <Coins className="h-4 w-4 text-gray-400" />
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => incrementCredits(10)}
+                            disabled={customCredits >= 1000}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <RadioGroup defaultValue="onetime" className="space-y-3" onValueChange={(value: any) => setPaymentMethod(value)}>
+                        <div className="flex items-center space-x-2 border p-4 rounded-md bg-white">
+                          <RadioGroupItem value="onetime" id="onetime" />
+                          <Label htmlFor="onetime" className="flex-grow">One time payment</Label>
+                        </div>
+                        <div className="flex items-center space-x-2 border p-4 rounded-md bg-white">
+                          <RadioGroupItem value="subscription" id="subscription" />
+                          <Label htmlFor="subscription" className="flex-grow">
+                            Subscribe & Save 5% every month + Unlimited Group Classes 
+                            <span className="block text-sm text-gray-500 mt-1">(Renews every month)</span>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-lg">Total:</span>
+                      <span className="font-bold text-xl">
+                        ${paymentMethod === 'subscription' ? (customCredits * 0.95).toFixed(2) : customCredits.toFixed(2)}
+                      </span>
+                    </div>
+                    {paymentMethod === 'subscription' && (
+                      <div className="text-sm text-green-600 text-right">You save: ${(customCredits * 0.05).toFixed(2)}</div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  onClick={handleCustomCreditPurchase}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Buy {customCredits} Credits
+                </Button>
+              </CardFooter>
+            </Card>
+            
+            {/* Credit Package Cards */}
+            <h3 className="text-xl font-semibold mb-4">Credit Packages</h3>
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               {creditPackages.map((pkg) => (
                 <Card 
@@ -290,7 +407,9 @@ const Pricing = () => {
           <DialogHeader>
             <DialogTitle>Complete Your Purchase</DialogTitle>
             <DialogDescription>
-              Enter your payment details to {paymentType === 'membership' ? 'activate your membership' : 'purchase credits'}
+              Enter your payment details to {paymentType === 'membership' 
+                ? 'activate your membership' 
+                : 'purchase credits'}
             </DialogDescription>
           </DialogHeader>
           
@@ -307,7 +426,7 @@ const Pricing = () => {
                         {membershipTiers.find(t => t.id === selectedTier)?.duration} month{membershipTiers.find(t => t.id === selectedTier)?.duration !== 1 ? 's' : ''}
                       </p>
                     </>
-                  ) : (
+                  ) : paymentType === 'credits' ? (
                     <>
                       <p className="font-medium">
                         {creditPackages.find(p => p.id === selectedCreditPackage)?.name}
@@ -316,12 +435,25 @@ const Pricing = () => {
                         {creditPackages.find(p => p.id === selectedCreditPackage)?.credits} credits
                       </p>
                     </>
+                  ) : (
+                    <>
+                      <p className="font-medium">
+                        Custom Credit Purchase
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {customCredits} credits {paymentMethod === 'subscription' ? '(subscription)' : '(one-time)'}
+                      </p>
+                    </>
                   )}
                 </div>
                 <p className="font-bold">
                   ${paymentType === 'membership' 
                     ? membershipTiers.find(t => t.id === selectedTier)?.price 
-                    : creditPackages.find(p => p.id === selectedCreditPackage)?.price
+                    : paymentType === 'credits'
+                    ? creditPackages.find(p => p.id === selectedCreditPackage)?.price
+                    : paymentMethod === 'subscription' 
+                    ? (customCredits * 0.95).toFixed(2)
+                    : customCredits.toFixed(2)
                   }
                 </p>
               </div>
@@ -332,12 +464,47 @@ const Pricing = () => {
                   <span className="font-medium">Payment Details</span>
                 </div>
                 
-                <p className="text-sm text-gray-500 mb-2">
+                <p className="text-sm text-gray-500 mb-4">
                   For demo purposes, no actual payment will be processed.
                 </p>
                 
-                <div className="flex items-center justify-center bg-gray-50 rounded-md p-6 mb-2">
-                  <span className="text-lg font-medium">Demo Payment System</span>
+                <div className="relative border rounded-md">
+                  <div className="flex items-center border-b px-4 py-3">
+                    <CreditCard className="h-4 w-4 text-gray-400 mr-3" />
+                    <input
+                      type="text"
+                      placeholder="Card number"
+                      className="flex-1 border-none outline-none bg-transparent"
+                    />
+                    <div className="px-4 bg-gray-50 py-2 rounded-md flex items-center">
+                      <LockKeyhole className="h-3.5 w-3.5 text-gray-400 mr-1.5" />
+                      <span className="text-sm text-gray-500">Secure</span>
+                    </div>
+                  </div>
+                  <div className="flex">
+                    <div className="flex-1 border-r px-4 py-3">
+                      <input
+                        type="text"
+                        placeholder="MM / YY"
+                        className="w-full border-none outline-none bg-transparent"
+                      />
+                    </div>
+                    <div className="flex-1 px-4 py-3">
+                      <input
+                        type="text"
+                        placeholder="CVC"
+                        className="w-full border-none outline-none bg-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex items-center justify-center">
+                  <img 
+                    src="public/lovable-uploads/b2bd268b-8f60-4aea-93bb-955af5727f00.png" 
+                    alt="Payment methods" 
+                    className="h-10"
+                  />
                 </div>
               </div>
             </div>

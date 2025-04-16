@@ -62,6 +62,9 @@ const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ avail
                         <span className="text-gray-600">
                           {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                         </span>
+                        <span className="text-xs text-gray-500">
+                          (15-min slots)
+                        </span>
                       </div>
                     ))}
                   </div>

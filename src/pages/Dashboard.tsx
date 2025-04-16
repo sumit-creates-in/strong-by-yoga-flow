@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Repeat, ChevronRight, Zap } from 'lucide-react';
+import { Calendar, Clock, Repeat, ChevronRight, Zap, Coins, CreditCard, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +24,8 @@ import {
 import { format } from 'date-fns';
 import ClassJoinPrompt from '@/components/ClassJoinPrompt';
 import TeacherShowcase from '@/components/TeacherShowcase';
+import { useTeachers } from '@/contexts/TeacherContext';
+import CreditHistoryModal from '@/components/CreditHistoryModal';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -38,10 +39,12 @@ const Dashboard = () => {
     isClassLive,
     isClassVisible
   } = useYogaClasses();
+  const { userCredits } = useTeachers();
   const navigate = useNavigate();
   const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<YogaClass | null>(null);
   const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
+  const [isCreditHistoryOpen, setIsCreditHistoryOpen] = useState(false);
 
   // Get upcoming classes (including today, next several days)
   // Sort classes by date/time to ensure consistent ordering
@@ -169,12 +172,31 @@ const Dashboard = () => {
             </p>
           </div>
           
-          <Button 
-            className="mt-4 md:mt-0 yoga-button"
-            onClick={() => navigate('/classes')}
-          >
-            Browse All Classes
-          </Button>
+          <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+            {/* Credit Balance Card */}
+            <div className="bg-white rounded-lg shadow flex items-center px-4 py-2 border">
+              <Coins className="h-5 w-5 text-amber-500 mr-2" />
+              <div>
+                <div className="text-sm text-gray-500">Credits</div>
+                <div className="font-semibold">{userCredits}</div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="ml-2"
+                onClick={() => setIsCreditHistoryOpen(true)}
+              >
+                <History className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <Button 
+              className="yoga-button"
+              onClick={() => navigate('/classes')}
+            >
+              Browse All Classes
+            </Button>
+          </div>
         </div>
         
         {/* Teacher Showcase */}
@@ -274,6 +296,12 @@ const Dashboard = () => {
             joinLink={selectedClass.joinLink}
           />
         )}
+        
+        {/* Credit History Modal */}
+        <CreditHistoryModal
+          open={isCreditHistoryOpen}
+          onOpenChange={setIsCreditHistoryOpen}
+        />
       </div>
     </Layout>
   );
