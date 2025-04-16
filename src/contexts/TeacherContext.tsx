@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -168,7 +167,7 @@ const sampleTeachers: Teacher[] = [
         userName: 'Jennifer K.',
         userInitials: 'JK',
         rating: 5,
-        comment: 'Raj's classes are challenging but so rewarding! I've gained significant strength and my flexibility has improved dramatically. Highly recommend!',
+        comment: "Raj's classes are challenging but so rewarding! I've gained significant strength and my flexibility has improved dramatically. Highly recommend!",
         date: 'April 2, 2023'
       },
       {
@@ -176,7 +175,7 @@ const sampleTeachers: Teacher[] = [
         userName: 'David M.',
         userInitials: 'DM',
         rating: 4,
-        comment: 'Great instructor who really knows his stuff. The sessions are demanding but Raj provides good modifications for newer practitioners.',
+        comment: "Great instructor who really knows his stuff. The sessions are demanding but Raj provides good modifications for newer practitioners.",
         date: 'February 8, 2023'
       }
     ],
@@ -234,7 +233,7 @@ const sampleTeachers: Teacher[] = [
         userName: 'Sophia L.',
         userInitials: 'SL',
         rating: 5,
-        comment: 'Maya's yin sessions have been transformative for my stress levels. Her gentle guidance and knowledge have helped me develop a consistent practice that works with my busy schedule.',
+        comment: 'Maya\'s yin sessions have been transformative for my stress levels. Her gentle guidance and knowledge have helped me develop a consistent practice that works with my busy schedule.',
         date: 'May 10, 2023'
       },
       {
@@ -242,7 +241,7 @@ const sampleTeachers: Teacher[] = [
         userName: 'Thomas W.',
         userInitials: 'TW',
         rating: 5,
-        comment: 'The meditation techniques Maya taught me have helped me manage my anxiety better than anything else I've tried. Her calm presence and clear instructions make the practice accessible.',
+        comment: 'The meditation techniques Maya taught me have helped me manage my anxiety better than anything else I\'ve tried. Her calm presence and clear instructions make the practice accessible.',
         date: 'March 24, 2023'
       }
     ],
