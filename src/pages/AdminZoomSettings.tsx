@@ -1,292 +1,165 @@
 
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import AdminGuard from '@/components/AdminGuard';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, RefreshCw, Check, X, UserPlus, Download, Upload } from 'lucide-react';
-import { useTeachers } from '@/contexts/TeacherContext';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, Info } from 'lucide-react';
 import ZoomSetupCard from '@/components/ZoomSetupCard';
+import StripePaymentIntegration from '@/components/StripePaymentIntegration';
 
 const AdminZoomSettings = () => {
-  const { teachers, connectZoomAccount, disconnectZoomAccount } = useTeachers();
-  const { toast } = useToast();
-  
   const [isConnected, setIsConnected] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { toast } = useToast();
   
-  // Count connected teachers
-  const connectedTeachers = teachers.filter(teacher => teacher.zoomAccount).length;
-  
-  const handleConnectZoom = (email: string) => {
+  const handleConnect = (email: string) => {
     setIsConnected(true);
     setAdminEmail(email);
     
     toast({
-      title: 'Zoom Connected',
-      description: 'Your Zoom admin account has been successfully connected.',
+      title: "Zoom connected",
+      description: "Your Zoom admin account has been connected successfully.",
     });
   };
   
-  const handleDisconnectZoom = () => {
+  const handleDisconnect = () => {
     setIsConnected(false);
     setAdminEmail('');
     
     toast({
-      title: 'Zoom Disconnected',
-      description: 'Your Zoom admin account has been disconnected.',
-      variant: 'destructive',
-    });
-  };
-  
-  const handleSyncAccounts = () => {
-    setIsSyncing(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSyncing(false);
-      
-      toast({
-        title: 'Accounts Synced',
-        description: 'All teacher accounts have been synced with Zoom.',
-      });
-    }, 2000);
-  };
-  
-  const handleImportTeachers = () => {
-    toast({
-      title: 'Import Started',
-      description: 'Importing teachers from Zoom. This may take a few moments.',
+      title: "Zoom disconnected",
+      description: "Your Zoom admin account has been disconnected.",
     });
   };
   
   return (
-    <Layout>
-      <div className="container mx-auto p-6 max-w-6xl">
-        <h1 className="text-3xl font-bold mb-8">Zoom Integration Settings</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <Tabs defaultValue="teachers">
-              <TabsList className="grid grid-cols-2 w-full mb-6">
-                <TabsTrigger value="teachers">Teacher Accounts</TabsTrigger>
-                <TabsTrigger value="meetings">Meeting Settings</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="teachers" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Linked Teacher Accounts</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Teacher</TableHead>
-                          <TableHead>Zoom Email</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {teachers.map(teacher => (
-                          <TableRow key={teacher.id}>
-                            <TableCell className="font-medium">{teacher.name}</TableCell>
-                            <TableCell>
-                              {teacher.zoomAccount ? teacher.zoomAccount.email : '—'}
-                            </TableCell>
-                            <TableCell>
-                              {teacher.zoomAccount ? (
-                                <Badge className="bg-green-500">Connected</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-gray-500">Not Connected</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {teacher.zoomAccount ? (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="text-red-500 hover:text-red-700"
-                                  onClick={() => {
-                                    disconnectZoomAccount(teacher.id);
-                                    toast({
-                                      title: 'Account Disconnected',
-                                      description: `${teacher.name}'s Zoom account has been disconnected.`,
-                                    });
-                                  }}
-                                >
-                                  <X size={16} className="mr-1" /> Disconnect
-                                </Button>
-                              ) : (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="text-blue-500 hover:text-blue-700"
-                                  onClick={() => {
-                                    // Create a dummy Zoom account
-                                    const zoomAccount = {
-                                      id: `zoom-${Date.now()}`,
-                                      email: `${teacher.name.toLowerCase().replace(/ /g, '.')}@example.com`,
-                                      connected: true,
-                                      accountName: teacher.name
-                                    };
-                                    
-                                    connectZoomAccount(teacher.id, zoomAccount);
-                                    
-                                    toast({
-                                      title: 'Account Connected',
-                                      description: `${teacher.name}'s Zoom account has been successfully connected.`,
-                                    });
-                                  }}
-                                >
-                                  <UserPlus size={16} className="mr-1" /> Connect
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        
-                        {teachers.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                              No teachers found
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-                
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleSyncAccounts}
-                    disabled={!isConnected || isSyncing}
-                  >
-                    {isSyncing ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    Sync Teacher Accounts
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleImportTeachers}
-                    disabled={!isConnected}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Import Teachers from Zoom
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="meetings" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Meeting Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="border rounded-md p-4">
-                        <h3 className="font-medium mb-4">Default Meeting Settings</h3>
-                        <ul className="space-y-3">
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Enable waiting room</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Start video for host</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Start video for participants</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <X className="h-4 w-4 text-red-500 mr-2" />
-                            <span>Allow join before host</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Mute participants upon entry</span>
-                          </li>
-                        </ul>
-                      </div>
-                      
-                      <div className="border rounded-md p-4">
-                        <h3 className="font-medium mb-4">Automation</h3>
-                        <ul className="space-y-3">
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Auto-create meetings on booking</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Send email notifications to teacher</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Add to teacher's calendar</span>
-                          </li>
-                          <li className="flex items-center text-sm">
-                            <Check className="h-4 w-4 text-green-500 mr-2" />
-                            <span>Include meeting link in booking confirmations</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    
-                    <Button disabled={!isConnected}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Update Meeting Settings
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+    <AdminGuard>
+      <Layout>
+        <div className="container mx-auto py-6 space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Admin Settings</h1>
+            <p className="text-gray-500">Manage integrations and payment settings</p>
           </div>
           
-          <div className="space-y-6">
-            <ZoomSetupCard 
-              isConnected={isConnected}
-              adminEmail={adminEmail}
-              onConnect={handleConnectZoom}
-              onDisconnect={handleDisconnectZoom}
-            />
+          <Tabs defaultValue="zoom" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="zoom">Zoom Integration</TabsTrigger>
+              <TabsTrigger value="payments">Payment Settings</TabsTrigger>
+              <TabsTrigger value="help">Help</TabsTrigger>
+            </TabsList>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center pb-2 border-b">
-                  <span className="text-gray-600">Connected Admin Account</span>
-                  <span className="font-medium">{isConnected ? 'Yes' : 'No'}</span>
+            <TabsContent value="zoom" className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-600">Integration Note</AlertTitle>
+                <AlertDescription>
+                  In a production environment, clicking "Connect Zoom Account" would initiate the OAuth flow with Zoom. 
+                  This demo simulates the process without requiring actual Zoom credentials.
+                </AlertDescription>
+              </Alert>
+              
+              <ZoomSetupCard
+                isConnected={isConnected}
+                adminEmail={adminEmail}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+              />
+            </TabsContent>
+            
+            <TabsContent value="payments" className="space-y-6">
+              <StripePaymentIntegration />
+            </TabsContent>
+            
+            <TabsContent value="help" className="space-y-6">
+              <div className="bg-white p-6 rounded-lg border">
+                <h2 className="text-2xl font-bold mb-4">Integration Help</h2>
+                
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Zoom Integration</h3>
+                    <p className="mb-4">
+                      The Zoom integration allows you to automatically create meetings for 1-on-1 sessions
+                      and manage teacher accounts.
+                    </p>
+                    <div className="space-y-2">
+                      <details className="border rounded-md p-2">
+                        <summary className="font-medium cursor-pointer">How to create a Zoom App</summary>
+                        <div className="mt-2 pl-4 text-gray-700">
+                          <ol className="list-decimal space-y-2 pl-4">
+                            <li>Go to the <a href="https://marketplace.zoom.us/develop/create" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Zoom App Marketplace</a></li>
+                            <li>Click "Build App" and select "OAuth" as the app type</li>
+                            <li>Fill in the required details and set the redirect URL to your application's callback URL</li>
+                            <li>Copy the Client ID and Client Secret to use with our system</li>
+                          </ol>
+                        </div>
+                      </details>
+                      
+                      <details className="border rounded-md p-2">
+                        <summary className="font-medium cursor-pointer">Required Zoom API permissions</summary>
+                        <div className="mt-2 pl-4 text-gray-700">
+                          <ul className="list-disc space-y-2 pl-4">
+                            <li><code>meeting:write:admin</code> - Create meetings on behalf of users</li>
+                            <li><code>user:read:admin</code> - Read user information</li>
+                            <li><code>user_profile:read</code> - Access user profiles</li>
+                          </ul>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Stripe Integration</h3>
+                    <p className="mb-4">
+                      The Stripe integration enables payment processing for classes, memberships,
+                      and 1-on-1 sessions.
+                    </p>
+                    <div className="space-y-2">
+                      <details className="border rounded-md p-2">
+                        <summary className="font-medium cursor-pointer">Setting up Stripe</summary>
+                        <div className="mt-2 pl-4 text-gray-700">
+                          <ol className="list-decimal space-y-2 pl-4">
+                            <li>Create a <a href="https://dashboard.stripe.com/register" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Stripe account</a></li>
+                            <li>Get your API keys from the Stripe Dashboard</li>
+                            <li>Use test keys first to ensure everything works</li>
+                            <li>Set up products and prices in the Stripe Dashboard</li>
+                          </ol>
+                        </div>
+                      </details>
+                      
+                      <details className="border rounded-md p-2">
+                        <summary className="font-medium cursor-pointer">Testing payments</summary>
+                        <div className="mt-2 pl-4 text-gray-700">
+                          <p className="mb-2">Use these test card numbers to simulate different scenarios:</p>
+                          <ul className="list-disc space-y-2 pl-4">
+                            <li><code>4242 4242 4242 4242</code> - Successful payment</li>
+                            <li><code>4000 0000 0000 0002</code> - Card declined</li>
+                            <li><code>4000 0000 0000 3220</code> - 3D Secure authentication required</li>
+                          </ul>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b">
-                  <span className="text-gray-600">Connected Teachers</span>
-                  <span className="font-medium">{connectedTeachers} of {teachers.length}</span>
+                
+                <div className="mt-6">
+                  <Button variant="outline" className="w-full">
+                    <a 
+                      href="mailto:support@strongbyyoga.com" 
+                      className="w-full flex justify-center"
+                    >
+                      Contact Support
+                    </a>
+                  </Button>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b">
-                  <span className="text-gray-600">Last Synced</span>
-                  <span className="font-medium">{isConnected ? 'Just now' : '—'}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
-    </Layout>
+      </Layout>
+    </AdminGuard>
   );
 };
 

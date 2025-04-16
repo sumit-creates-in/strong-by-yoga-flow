@@ -1,454 +1,309 @@
 
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import AdminGuard from '@/components/AdminGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTeachers } from '@/contexts/TeacherContext';
-import { format } from 'date-fns';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { 
-  Search, 
-  Calendar, 
-  CircleDollarSign, 
-  Clock, 
-  MoreHorizontal, 
-  CheckCircle2, 
-  XCircle, 
-  MessageCircle,
-  Repeat,
-  ArrowUpDown
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { Calendar } from '@/components/ui/calendar';
+import { useTeachers, BookingData, SessionType } from '@/contexts/TeacherContext';
+import { format } from 'date-fns';
+import { CalendarIcon, Clock } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TabsContent, Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminBookings = () => {
-  const { bookings, getTeacher, teachers } = useTeachers();
+  const { bookings, teachers, getTeacher } = useTeachers();
+  const [isBookDialogOpen, setIsBookDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedSessionType, setSelectedSessionType] = useState<string>("");
+  const [selectedTime, setSelectedTime] = useState<string>("");
   const { toast } = useToast();
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortField, setSortField] = useState<string>('date');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  // Mock users data
+  const mockUsers = [
+    { id: 'user1', name: 'John Doe', email: 'john@example.com' },
+    { id: 'user2', name: 'Jane Smith', email: 'jane@example.com' },
+    { id: 'user3', name: 'Robert Johnson', email: 'robert@example.com' },
+  ];
   
-  // Filter and sort bookings
-  const filteredBookings = bookings.filter(booking => {
-    const teacher = getTeacher(booking.teacherId);
-    const matchesSearch = 
-      teacher?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.sessionType.name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    const matchesStatus = 
-      statusFilter === 'all' ||
-      booking.status === statusFilter;
-      
-    return matchesSearch && matchesStatus;
-  });
-  
-  const sortedBookings = [...filteredBookings].sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortField) {
-      case 'date':
-        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-        break;
-      case 'credits':
-        comparison = a.sessionType.credits - b.sessionType.credits;
-        break;
-      case 'duration':
-        comparison = a.sessionType.duration - b.sessionType.duration;
-        break;
-      case 'teacher':
-        const teacherA = getTeacher(a.teacherId);
-        const teacherB = getTeacher(b.teacherId);
-        comparison = teacherA && teacherB ? 
-          teacherA.name.localeCompare(teacherB.name) : 0;
-        break;
-    }
-    
-    return sortDirection === 'asc' ? comparison : -comparison;
-  });
-  
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-  
-  const handleCancelBooking = (booking: any) => {
-    setSelectedBooking(booking);
-    setIsDeleteDialogOpen(true);
-  };
-  
-  const confirmCancel = () => {
-    if (selectedBooking) {
-      // In a real app, this would update the booking status in the DB
+  const handleBookForUser = () => {
+    if (!selectedTeacherId || !selectedUserId || !selectedSessionType || !selectedDate || !selectedTime) {
       toast({
-        title: "Booking cancelled",
-        description: `The booking has been cancelled and credits have been refunded.`
+        title: "Missing information",
+        description: "Please fill in all booking details",
+        variant: "destructive"
       });
-      setIsDeleteDialogOpen(false);
+      return;
     }
+    
+    const teacher = getTeacher(selectedTeacherId);
+    if (!teacher) return;
+    
+    const sessionType = teacher.sessionTypes.find(s => s.id === selectedSessionType);
+    if (!sessionType) return;
+    
+    // In a real app, this would book the session using the API
+    toast({
+      title: "Session booked",
+      description: `Successfully booked a ${sessionType.name} with ${teacher.name} for the selected user.`
+    });
+    setIsBookDialogOpen(false);
   };
   
-  // Status badge color based on booking status
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-      case 'completed':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 hover:bg-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+  const getTeacherSessionTimes = (teacherId: string) => {
+    const teacher = getTeacher(teacherId);
+    if (!teacher) return [];
+    
+    // Generate time slots from 8 AM to 8 PM in 30-minute increments
+    const timeSlots = [];
+    for (let hour = 8; hour < 20; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const formattedHour = hour.toString().padStart(2, '0');
+        const formattedMinute = minute.toString().padStart(2, '0');
+        timeSlots.push(`${formattedHour}:${formattedMinute}`);
+      }
     }
+    
+    return timeSlots;
   };
   
-  // Booking stats
-  const totalBookings = bookings.length;
-  const upcomingBookings = bookings.filter(b => b.status === 'scheduled').length;
-  const completedBookings = bookings.filter(b => b.status === 'completed').length;
-  const cancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
-  
-  // Calculate total credits used
-  const totalCreditsUsed = bookings.reduce((sum, booking) => 
-    sum + booking.sessionType.credits, 0);
+  const getAvailableSessionTypes = (teacherId: string) => {
+    const teacher = getTeacher(teacherId);
+    return teacher?.sessionTypes || [];
+  };
   
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-1">Manage Bookings</h1>
-            <p className="text-gray-600">
-              Track and manage all 1-on-1 session bookings
-            </p>
-          </div>
-        </div>
-        
-        {/* Stats overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Total Bookings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalBookings}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Upcoming</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{upcomingBookings}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Completed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{completedBookings}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Credits Used</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{totalCreditsUsed}</div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 md:items-center">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
-            <Input
-              placeholder="Search by teacher or session type..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-full"
-            />
+    <AdminGuard>
+      <Layout>
+        <div className="container mx-auto py-6 space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Manage Bookings</h1>
+              <p className="text-gray-500">View and manage all 1-on-1 session bookings</p>
+            </div>
+            <Button 
+              onClick={() => setIsBookDialogOpen(true)}
+              className="mt-4 md:mt-0"
+            >
+              Book Session for User
+            </Button>
           </div>
           
-          <div className="w-full md:w-40">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        {/* Bookings table */}
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    className="px-0 font-semibold flex items-center"
-                    onClick={() => handleSort('teacher')}
-                  >
-                    Teacher
-                    <ArrowUpDown size={16} className="ml-2" />
-                  </Button>
-                </TableHead>
-                <TableHead>Session Type</TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    className="px-0 font-semibold flex items-center"
-                    onClick={() => handleSort('date')}
-                  >
-                    Date & Time
-                    <ArrowUpDown size={16} className="ml-2" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    className="px-0 font-semibold flex items-center"
-                    onClick={() => handleSort('duration')}
-                  >
-                    Duration
-                    <ArrowUpDown size={16} className="ml-2" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    className="px-0 font-semibold flex items-center"
-                    onClick={() => handleSort('credits')}
-                  >
-                    Credits
-                    <ArrowUpDown size={16} className="ml-2" />
-                  </Button>
-                </TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedBookings.length > 0 ? (
-                sortedBookings.map((booking) => {
-                  const teacher = getTeacher(booking.teacherId);
-                  
-                  return (
-                    <TableRow key={booking.id}>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full overflow-hidden mr-3">
-                            <img 
-                              src={teacher?.avatarUrl || "/placeholder.svg"} 
-                              alt={teacher?.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <span>{teacher?.name}</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div>
-                          {booking.sessionType.name}
-                          {booking.isRecurring && (
-                            <div className="flex items-center text-xs text-gray-500 mt-1">
-                              <Repeat size={14} className="mr-1" />
-                              {booking.recurringPattern} until {booking.recurringEnd ? 
-                                format(booking.recurringEnd, 'MMM d, yyyy') : 'N/A'}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span>
-                            {format(booking.date, 'MMM d, yyyy')}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {booking.time}
-                          </span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Clock size={16} className="mr-1 text-gray-500" />
-                          <span>{booking.sessionType.duration} min</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="flex items-center">
-                          <CircleDollarSign size={16} className="mr-1 text-gray-500" />
-                          <span>{booking.sessionType.credits}</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <Badge className={getStatusBadgeColor(booking.status)}>
-                          {booking.status === 'scheduled' && 'Scheduled'}
-                          {booking.status === 'completed' && 'Completed'}
-                          {booking.status === 'cancelled' && 'Cancelled'}
-                        </Badge>
-                      </TableCell>
-                      
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            
-                            {booking.status === 'scheduled' && (
-                              <>
-                                <DropdownMenuItem>
-                                  <Calendar className="mr-2" size={14} />
-                                  Reschedule
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <CheckCircle2 className="mr-2" size={14} />
-                                  Mark Completed
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleCancelBooking(booking)}>
-                                  <XCircle className="mr-2" size={14} />
-                                  Cancel Booking
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            
-                            {booking.status === 'completed' && (
-                              <DropdownMenuItem>
-                                <MessageCircle className="mr-2" size={14} />
-                                Send Feedback Request
-                              </DropdownMenuItem>
-                            )}
-                            
-                            <DropdownMenuItem>
-                              <MessageCircle className="mr-2" size={14} />
-                              Message Student
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-6 text-gray-500">
-                    {searchQuery || statusFilter !== 'all' ? 
-                      'No bookings match your filters' : 
-                      'No bookings have been made yet'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-      
-      {/* Cancel Booking Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel booking</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel this booking? 
-              This will refund the credits to the student's account.
-            </DialogDescription>
-          </DialogHeader>
+          <Tabs defaultValue="upcoming" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+              <TabsTrigger value="past">Past</TabsTrigger>
+              <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="upcoming">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming Bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {bookings.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No upcoming bookings found</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Teacher</TableHead>
+                            <TableHead>Session Type</TableHead>
+                            <TableHead>Date & Time</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bookings.map((booking) => {
+                            const teacher = getTeacher(booking.teacherId);
+                            return (
+                              <TableRow key={booking.id}>
+                                <TableCell>John Doe</TableCell>
+                                <TableCell>{teacher?.name || 'Unknown Teacher'}</TableCell>
+                                <TableCell>{booking.sessionType.name}</TableCell>
+                                <TableCell>
+                                  {format(booking.date, 'MMM d, yyyy')} at {booking.time}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {booking.status}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button variant="outline" size="sm">Reschedule</Button>
+                                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="past">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Past Bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No past bookings found</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="cancelled">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cancelled Bookings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No cancelled bookings found</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
           
-          {selectedBooking && (
-            <div className="py-4 border-y">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Teacher:</span>
-                  <span className="font-medium">{getTeacher(selectedBooking.teacherId)?.name}</span>
+          {/* Book Session Dialog */}
+          <Dialog open={isBookDialogOpen} onOpenChange={setIsBookDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Book Session for User</DialogTitle>
+                <DialogDescription>
+                  Create a new 1-on-1 session booking for a user
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="user">User</Label>
+                  <select 
+                    id="user"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                  >
+                    <option value="">Select a user</option>
+                    {mockUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Session:</span>
-                  <span className="font-medium">{selectedBooking.sessionType.name}</span>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="teacher">Teacher</Label>
+                  <select 
+                    id="teacher"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={selectedTeacherId}
+                    onChange={(e) => {
+                      setSelectedTeacherId(e.target.value);
+                      setSelectedSessionType("");
+                    }}
+                  >
+                    <option value="">Select a teacher</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Date & Time:</span>
-                  <span className="font-medium">
-                    {format(selectedBooking.date, 'MMM d, yyyy')} at {selectedBooking.time}
-                  </span>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="sessionType">Session Type</Label>
+                  <select 
+                    id="sessionType"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={selectedSessionType}
+                    onChange={(e) => setSelectedSessionType(e.target.value)}
+                    disabled={!selectedTeacherId}
+                  >
+                    <option value="">Select a session type</option>
+                    {getAvailableSessionTypes(selectedTeacherId).map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {session.name} ({session.duration} min) - {session.credits} credits
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Credits to refund:</span>
-                  <span className="font-medium text-green-600">
-                    {selectedBooking.sessionType.credits} credits
-                  </span>
+                
+                <div className="grid gap-2">
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="time">Time</Label>
+                  <select
+                    id="time"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    disabled={!selectedTeacherId}
+                  >
+                    <option value="">Select a time</option>
+                    {getTeacherSessionTimes(selectedTeacherId).map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            </div>
-          )}
-          
-          <DialogFooter className="gap-3 sm:justify-center">
-            <DialogClose asChild>
-              <Button variant="outline">Keep Booking</Button>
-            </DialogClose>
-            <Button 
-              variant="destructive" 
-              onClick={confirmCancel}
-            >
-              <XCircle className="mr-2" size={16} />
-              Cancel & Refund
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Layout>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsBookDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleBookForUser}>Book Session</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </Layout>
+    </AdminGuard>
   );
 };
 

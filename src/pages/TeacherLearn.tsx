@@ -1,220 +1,182 @@
 
 import React from 'react';
-import Layout from '../components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { useParams, useNavigate } from 'react-router-dom';
+import Layout from '@/components/Layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useTeachers } from '@/contexts/TeacherContext';
+import { Play, ArrowLeft, Clock, Check } from 'lucide-react';
 
 const TeacherLearn = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { getTeacher } = useTeachers();
+  
+  const teacher = id ? getTeacher(id) : undefined;
+  
+  if (!teacher) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Teacher Not Found</h1>
+            <p className="mb-4">The teacher you're looking for doesn't exist or has been removed.</p>
+            <Button onClick={() => navigate('/teachers')}>Back to Teachers</Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  const videoData = {
+    url: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Replace with actual video URL
+    duration: "60 seconds",
+    title: `Meet ${teacher.name} in 60 Seconds`,
+    description: `Get to know ${teacher.name}'s teaching style, background, and approach to yoga in this quick introduction video.`,
+    highlights: [
+      "Teaching philosophy",
+      "Yoga experience",
+      "Specialties and expertise",
+      "What to expect in sessions"
+    ]
+  };
+
   return (
     <Layout>
-      <div className="container mx-auto py-6">
-        <h1 className="text-3xl font-bold mb-6">Learn About Teaching</h1>
+      <div className="container mx-auto py-8">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(`/teachers/${id}`)} 
+          className="mb-6 flex items-center"
+        >
+          <ArrowLeft size={16} className="mr-2" /> Back to Teacher Profile
+        </Button>
         
-        <Tabs defaultValue="getting-started">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
-            <TabsTrigger value="best-practices">Best Practices</TabsTrigger>
-            <TabsTrigger value="faq">FAQ</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="getting-started">
-            <Card>
-              <CardHeader>
-                <CardTitle>Getting Started as a Teacher</CardTitle>
-                <CardDescription>
-                  Learn how to set up your profile, schedule sessions, and connect with students
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Complete Your Profile</h3>
-                    <p className="mb-4">A complete and detailed profile helps students find you and understand your teaching style.</p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Upload a professional profile photo</li>
-                      <li>Write a comprehensive bio highlighting your experience and approach</li>
-                      <li>List your certifications and specialties</li>
-                      <li>Share your teaching philosophy</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Set Your Availability</h3>
-                    <p className="mb-4">Make sure to keep your calendar updated so students can book sessions when you're available.</p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Set recurring availability for consistency</li>
-                      <li>Block off time when you have other commitments</li>
-                      <li>Consider time zones of your potential students</li>
-                      <li>Allow buffer time between sessions (recommended 15-30 minutes)</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Create Session Types</h3>
-                    <p className="mb-4">Offer different types of sessions to cater to various student needs.</p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Define session durations (e.g., 30, 60, 90 minutes)</li>
-                      <li>Set appropriate credit prices based on your expertise and session length</li>
-                      <li>Provide detailed descriptions of what each session type includes</li>
-                      <li>Consider offering introductory sessions for new students</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Connect Your Zoom Account</h3>
-                    <p className="mb-4">Virtual sessions are conducted through Zoom. Make sure your account is properly connected.</p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Link your professional Zoom account</li>
-                      <li>Test your audio and video setup regularly</li>
-                      <li>Ensure you have a stable internet connection</li>
-                      <li>Set up a dedicated, distraction-free teaching space</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="best-practices">
-            <Card>
-              <CardHeader>
-                <CardTitle>Teaching Best Practices</CardTitle>
-                <CardDescription>
-                  Tips and guidelines for providing the best possible experience for your students
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Before the Session</h3>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Review the student's information and any notes from previous sessions</li>
-                      <li>Prepare your teaching space 15 minutes before the session starts</li>
-                      <li>Test your camera and microphone</li>
-                      <li>Have all necessary props and equipment ready</li>
-                      <li>Send a reminder message if the platform allows</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">During the Session</h3>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Start on time and welcome the student warmly</li>
-                      <li>Ask about any specific concerns or goals for the session</li>
-                      <li>Offer modifications for different skill levels</li>
-                      <li>Provide clear, concise instructions</li>
-                      <li>Balance demonstration with observation of the student</li>
-                      <li>Give constructive feedback in a supportive manner</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">After the Session</h3>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Thank the student for participating</li>
-                      <li>Summarize key points from the session</li>
-                      <li>Suggest home practice if appropriate</li>
-                      <li>Encourage booking future sessions if they found value</li>
-                      <li>Make notes about the session for future reference</li>
-                      <li>Ask for feedback to improve your teaching</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Building Student Relationships</h3>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>Remember personal details shared by students</li>
-                      <li>Track progress and acknowledge improvements</li>
-                      <li>Maintain professional boundaries</li>
-                      <li>Be responsive to messages and questions</li>
-                      <li>Show genuine interest in their wellness journey</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="faq">
-            <Card>
-              <CardHeader>
-                <CardTitle>Frequently Asked Questions</CardTitle>
-                <CardDescription>
-                  Common questions from yoga teachers on our platform
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">How am I paid for sessions?</h3>
-                    <p>Teachers are paid based on the credits earned from sessions. The platform handles all payment processing, and you'll receive payouts according to the schedule specified in your teacher agreement. Each credit has a monetary value that is converted to your local currency.</p>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">What happens if a student cancels?</h3>
-                    <p>Our cancellation policy protects teachers from last-minute cancellations. If a student cancels within your specified minimum cancellation window (which you can set for each session type), you'll still receive a percentage of the credits. The exact percentage depends on how close to the session time the cancellation occurred.</p>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Can I offer group sessions?</h3>
-                    <p>Yes, you can create group session types that allow multiple students to book the same time slot. You can set a minimum and maximum number of participants. Group sessions typically have a lower per-student credit cost but can be more profitable overall.</p>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">How do I handle technical difficulties?</h3>
-                    <p>If you experience technical issues during a session, first try simple troubleshooting like refreshing the browser or restarting the Zoom call. If problems persist, contact our support team immediately. We recommend having a backup plan (like phone call instructions) to share with students in case of severe technical problems.</p>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Can I offer downloadable materials to my students?</h3>
-                    <p>Yes, you can upload supplementary materials like practice guides, pose breakdowns, or meditation scripts for your students. These can be attached to specific session types or made available to all your students. This is a great way to provide additional value and help students practice between sessions.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Resources for Teachers</CardTitle>
-                <Badge className="ml-2">New</Badge>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2">
+            <Card className="overflow-hidden">
+              <div className="relative pb-[56.25%]">
+                <iframe 
+                  src={videoData.url} 
+                  title={videoData.title}
+                  className="absolute inset-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
               </div>
-              <CardDescription>
-                Helpful materials to enhance your teaching practice
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="text-lg font-medium mb-2">Teaching Online: Best Practices</h3>
-                  <p className="text-muted-foreground mb-4">A comprehensive guide to creating engaging virtual yoga sessions</p>
-                  <a href="#" className="text-primary hover:underline">Download PDF →</a>
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-yoga-light-blue flex items-center justify-center">
+                    <Play className="text-yoga-blue h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Video Introduction</p>
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 text-gray-500 mr-1" />
+                      <span className="text-xs text-gray-500">{videoData.duration}</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="text-lg font-medium mb-2">Verbal Cues Cheat Sheet</h3>
-                  <p className="text-muted-foreground mb-4">Clear, concise language to guide students through poses safely</p>
-                  <a href="#" className="text-primary hover:underline">Download PDF →</a>
+                <h2 className="text-2xl font-bold mb-2">{videoData.title}</h2>
+                <p className="text-gray-600 mb-6">{videoData.description}</p>
+                
+                <div className="border-t pt-4">
+                  <h3 className="font-medium mb-3">Video Highlights</h3>
+                  <ul className="space-y-2">
+                    {videoData.highlights.map((highlight, index) => (
+                      <li key={index} className="flex items-start">
+                        <Check className="h-4 w-4 text-green-500 mr-2 mt-1" />
+                        <span>{highlight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">About {teacher.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden">
+                    <img 
+                      src={teacher.avatarUrl} 
+                      alt={teacher.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-bold">{teacher.name}</h4>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-yellow-500">★</span>
+                      <span>{teacher.rating}</span>
+                      <span className="text-gray-500">({teacher.reviewCount} reviews)</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="text-lg font-medium mb-2">Sequencing Templates</h3>
-                  <p className="text-muted-foreground mb-4">Sample class plans for different durations and focus areas</p>
-                  <a href="#" className="text-primary hover:underline">Download PDF →</a>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-1">Specialties</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {teacher.specialties.slice(0, 3).map((specialty, index) => (
+                        <span key={index} className="bg-yoga-light-blue/20 text-yoga-blue px-2 py-1 rounded-full text-xs">
+                          {specialty}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-1">Experience</h4>
+                    <p>{teacher.experience} years</p>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <Button 
+                      onClick={() => navigate(`/teachers/${id}`)}
+                      className="w-full"
+                    >
+                      View Full Profile
+                    </Button>
+                  </div>
+                  
+                  <div className="pt-1">
+                    <Button 
+                      variant="outline"
+                      onClick={() => navigate(`/teachers/${id}/book`)}
+                      className="w-full"
+                    >
+                      Book a Session
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="text-lg font-medium mb-2">Marketing Your Services</h3>
-                  <p className="text-muted-foreground mb-4">Tips for promoting your sessions and building your student base</p>
-                  <a href="#" className="text-primary hover:underline">Download PDF →</a>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Related Teachers</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-center py-4 text-gray-500">
+                  Explore more teachers with similar specialties
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/teachers')}
+                  className="w-full"
+                >
+                  Browse All Teachers
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </Layout>

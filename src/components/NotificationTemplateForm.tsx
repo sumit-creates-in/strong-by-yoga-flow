@@ -1,41 +1,41 @@
 
-import React, { useState } from 'react';
-import { useTeachers, NotificationTemplate } from '../contexts/TeacherContext';
+import React, { useState, useEffect } from 'react';
+import { NotificationTemplate } from '../contexts/TeacherContext';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 
 type NotificationTemplateFormProps = {
-  type: 'email' | 'sms' | 'whatsapp' | 'in-app';
-  template: NotificationTemplate | null;
-  onClose: () => void;
+  initialTemplate?: NotificationTemplate;
+  onSave: (template: Omit<NotificationTemplate, 'id'>) => void;
+  onCancel: () => void;
 };
 
-const placeholders = [
-  { name: '%customer_full_name%', description: 'Full name of the customer' },
-  { name: '%customer_first_name%', description: 'First name of the customer' },
-  { name: '%employee_full_name%', description: 'Full name of the teacher' },
-  { name: '%employee_first_name%', description: 'First name of the teacher' },
-  { name: '%service_name%', description: 'Name of the booked service/session' },
-  { name: '%appointment_date_time%', description: 'Date and time of the appointment' },
-  { name: '%zoom_join_url%', description: 'Zoom meeting link' },
-  { name: '%company_phone%', description: 'Company phone number' },
-];
+// Define template content structure based on notification type
+interface TemplateContent {
+  subject?: string;
+  body: string;
+}
 
-const defaultTemplates = {
-  email: {
-    reminderBefore: {
-      subject: 'Reminder: %service_name% coming up in 30 minutes at %appointment_date_time%',
-      body: `<p>Hello %customer_full_name%,</p>
+const defaultTemplates: Record<string, TemplateContent> = {
+  'email_booking_confirmed': {
+    subject: 'Your booking is confirmed - %service_name%',
+    body: `<p>Hello %customer_full_name%,</p>
+<p>Your booking with %employee_full_name% has been confirmed for %appointment_date_time%.</p>
+<p>Class: %service_name%</p>
+<p>With: %employee_full_name%</p>
+<p>When: %appointment_date_time%</p>
+<p>Zoom Link: %zoom_join_url%</p>
+<p>We look forward to seeing you!</p>`
+  },
+  'email_booking_reminder': {
+    subject: 'Reminder: %service_name% coming up in 30 minutes',
+    body: `<p>Hello %customer_full_name%,</p>
 <p>Your appointment is coming up in 30 minutes:</p>
 <ul>
 <li>Class: %service_name%</li>
@@ -43,43 +43,16 @@ const defaultTemplates = {
 <li>With: %employee_full_name%</li>
 <li>Class Link: %zoom_join_url%</li>
 </ul>
-<p>We use Zoom for classes. If you don't have Zoom installed please click on the meeting link above and download it.</p>
-<p><strong>Points to be taken care of for the session:</strong></p>
-<ul>
-<li>Avoid eating a heavy meal at least 3 hours prior to the session.</li>
-<li>A Yoga Mat will be a great help.</li>
-<li>We suggest that you use a tablet, laptop, or TV for this session. Bigger the screen better the experience.</li>
-<li>We highly recommend the use of wireless earbuds/Air Pods to listen and interact with the teacher</li>
-<li>Set up your device and yoga mat at least 6 steps away from each other.</li>
-</ul>`
-    },
-    bookingConfirmed: {
-      subject: 'Your booking is confirmed - %service_name%',
-      body: `<p>Hello %customer_full_name%,</p>
-<p>Your booking with %employee_full_name% has been confirmed for %appointment_date_time%.</p>
-<p>Class: %service_name%</p>
-<p>With: %employee_full_name%</p>
-<p>When: %appointment_date_time%</p>
-<p>Zoom Link: %zoom_join_url%</p>
-<p>We look forward to seeing you!</p>`
-    }
+<p>We look forward to seeing you soon!</p>`
   },
-  whatsapp: {
-    reminderBefore: {
-      body: `Namaste, %customer_full_name%!
-
-Your appointment is coming up in 15 minutes:
-
-• Class: %service_name%
-• When: %appointment_date_time%
-• With: %employee_full_name%
-
-Class Link: %zoom_join_url%
-
-Get ready to enjoy this time dedicated to your health & wellness! 😊`
-    },
-    bookingConfirmed: {
-      body: `Namaste, %customer_full_name%!
+  'sms_booking_confirmed': {
+    body: `Your %service_name% with %employee_full_name% is confirmed for %appointment_date_time%. Join at: %zoom_join_url%`
+  },
+  'sms_booking_reminder': {
+    body: `Reminder: Your session with %employee_full_name% starts in 30 minutes. Join at: %zoom_join_url%`
+  },
+  'whatsapp_booking_confirmed': {
+    body: `Namaste, %customer_full_name%!
 
 Your booking has been confirmed:
 
@@ -88,354 +61,272 @@ Your booking has been confirmed:
 • With: %employee_full_name%
 
 We look forward to seeing you!`
-    }
   },
-  sms: {
-    reminderBefore: {
-      body: `Reminder: Your %service_name% with %employee_first_name% is in 30 mins at %appointment_date_time%. Join: %zoom_join_url%`
-    },
-    bookingConfirmed: {
-      body: `Your booking for %service_name% with %employee_first_name% on %appointment_date_time% is confirmed. Details sent to your email.`
-    }
+  'whatsapp_booking_reminder': {
+    body: `Namaste %customer_full_name%,
+
+This is a friendly reminder that your session with %employee_full_name% is starting in 30 minutes.
+
+• Class: %service_name%
+• Time: %appointment_date_time%
+• Zoom link: %zoom_join_url%
+
+See you soon!`
   },
-  'in-app': {
-    reminderBefore: {
-      body: `Your %service_name% with %employee_full_name% starts in 30 minutes!`
-    },
-    bookingConfirmed: {
-      body: `Your booking for %service_name% with %employee_full_name% has been confirmed for %appointment_date_time%.`
-    }
-  }
+  'in_app_booking_confirmed': {
+    body: `Your booking for %service_name% with %employee_full_name% has been confirmed.`
+  },
+  'in_app_booking_reminder': {
+    body: `Your session with %employee_full_name% starts in 30 minutes.`
+  },
 };
 
-const NotificationTemplateForm: React.FC<NotificationTemplateFormProps> = ({ type, template, onClose }) => {
-  const { addNotificationTemplate, updateNotificationTemplate } = useTeachers();
-  const isEditing = !!template;
+const NotificationTemplateForm: React.FC<NotificationTemplateFormProps> = ({ 
+  initialTemplate, 
+  onSave, 
+  onCancel 
+}) => {
+  const [name, setName] = useState('');
+  const [type, setType] = useState<'email' | 'sms' | 'whatsapp' | 'in-app'>('email');
+  const [recipientType, setRecipientType] = useState<'student' | 'teacher' | 'both'>('student');
+  const [triggerType, setTriggerType] = useState<'action' | 'scheduled'>('action');
+  const [triggerAction, setTriggerAction] = useState<'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'booking_reminder'>('booking_confirmed');
+  const [scheduledTime, setScheduledTime] = useState<{when: 'before' | 'after' | 'same-day', time: number}>({
+    when: 'before',
+    time: 30
+  });
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [enabled, setEnabled] = useState(true);
   
-  const [formData, setFormData] = useState<Partial<NotificationTemplate>>(
-    template || {
-      name: '',
-      type,
-      subject: type === 'email' ? '' : undefined,
-      body: '',
-      enabled: true,
-      recipientType: 'student',
-      triggerType: 'scheduled',
-      triggerAction: undefined,
-      scheduledTime: {
-        when: 'before',
-        time: 30
+  useEffect(() => {
+    if (initialTemplate) {
+      setName(initialTemplate.name);
+      setType(initialTemplate.type);
+      setRecipientType(initialTemplate.recipientType);
+      setTriggerType(initialTemplate.triggerType);
+      if (initialTemplate.triggerAction) {
+        setTriggerAction(initialTemplate.triggerAction);
+      }
+      if (initialTemplate.scheduledTime) {
+        setScheduledTime(initialTemplate.scheduledTime);
+      }
+      if (initialTemplate.type === 'email') {
+        setSubject(initialTemplate.subject || '');
+      }
+      setBody(initialTemplate.body);
+      setEnabled(initialTemplate.enabled);
+    }
+  }, [initialTemplate]);
+
+  // Load template content when type or trigger changes
+  useEffect(() => {
+    if (!initialTemplate && type && (triggerAction || triggerType === 'scheduled')) {
+      const key = `${type}_${triggerAction || 'booking_reminder'}`;
+      const template = defaultTemplates[key];
+      
+      if (template) {
+        if (template.subject !== undefined) {
+          setSubject(template.subject);
+        }
+        setBody(template.body);
       }
     }
-  );
-  
-  const [mode, setMode] = useState<'text' | 'html'>(type === 'email' ? 'html' : 'text');
-  const [previewTemplate, setPreviewTemplate] = useState<string>('');
-  
-  const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-  
-  const handleScheduledTimeChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      scheduledTime: {
-        ...(prev.scheduledTime || { when: 'before', time: 30 }),
-        [field]: value
-      }
-    }));
-  };
+  }, [type, triggerAction, triggerType, initialTemplate]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.body || (type === 'email' && !formData.subject)) {
-      return; // Form validation failed
-    }
+    const template: Omit<NotificationTemplate, 'id'> = {
+      name,
+      type,
+      body,
+      enabled,
+      recipientType,
+      triggerType,
+      ...(type === 'email' && { subject }),
+      ...(triggerType === 'action' && { triggerAction }),
+      ...(triggerType === 'scheduled' && { scheduledTime })
+    };
     
-    if (isEditing && template) {
-      updateNotificationTemplate({
-        ...template,
-        ...formData
-      } as NotificationTemplate);
-    } else {
-      addNotificationTemplate(formData as Omit<NotificationTemplate, 'id'>);
-    }
-    
-    onClose();
-  };
-  
-  const loadTemplate = (templateType: string) => {
-    if (!defaultTemplates[type as keyof typeof defaultTemplates]) return;
-    
-    const templates = defaultTemplates[type as keyof typeof defaultTemplates];
-    const selectedTemplate = templates[templateType as keyof typeof templates];
-    
-    if (selectedTemplate) {
-      setFormData(prev => ({
-        ...prev,
-        name: `${templateType === 'reminderBefore' ? 'Reminder: 30 min before' : 'Booking Confirmed'}`,
-        subject: selectedTemplate.subject,
-        body: selectedTemplate.body,
-        triggerType: templateType === 'reminderBefore' ? 'scheduled' : 'action',
-        triggerAction: templateType === 'reminderBefore' ? undefined : 'booking_confirmed',
-        scheduledTime: templateType === 'reminderBefore' ? { when: 'before', time: 30 } : undefined
-      }));
-      
-      if (type === 'email' && selectedTemplate.subject) {
-        setMode('html');
-      }
-    }
+    onSave(template);
   };
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">{isEditing ? 'Edit Template' : 'Create Template'}</h2>
-        
-        {!isEditing && (
-          <Select onValueChange={loadTemplate}>
-            <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="Load template" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="reminderBefore">Reminder Before Session</SelectItem>
-              <SelectItem value="bookingConfirmed">Booking Confirmation</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="name">Template Name</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => handleChange('name', e.target.value)}
-            placeholder="e.g., Reminder: 30 min before"
-            className="w-full"
-            required
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="enabled">Status</Label>
-          <div className="flex items-center space-x-2 h-10 mt-1">
-            <Switch 
-              id="enabled" 
-              checked={formData.enabled} 
-              onCheckedChange={(checked) => handleChange('enabled', checked)}
+    <form onSubmit={handleSubmit}>
+      <Card>
+        <CardHeader>
+          <CardTitle>{initialTemplate ? 'Edit' : 'Create'} Notification Template</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="name">Template Name</Label>
+            <Input 
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Booking Confirmation"
+              required
             />
-            <Label htmlFor="enabled" className="font-normal">
-              {formData.enabled ? 'Enabled' : 'Disabled'}
-            </Label>
           </div>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Recipient Type</Label>
-          <RadioGroup 
-            value={formData.recipientType} 
-            onValueChange={(value) => handleChange('recipientType', value)}
-            className="flex space-x-4 mt-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="student" id="student" />
-              <Label htmlFor="student" className="font-normal">Student</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="teacher" id="teacher" />
-              <Label htmlFor="teacher" className="font-normal">Teacher</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="both" id="both" />
-              <Label htmlFor="both" className="font-normal">Both</Label>
-            </div>
-          </RadioGroup>
-        </div>
-        
-        <div>
-          <Label>Notification Type</Label>
-          <RadioGroup 
-            value={formData.triggerType} 
-            onValueChange={(value) => handleChange('triggerType', value as 'scheduled' | 'action')}
-            className="flex space-x-4 mt-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="scheduled" id="scheduled" />
-              <Label htmlFor="scheduled" className="font-normal">Scheduled</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="action" id="action" />
-              <Label htmlFor="action" className="font-normal">Action Triggered</Label>
-            </div>
-          </RadioGroup>
-        </div>
-      </div>
-      
-      {formData.triggerType === 'action' && (
-        <div>
-          <Label htmlFor="trigger-action">Trigger Action</Label>
-          <Select 
-            value={formData.triggerAction} 
-            onValueChange={(value) => handleChange('triggerAction', value)}
-          >
-            <SelectTrigger id="trigger-action" className="w-full">
-              <SelectValue placeholder="Select trigger action" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="booking_confirmed">Booking Confirmed</SelectItem>
-              <SelectItem value="booking_cancelled">Booking Cancelled</SelectItem>
-              <SelectItem value="booking_rescheduled">Booking Rescheduled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      
-      {formData.triggerType === 'scheduled' && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Schedule</Label>
-            <RadioGroup 
-              value={formData.scheduledTime?.when || 'before'} 
-              onValueChange={(value) => handleScheduledTimeChange('when', value)}
-              className="flex space-x-4 mt-2"
-            >
+          
+          <div className="space-y-2">
+            <Label>Notification Type</Label>
+            <Tabs value={type} onValueChange={(value) => setType(value as any)} className="w-full">
+              <TabsList className="grid grid-cols-4 w-full">
+                <TabsTrigger value="email">Email</TabsTrigger>
+                <TabsTrigger value="sms">SMS</TabsTrigger>
+                <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                <TabsTrigger value="in-app">In-App</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Recipients</Label>
+            <RadioGroup value={recipientType} onValueChange={(value) => setRecipientType(value as any)} className="flex space-x-4">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="before" id="before" />
-                <Label htmlFor="before" className="font-normal">Before</Label>
+                <RadioGroupItem value="student" id="student" />
+                <Label htmlFor="student">Students</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="after" id="after" />
-                <Label htmlFor="after" className="font-normal">After</Label>
+                <RadioGroupItem value="teacher" id="teacher" />
+                <Label htmlFor="teacher">Teachers</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="same-day" id="same-day" />
-                <Label htmlFor="same-day" className="font-normal">On the same day</Label>
+                <RadioGroupItem value="both" id="both" />
+                <Label htmlFor="both">Both</Label>
               </div>
             </RadioGroup>
           </div>
           
-          <div>
-            <Label htmlFor="time">Time (minutes)</Label>
-            <div className="flex items-center space-x-2">
-              <Button 
-                type="button" 
-                size="icon" 
-                variant="outline" 
-                onClick={() => handleScheduledTimeChange(
-                  'time', 
-                  Math.max(5, (formData.scheduledTime?.time || 30) - 5)
-                )}
-              >
-                -
-              </Button>
+          <div className="space-y-4">
+            <Label>When to Send</Label>
+            <RadioGroup value={triggerType} onValueChange={(value) => setTriggerType(value as any)}>
+              <div className="flex items-start space-x-2 mb-4">
+                <RadioGroupItem value="action" id="action" className="mt-1" />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="action" className="font-medium">When an action occurs</Label>
+                  {triggerType === 'action' && (
+                    <select
+                      className="w-full p-2 border border-gray-300 rounded"
+                      value={triggerAction}
+                      onChange={(e) => setTriggerAction(e.target.value as any)}
+                    >
+                      <option value="booking_confirmed">Booking is confirmed</option>
+                      <option value="booking_cancelled">Booking is cancelled</option>
+                      <option value="booking_rescheduled">Booking is rescheduled</option>
+                      <option value="booking_reminder">Booking reminder</option>
+                    </select>
+                  )}
+                </div>
+              </div>
               
-              <Input
-                id="time"
-                type="number"
-                min="5"
-                value={formData.scheduledTime?.time || 30}
-                onChange={(e) => handleScheduledTimeChange('time', parseInt(e.target.value))}
-                className="w-32 text-center"
+              <div className="flex items-start space-x-2">
+                <RadioGroupItem value="scheduled" id="scheduled" className="mt-1" />
+                <div className="grid gap-1.5 w-full">
+                  <Label htmlFor="scheduled" className="font-medium">On a schedule</Label>
+                  {triggerType === 'scheduled' && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      <select
+                        className="p-2 border border-gray-300 rounded"
+                        value={scheduledTime.when}
+                        onChange={(e) => setScheduledTime({
+                          ...scheduledTime,
+                          when: e.target.value as any
+                        })}
+                      >
+                        <option value="before">Before</option>
+                        <option value="after">After</option>
+                        <option value="same-day">Same day</option>
+                      </select>
+                      
+                      {scheduledTime.when !== 'same-day' && (
+                        <>
+                          <Input
+                            type="number"
+                            className="w-20"
+                            min="1"
+                            value={scheduledTime.time}
+                            onChange={(e) => setScheduledTime({
+                              ...scheduledTime,
+                              time: parseInt(e.target.value) || 0
+                            })}
+                          />
+                          <span>minutes</span>
+                        </>
+                      )}
+                      
+                      <span>
+                        {scheduledTime.when === 'before' ? 'the session starts' :
+                         scheduledTime.when === 'after' ? 'the session ends' :
+                         'of the session'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          <div className="space-y-4">
+            <Label>Template Content</Label>
+            
+            {type === 'email' && (
+              <div className="space-y-2">
+                <Label htmlFor="subject">Email Subject</Label>
+                <Input 
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="e.g., Your booking is confirmed"
+                />
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="body">Template Body</Label>
+              <div className="border border-gray-200 rounded-md p-2 mb-2 text-xs bg-gray-50 text-gray-600">
+                <strong>Available placeholders:</strong>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <span>%customer_full_name%</span>
+                  <span>%employee_full_name%</span>
+                  <span>%service_name%</span>
+                  <span>%appointment_date_time%</span>
+                  <span>%zoom_join_url%</span>
+                </div>
+              </div>
+              <Textarea 
+                id="body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Enter message content"
+                rows={6}
               />
-              
-              <Button 
-                type="button" 
-                size="icon" 
-                variant="outline"
-                onClick={() => handleScheduledTimeChange(
-                  'time', 
-                  (formData.scheduledTime?.time || 30) + 5
-                )}
-              >
-                +
-              </Button>
-              
-              <Select 
-                value="minutes" 
-                disabled
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="minutes">Minutes</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
-        </div>
-      )}
-      
-      {type === 'email' && (
-        <div>
-          <Label htmlFor="subject">Subject</Label>
-          <Input
-            id="subject"
-            value={formData.subject || ''}
-            onChange={(e) => handleChange('subject', e.target.value)}
-            placeholder="e.g., Reminder: %service_name% coming up in 30 minutes"
-            className="w-full"
-            required
-          />
-        </div>
-      )}
-      
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <Label htmlFor="body">Message</Label>
-          {type === 'email' && (
-            <div className="flex items-center space-x-4">
-              <Tabs value={mode} onValueChange={setMode as any} className="w-auto">
-                <TabsList className="grid grid-cols-2 w-44">
-                  <TabsTrigger value="text">Text Mode</TabsTrigger>
-                  <TabsTrigger value="html">HTML Mode</TabsTrigger>
-                </TabsList>
-              </Tabs>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="enabled" className="font-medium">Enable this notification</Label>
+              <p className="text-sm text-gray-500">This template will be used when enabled</p>
             </div>
-          )}
-        </div>
-        <Textarea
-          id="body"
-          value={formData.body}
-          onChange={(e) => handleChange('body', e.target.value)}
-          placeholder="Enter notification message content"
-          className="min-h-[200px]"
-          required
-        />
-      </div>
-      
-      <Accordion type="single" collapsible className="w-full">
-        <AccordionItem value="placeholders">
-          <AccordionTrigger>Available Placeholders</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {placeholders.map((placeholder) => (
-                <div key={placeholder.name} className="flex items-center space-x-2">
-                  <code className="bg-muted px-1 py-0.5 rounded text-sm">{placeholder.name}</code>
-                  <span className="text-muted-foreground text-sm">{placeholder.description}</span>
-                </div>
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-      
-      <div className="flex justify-end space-x-4 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit">
-          {isEditing ? 'Update Template' : 'Create Template'}
-        </Button>
-      </div>
+            <Switch 
+              id="enabled"
+              checked={enabled}
+              onCheckedChange={setEnabled}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            {initialTemplate ? 'Update Template' : 'Create Template'}
+          </Button>
+        </CardFooter>
+      </Card>
     </form>
   );
 };

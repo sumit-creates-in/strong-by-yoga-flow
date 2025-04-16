@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Check, RefreshCw } from 'lucide-react';
+import { Check, RefreshCw, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ZoomSetupCardProps {
   isConnected: boolean;
@@ -102,7 +103,14 @@ const ZoomSetupCard: React.FC<ZoomSetupCardProps> = ({
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-600">
+                In a real application, clicking "Connect Zoom Account" would open a Zoom OAuth flow in a new window, allowing you to authenticate with your Zoom admin credentials.
+              </AlertDescription>
+            </Alert>
+            
             <div>
               <Label htmlFor="zoom-email">Zoom Admin Email</Label>
               <Input
@@ -115,8 +123,15 @@ const ZoomSetupCard: React.FC<ZoomSetupCardProps> = ({
             </div>
             
             <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-600">
-              <p>
-                Note: This is a demo integration. In a real application, this would open a Zoom OAuth flow to connect your actual Zoom admin account.
+              <p className="mb-2 font-medium">What happens during Zoom OAuth?</p>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>You'll be redirected to Zoom's login page</li>
+                <li>After logging in, you'll authorize our app access to your Zoom account</li>
+                <li>You'll be redirected back to this application with temporary access code</li>
+                <li>Our server exchanges this code for permanent API tokens</li>
+              </ol>
+              <p className="mt-2">
+                <strong>Note:</strong> This demo simulates this process without requiring actual Zoom credentials.
               </p>
             </div>
           </div>

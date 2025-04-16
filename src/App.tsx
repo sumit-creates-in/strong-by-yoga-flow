@@ -60,6 +60,7 @@ const App = () => {
               <Route path="/teachers/:id" element={<AuthGuard><TeacherDetail /></AuthGuard>} />
               <Route path="/teachers/:id/book" element={<AuthGuard><TeacherBooking /></AuthGuard>} />
               <Route path="/teachers/:id/booking/confirmation" element={<AuthGuard><BookingConfirmation /></AuthGuard>} />
+              <Route path="/teachers/:id/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               <Route path="/teachers/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               
               {/* Admin Routes */}
