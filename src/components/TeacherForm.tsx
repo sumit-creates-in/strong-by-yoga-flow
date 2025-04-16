@@ -24,12 +24,17 @@ import { Badge } from '@/components/ui/badge';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Plus, Trash2, Clock } from 'lucide-react';
+import { X, Plus, Trash2, Clock, Info } from 'lucide-react';
 import { useTeachers, AvailabilitySlot, ZoomAccount, Teacher } from '@/contexts/TeacherContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 // Define form schema
 const formSchema = z.object({
@@ -48,7 +53,14 @@ interface TeacherFormProps {
 }
 
 const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
-  const { addTeacher, updateTeacher, addTeacherAvailability, removeTeacherAvailability, connectZoomAccount, disconnectZoomAccount } = useTeachers();
+  const { 
+    addTeacher, 
+    updateTeacher, 
+    addTeacherAvailability, 
+    removeTeacherAvailability, 
+    connectZoomAccount, 
+    disconnectZoomAccount 
+  } = useTeachers();
   
   const [specialties, setSpecialties] = useState<string[]>(teacher?.specialties || []);
   const [newSpecialty, setNewSpecialty] = useState('');
@@ -60,8 +72,32 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const [newCertification, setNewCertification] = useState('');
   
   const [sessionTypes, setSessionTypes] = useState(teacher?.sessionTypes || [
-    { id: '1', name: 'Video Consultation', type: 'video', duration: 60, price: 50, credits: 50 },
-    { id: '2', name: 'Phone Call', type: 'call', duration: 30, price: 35, credits: 35 }
+    { 
+      id: '1', 
+      name: 'Video Consultation', 
+      type: 'video' as const, 
+      duration: 60, 
+      price: 50, 
+      credits: 50,
+      allowRecurring: true,
+      minTimeBeforeBooking: 2,
+      minTimeBeforeCancel: 4,
+      minTimeBeforeReschedule: 6,
+      maxAdvanceBookingDays: 30
+    },
+    { 
+      id: '2', 
+      name: 'Phone Call', 
+      type: 'call' as const, 
+      duration: 30, 
+      price: 35, 
+      credits: 35,
+      allowRecurring: false,
+      minTimeBeforeBooking: 1,
+      minTimeBeforeCancel: 2,
+      minTimeBeforeReschedule: 2,
+      maxAdvanceBookingDays: 14
+    }
   ]);
 
   const [availability, setAvailability] = useState<AvailabilitySlot[]>(teacher?.availability || []);
@@ -141,7 +177,19 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     const newId = `session-${Date.now()}`;
     setSessionTypes([
       ...sessionTypes, 
-      { id: newId, name: 'New Session', type: 'video', duration: 60, price: 50, credits: 50 }
+      { 
+        id: newId, 
+        name: 'New Session', 
+        type: 'video' as const, 
+        duration: 60, 
+        price: 50, 
+        credits: 50,
+        allowRecurring: true,
+        minTimeBeforeBooking: 2,
+        minTimeBeforeCancel: 4,
+        minTimeBeforeReschedule: 6,
+        maxAdvanceBookingDays: 30
+      }
     ]);
   };
   
@@ -157,7 +205,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const handleAddAvailability = () => {
     const newSlot: AvailabilitySlot = {
       id: `avail-${Date.now()}`,
-      day: newAvailability.day as 'monday',
+      day: newAvailability.day as string,
       startTime: newAvailability.startTime || '09:00',
       endTime: newAvailability.endTime || '10:00',
       isRecurring: newAvailability.isRecurring || true
@@ -515,7 +563,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
                       <FormLabel>Session Type</FormLabel>
                       <Select
                         value={session.type}
-                        onValueChange={(value) => handleSessionTypeChange(index, 'type', value)}
+                        onValueChange={(value: 'video' | 'call' | 'chat') => handleSessionTypeChange(index, 'type', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -552,6 +600,87 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Booking Restrictions Section */}
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" type="button" className="w-full mt-2">
+                        <Info className="w-4 h-4 mr-2" /> Booking Restrictions
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 space-y-4 border-t pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <FormLabel>Allow Recurring Bookings</FormLabel>
+                          <div className="flex items-center mt-2">
+                            <Switch
+                              id={`recurring-${index}`}
+                              checked={session.allowRecurring}
+                              onCheckedChange={(checked) => handleSessionTypeChange(index, 'allowRecurring', checked)}
+                            />
+                            <Label htmlFor={`recurring-${index}`} className="ml-2">
+                              {session.allowRecurring ? "Enabled" : "Disabled"}
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <FormLabel>Minimum Time Before Booking (hours)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.minTimeBeforeBooking || 2}
+                            onChange={(e) => handleSessionTypeChange(index, 'minTimeBeforeBooking', Number(e.target.value))}
+                            min={0}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many hours in advance must the booking be made
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Minimum Time Before Cancelling (hours)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.minTimeBeforeCancel || 4}
+                            onChange={(e) => handleSessionTypeChange(index, 'minTimeBeforeCancel', Number(e.target.value))}
+                            min={0}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many hours in advance must cancellations be made
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Minimum Time Before Rescheduling (hours)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.minTimeBeforeReschedule || 6}
+                            onChange={(e) => handleSessionTypeChange(index, 'minTimeBeforeReschedule', Number(e.target.value))}
+                            min={0}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many hours in advance must rescheduling be done
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Maximum Advance Booking Period (days)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.maxAdvanceBookingDays || 30}
+                            onChange={(e) => handleSessionTypeChange(index, 'maxAdvanceBookingDays', Number(e.target.value))}
+                            min={1}
+                            max={365}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many days in advance can bookings be made
+                          </p>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
               ))}
               
@@ -620,7 +749,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
                     <FormLabel>Day of the Week</FormLabel>
                     <Select
                       value={newAvailability.day}
-                      onValueChange={(value: any) => handleAvailabilityChange('day', value)}
+                      onValueChange={(value: string) => handleAvailabilityChange('day', value)}
                     >
                       <SelectTrigger>
                         <SelectValue />

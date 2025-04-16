@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -18,9 +17,18 @@ export interface SessionType {
 }
 
 export interface AvailabilitySlot {
+  id: string;
   day: string;
   startTime: string;
   endTime: string;
+  isRecurring: boolean;
+}
+
+export interface ZoomAccount {
+  id: string;
+  email: string;
+  accountName: string;
+  connected: boolean;
 }
 
 export interface Review {
@@ -51,8 +59,7 @@ export interface Teacher {
   lastReviewDate: string;
   sessionTypes: SessionType[];
   availability: AvailabilitySlot[];
-  zoomEmail?: string;
-  zoomConnected?: boolean;
+  zoomAccount: ZoomAccount | null;
 }
 
 export interface BookingData {
@@ -102,6 +109,10 @@ interface TeacherContextType {
   addCreditPackage: (pkg: Omit<CreditPackage, 'id'>) => void;
   updateCreditPackage: (pkg: CreditPackage) => void;
   deleteCreditPackage: (id: string) => void;
+  connectZoomAccount: (teacherId: string, account: Omit<ZoomAccount, 'id'>) => void;
+  disconnectZoomAccount: (teacherId: string) => void;
+  addTeacherAvailability: (teacherId: string, slot: Omit<AvailabilitySlot, 'id'>) => void;
+  removeTeacherAvailability: (teacherId: string, slotId: string) => void;
 }
 
 const TeacherContext = createContext<TeacherContextType>({
@@ -120,6 +131,10 @@ const TeacherContext = createContext<TeacherContextType>({
   addCreditPackage: () => {},
   updateCreditPackage: () => {},
   deleteCreditPackage: () => {},
+  connectZoomAccount: () => {},
+  disconnectZoomAccount: () => {},
+  addTeacherAvailability: () => {},
+  removeTeacherAvailability: () => {},
 });
 
 // Sample data
@@ -563,6 +578,44 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
     });
   };
   
+  const connectZoomAccount = (teacherId: string, account: Omit<ZoomAccount, 'id'>) => {
+    const newZoomAccount: ZoomAccount = {
+      id: `zoom-${Date.now()}`,
+      ...account
+    };
+    
+    setTeachers(teachers.map(teacher => 
+      teacher.id === teacherId ? { ...teacher, zoomAccount: newZoomAccount } : teacher
+    ));
+  };
+  
+  const disconnectZoomAccount = (teacherId: string) => {
+    setTeachers(teachers.map(teacher => 
+      teacher.id === teacherId ? { ...teacher, zoomAccount: null } : teacher
+    ));
+  };
+  
+  const addTeacherAvailability = (teacherId: string, slot: Omit<AvailabilitySlot, 'id'>) => {
+    const newSlot: AvailabilitySlot = {
+      id: `avail-${Date.now()}`,
+      ...slot
+    };
+    
+    setTeachers(teachers.map(teacher => 
+      teacher.id === teacherId ? 
+      { ...teacher, availability: [...teacher.availability, newSlot] } : 
+      teacher
+    ));
+  };
+  
+  const removeTeacherAvailability = (teacherId: string, slotId: string) => {
+    setTeachers(teachers.map(teacher => 
+      teacher.id === teacherId ? 
+      { ...teacher, availability: teacher.availability.filter(s => s.id !== slotId) } : 
+      teacher
+    ));
+  };
+  
   return (
     <TeacherContext.Provider value={{
       teachers,
@@ -579,7 +632,11 @@ export const TeacherProvider = ({ children }: { children: ReactNode }) => {
       purchaseCredits,
       addCreditPackage,
       updateCreditPackage,
-      deleteCreditPackage
+      deleteCreditPackage,
+      connectZoomAccount,
+      disconnectZoomAccount,
+      addTeacherAvailability,
+      removeTeacherAvailability
     }}>
       {children}
     </TeacherContext.Provider>

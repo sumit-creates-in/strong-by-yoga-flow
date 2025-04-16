@@ -21,6 +21,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminTeachers from "./pages/AdminTeachers";
 import AdminZoomSettings from "./pages/AdminZoomSettings";
 import AdminCredits from "./pages/AdminCredits";
+import AdminBookings from "./pages/AdminBookings";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
@@ -28,6 +29,7 @@ import TeachersList from "./pages/TeachersList";
 import TeacherDetail from "./pages/TeacherDetail";
 import TeacherBooking from "./pages/TeacherBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
+import TeacherLearn from "./pages/TeacherLearn";
 
 const queryClient = new QueryClient();
 
@@ -57,9 +59,11 @@ const App = () => {
               <Route path="/teachers/:id" element={<AuthGuard><TeacherDetail /></AuthGuard>} />
               <Route path="/teachers/:id/book" element={<AuthGuard><TeacherBooking /></AuthGuard>} />
               <Route path="/teachers/:id/booking/confirmation" element={<AuthGuard><BookingConfirmation /></AuthGuard>} />
+              <Route path="/teachers/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               
               {/* Admin Routes */}
               <Route path="/admin/classes" element={<AuthGuard><AdminClasses /></AuthGuard>} />
+              <Route path="/admin/bookings" element={<AuthGuard><AdminBookings /></AuthGuard>} />
               <Route path="/admin/users" element={<AuthGuard><AdminUsers /></AuthGuard>} />
               <Route path="/admin/teachers" element={<AuthGuard><AdminTeachers /></AuthGuard>} />
               <Route path="/admin/zoom-settings" element={<AuthGuard><AdminZoomSettings /></AuthGuard>} />
