@@ -51,6 +51,18 @@ export interface NotificationTemplate {
   recipients?: ('user' | 'teacher')[]; // Keep for backwards compatibility
 }
 
+// Add booking data interface
+export interface BookingData {
+  id: string;
+  teacherId: string;
+  userId: string;
+  sessionType: SessionType;
+  date: Date;
+  time: string;
+  status: 'confirmed' | 'cancelled' | 'completed' | 'pending';
+  credits: number;
+}
+
 // Add credit transaction interface
 export interface CreditTransaction {
   id: string;
@@ -119,9 +131,11 @@ export interface Teacher {
 // Create context
 interface TeacherContextProps {
   teachers: Teacher[];
+  bookings: BookingData[];
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (id: string, teacher: Partial<Teacher>) => void;
   deleteTeacher: (id: string) => void;
+  getTeacher: (id: string) => Teacher | undefined;
   
   // Add notification-related methods
   updateNotificationTemplate: (template: NotificationTemplate) => void;
@@ -436,6 +450,58 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     }
   ]);
 
+  // Mock bookings data
+  const [bookings, setBookings] = useState<BookingData[]>([
+    {
+      id: 'booking-1',
+      teacherId: 'teacher-1',
+      userId: 'user1',
+      sessionType: {
+        id: 'session-1',
+        name: '1:1 Yoga Therapy Session',
+        description: 'Personalized session focused on your specific needs and goals, incorporating therapeutic yoga techniques.',
+        duration: 60,
+        price: 85,
+        isActive: true,
+        bookingRestrictions: {
+          minTimeBeforeBooking: 24,
+          maxAdvanceBookingPeriod: 30,
+          minTimeBeforeCancelling: 24,
+          minTimeBeforeRescheduling: 24,
+        },
+        credits: 15
+      },
+      date: new Date('2025-04-25'),
+      time: '10:00',
+      status: 'confirmed',
+      credits: 15
+    },
+    {
+      id: 'booking-2',
+      teacherId: 'teacher-2',
+      userId: 'user2',
+      sessionType: {
+        id: 'session-4',
+        name: 'Vinyasa Flow Private Session',
+        description: 'Private vinyasa yoga session tailored to your level and goals, focusing on fluid movement and breath.',
+        duration: 60,
+        price: 80,
+        isActive: true,
+        bookingRestrictions: {
+          minTimeBeforeBooking: 24,
+          maxAdvanceBookingPeriod: 30,
+          minTimeBeforeCancelling: 24,
+          minTimeBeforeRescheduling: 24,
+        },
+        credits: 12
+      },
+      date: new Date('2025-04-28'),
+      time: '14:00',
+      status: 'confirmed',
+      credits: 12
+    }
+  ]);
+
   // Add credit-related state
   const [userCredits, setUserCredits] = useState<number>(100);
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([
@@ -500,6 +566,11 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
 
   const deleteTeacher = (id: string) => {
     setTeachers(prevTeachers => prevTeachers.filter(teacher => teacher.id !== id));
+  };
+
+  // Add the getTeacher function that was missing
+  const getTeacher = (id: string): Teacher | undefined => {
+    return teachers.find(teacher => teacher.id === id);
   };
 
   // Add notification-related methods
@@ -649,9 +720,11 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     <TeacherContext.Provider 
       value={{ 
         teachers, 
+        bookings,
         addTeacher, 
         updateTeacher, 
         deleteTeacher,
+        getTeacher,
         updateNotificationTemplate,
         deleteNotificationTemplate,
         sendTestNotification,

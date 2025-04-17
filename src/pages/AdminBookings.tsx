@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Calendar } from '@/components/ui/calendar';
 import { useTeachers, BookingData, SessionType } from '@/contexts/TeacherContext';
 import { format } from 'date-fns';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TabsContent, Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -131,7 +131,9 @@ const AdminBookings = () => {
                             const teacher = getTeacher(booking.teacherId);
                             return (
                               <TableRow key={booking.id}>
-                                <TableCell>John Doe</TableCell>
+                                <TableCell>
+                                  {mockUsers.find(user => user.id === booking.userId)?.name || 'Unknown User'}
+                                </TableCell>
                                 <TableCell>{teacher?.name || 'Unknown Teacher'}</TableCell>
                                 <TableCell>{booking.sessionType.name}</TableCell>
                                 <TableCell>
@@ -248,7 +250,7 @@ const AdminBookings = () => {
                     <option value="">Select a session type</option>
                     {getAvailableSessionTypes(selectedTeacherId).map((session) => (
                       <option key={session.id} value={session.id}>
-                        {session.name} ({session.duration} min) - {session.credits} credits
+                        {session.name} ({session.duration} min) - {session.credits || session.price} {session.credits ? 'credits' : '$'}
                       </option>
                     ))}
                   </select>
