@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +24,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Plus, Trash2, Clock, Info } from 'lucide-react';
-import { useTeachers, AvailabilitySlot, ZoomAccount, Teacher } from '@/contexts/TeacherContext';
+import { useTeachers, Teacher, SessionType, AvailabilitySlot, ZoomAccount } from '@/contexts/TeacherContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -35,6 +34,31 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+
+// Define custom internal types that match the expected structure
+interface CustomAvailabilitySlot {
+  id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+}
+
+interface CustomZoomAccount {
+  id: string;
+  email: string;
+  accountName: string;
+  connected: boolean;
+}
+
+interface CustomSessionType extends Omit<SessionType, 'bookingRestrictions' | 'type'> {
+  type: 'video' | 'call' | 'chat';
+  allowRecurring: boolean;
+  minTimeBeforeBooking: number;
+  minTimeBeforeCancel: number;
+  minTimeBeforeReschedule: number;
+  maxAdvanceBookingDays: number;
+}
 
 // Define form schema
 const formSchema = z.object({
@@ -55,11 +79,7 @@ interface TeacherFormProps {
 const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const { 
     addTeacher, 
-    updateTeacher, 
-    addTeacherAvailability, 
-    removeTeacherAvailability, 
-    connectZoomAccount, 
-    disconnectZoomAccount 
+    updateTeacher
   } = useTeachers();
   
   const [specialties, setSpecialties] = useState<string[]>(teacher?.specialties || []);
@@ -71,44 +91,149 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const [certifications, setCertifications] = useState<string[]>(teacher?.certifications || []);
   const [newCertification, setNewCertification] = useState('');
   
-  const [sessionTypes, setSessionTypes] = useState(teacher?.sessionTypes || [
-    { 
-      id: '1', 
-      name: 'Video Consultation', 
-      type: 'video' as const, 
-      duration: 60, 
-      price: 50, 
-      credits: 50,
-      allowRecurring: true,
-      minTimeBeforeBooking: 2,
-      minTimeBeforeCancel: 4,
-      minTimeBeforeReschedule: 6,
-      maxAdvanceBookingDays: 30
-    },
-    { 
-      id: '2', 
-      name: 'Phone Call', 
-      type: 'call' as const, 
-      duration: 30, 
-      price: 35, 
-      credits: 35,
-      allowRecurring: false,
-      minTimeBeforeBooking: 1,
-      minTimeBeforeCancel: 2,
-      minTimeBeforeReschedule: 2,
-      maxAdvanceBookingDays: 14
-    }
-  ]);
+  // Map SessionType from context to internal format for UI
+  const mapToCustomSessionTypes = (sessions: SessionType[] | undefined): CustomSessionType[] => {
+    if (!sessions || !Array.isArray(sessions)) return [];
+    
+    return sessions.map(session => ({
+      id: session.id,
+      name: session.name,
+      description: session.description || '',
+      duration: session.duration,
+      price: session.price,
+      credits: session.credits || session.price,
+      type: session.type || 'video',
+      isActive: session.isActive || true,
+      allowRecurring: session.bookingRestrictions?.minTimeBeforeBooking !== undefined 
+        ? true 
+        : true,
+      minTimeBeforeBooking: session.bookingRestrictions?.minTimeBeforeBooking || 2,
+      minTimeBeforeCancel: session.bookingRestrictions?.minTimeBeforeCancelling || 4,
+      minTimeBeforeReschedule: session.bookingRestrictions?.minTimeBeforeRescheduling || 6,
+      maxAdvanceBookingDays: session.bookingRestrictions?.maxAdvanceBookingPeriod || 30
+    }));
+  };
+  
+  // Map back to SessionType format for saving to context
+  const mapToContextSessionTypes = (sessions: CustomSessionType[]): SessionType[] => {
+    return sessions.map(session => ({
+      id: session.id,
+      name: session.name,
+      description: session.description,
+      duration: session.duration,
+      price: session.price,
+      credits: session.credits,
+      type: session.type,
+      isActive: session.isActive,
+      bookingRestrictions: {
+        minTimeBeforeBooking: session.minTimeBeforeBooking,
+        minTimeBeforeCancelling: session.minTimeBeforeCancel,
+        minTimeBeforeRescheduling: session.minTimeBeforeReschedule,
+        maxAdvanceBookingPeriod: session.maxAdvanceBookingDays
+      }
+    }));
+  };
+  
+  const [sessionTypes, setSessionTypes] = useState<CustomSessionType[]>(
+    mapToCustomSessionTypes(teacher?.sessionTypes) || [
+      { 
+        id: '1',
+        name: 'Video Consultation',
+        description: 'Video consultation session',
+        type: 'video' as const,
+        duration: 60,
+        price: 50,
+        credits: 50,
+        isActive: true,
+        allowRecurring: true,
+        minTimeBeforeBooking: 2,
+        minTimeBeforeCancel: 4,
+        minTimeBeforeReschedule: 6,
+        maxAdvanceBookingDays: 30
+      },
+      { 
+        id: '2',
+        name: 'Phone Call',
+        description: 'Phone call session',
+        type: 'call' as const,
+        duration: 30,
+        price: 35,
+        credits: 35,
+        isActive: true,
+        allowRecurring: false,
+        minTimeBeforeBooking: 1,
+        minTimeBeforeCancel: 2,
+        minTimeBeforeReschedule: 2,
+        maxAdvanceBookingDays: 14
+      }
+    ]
+  );
 
-  const [availability, setAvailability] = useState<AvailabilitySlot[]>(teacher?.availability || []);
-  const [newAvailability, setNewAvailability] = useState<Partial<AvailabilitySlot>>({
+  // Map availability data to/from the internal format
+  const mapToCustomAvailability = (availability: AvailabilitySlot[] | undefined): CustomAvailabilitySlot[] => {
+    if (!availability || !Array.isArray(availability)) return [];
+    
+    return availability.map((slot, index) => {
+      return {
+        id: slot.id || `avail-${Date.now()}-${index}`,
+        day: slot.day?.toLowerCase() || 'monday',
+        startTime: slot.startTime || '09:00',
+        endTime: slot.endTime || '10:00', 
+        isRecurring: slot.isRecurring || true
+      };
+    });
+  };
+  
+  // Map back to context format for saving
+  const mapToContextAvailability = (availability: CustomAvailabilitySlot[]): AvailabilitySlot[] => {
+    return availability.map(slot => ({
+      id: slot.id,
+      day: slot.day,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isRecurring: slot.isRecurring
+    }));
+  };
+
+  const [availability, setAvailability] = useState<CustomAvailabilitySlot[]>(
+    mapToCustomAvailability(teacher?.availability)
+  );
+  
+  const [newAvailability, setNewAvailability] = useState<Partial<CustomAvailabilitySlot>>({
     day: 'monday',
     startTime: '09:00',
     endTime: '10:00',
     isRecurring: true
   });
 
-  const [zoomAccount, setZoomAccount] = useState<ZoomAccount | null>(teacher?.zoomAccount || null);
+  // Map ZoomAccount to/from internal format
+  const mapToCustomZoomAccount = (account: ZoomAccount | undefined): CustomZoomAccount | null => {
+    if (!account) return null;
+    
+    return {
+      id: account.id || `zoom-${Date.now()}`,
+      email: account.email || '',
+      accountName: account.accountName || account.email || '',
+      connected: account.isConnected || false
+    };
+  };
+  
+  // Map back to context format
+  const mapToContextZoomAccount = (account: CustomZoomAccount | null): ZoomAccount | null => {
+    if (!account) return null;
+    
+    return {
+      id: account.id,
+      email: account.email,
+      accountName: account.accountName,
+      isConnected: account.connected
+    };
+  };
+
+  const [zoomAccount, setZoomAccount] = useState<CustomZoomAccount | null>(
+    mapToCustomZoomAccount(teacher?.zoomAccount)
+  );
+  
   const [zoomEmail, setZoomEmail] = useState('');
   const [zoomAccountName, setZoomAccountName] = useState('');
   
@@ -179,11 +304,13 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
       ...sessionTypes, 
       { 
         id: newId, 
-        name: 'New Session', 
-        type: 'video' as const, 
-        duration: 60, 
-        price: 50, 
+        name: 'New Session',
+        description: 'New session description',
+        type: 'video' as const,
+        duration: 60,
+        price: 50,
         credits: 50,
+        isActive: true,
         allowRecurring: true,
         minTimeBeforeBooking: 2,
         minTimeBeforeCancel: 4,
@@ -203,11 +330,15 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
 
   // Availability management
   const handleAddAvailability = () => {
-    const newSlot: AvailabilitySlot = {
+    if (!newAvailability.day || !newAvailability.startTime || !newAvailability.endTime) {
+      return; // Don't add if missing required fields
+    }
+    
+    const newSlot: CustomAvailabilitySlot = {
       id: `avail-${Date.now()}`,
-      day: newAvailability.day as string,
-      startTime: newAvailability.startTime || '09:00',
-      endTime: newAvailability.endTime || '10:00',
+      day: newAvailability.day,
+      startTime: newAvailability.startTime,
+      endTime: newAvailability.endTime,
       isRecurring: newAvailability.isRecurring || true
     };
     
@@ -226,7 +357,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     setAvailability(availability.filter(slot => slot.id !== id));
   };
 
-  const handleAvailabilityChange = (field: keyof AvailabilitySlot, value: any) => {
+  const handleAvailabilityChange = (field: keyof CustomAvailabilitySlot, value: any) => {
     setNewAvailability({
       ...newAvailability,
       [field]: value
@@ -236,7 +367,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   // Zoom account management
   const handleConnectZoom = () => {
     if (zoomEmail && zoomAccountName) {
-      const newZoomAccount: ZoomAccount = {
+      const newZoomAccount: CustomZoomAccount = {
         id: `zoom-${Date.now()}`,
         email: zoomEmail,
         accountName: zoomAccountName,
@@ -254,13 +385,20 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   
   // Format day for display
   const formatDay = (day: string): string => {
+    if (!day) return 'Monday';
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
-  // Format time for display
-  const formatTime = (time: string): string => {
+  // Format time for display with null checks
+  const formatTime = (time: string | undefined): string => {
+    if (!time) return ''; // Return empty string if time is undefined
+    
     const [hours, minutes] = time.split(':');
+    if (!hours || !minutes) return time; // Return original if splitting fails
+    
     const hour = parseInt(hours, 10);
+    if (isNaN(hour)) return time; // Return original if parsing fails
+    
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const formattedHour = hour % 12 || 12;
     return `${formattedHour}:${minutes} ${ampm}`;
@@ -274,9 +412,9 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
       specialties,
       expertise,
       certifications,
-      sessionTypes,
-      availability,
-      zoomAccount,
+      sessionTypes: mapToContextSessionTypes(sessionTypes),
+      availability: mapToContextAvailability(availability),
+      zoomAccount: mapToContextZoomAccount(zoomAccount),
       rating: teacher?.rating || 5.0,
       reviewCount: teacher?.reviewCount || 0,
       totalSessions: teacher?.totalSessions || 0,
@@ -285,7 +423,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     };
     
     if (teacher) {
-      updateTeacher(teacherData);
+      updateTeacher(teacherData.id, teacherData);
     } else {
       addTeacher(teacherData);
     }
@@ -813,94 +951,4 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {zoomAccount ? (
-                  <div className="space-y-4">
-                    <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold">Z</span>
-                          </div>
-                          <div>
-                            <p className="font-semibold">{zoomAccount.accountName}</p>
-                            <p className="text-sm text-gray-600">{zoomAccount.email}</p>
-                          </div>
-                          <Badge className="bg-green-500">Connected</Badge>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDisconnectZoom}
-                          className="text-red-500 hover:text-red-700 border-red-200"
-                        >
-                          Disconnect
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>This Zoom account will be used to automatically create meetings when students book sessions with this teacher.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-gray-600">
-                      Connect a Zoom account to automatically create meetings when students book sessions with this teacher.
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <FormLabel>Zoom Account Email</FormLabel>
-                        <Input
-                          type="email"
-                          value={zoomEmail}
-                          onChange={(e) => setZoomEmail(e.target.value)}
-                          placeholder="teacher@example.com"
-                        />
-                      </div>
-                      
-                      <div>
-                        <FormLabel>Account Name</FormLabel>
-                        <Input
-                          type="text"
-                          value={zoomAccountName}
-                          onChange={(e) => setZoomAccountName(e.target.value)}
-                          placeholder="Teacher Name"
-                        />
-                      </div>
-                      
-                      <Button
-                        type="button"
-                        onClick={handleConnectZoom}
-                        className="w-full"
-                        disabled={!zoomEmail || !zoomAccountName}
-                      >
-                        Connect Zoom Account
-                      </Button>
-                      
-                      <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-600">
-                        <p>
-                          Note: This is a demo integration. In a real application, this would open a Zoom OAuth flow to connect the teacher's actual Zoom account.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={onComplete}>
-            Cancel
-          </Button>
-          <Button type="submit">
-            {teacher ? 'Update Teacher' : 'Add Teacher'}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-};
-
-export default TeacherForm;
+                  <div className="space

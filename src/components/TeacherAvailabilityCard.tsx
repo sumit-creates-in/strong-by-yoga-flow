@@ -2,10 +2,18 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock } from 'lucide-react';
-import { AvailabilitySlot } from '@/contexts/TeacherContext';
+
+interface CustomAvailabilitySlot {
+  id?: string;
+  day: string;
+  startTime?: string;
+  endTime?: string;
+  isRecurring?: boolean;
+  slots?: { start: string; end: string }[];
+}
 
 interface TeacherAvailabilityCardProps {
-  availability: AvailabilitySlot[];
+  availability: CustomAvailabilitySlot[];
 }
 
 const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ availability }) => {
@@ -14,22 +22,54 @@ const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ avail
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
-  // Format time for display
-  const formatTime = (time: string): string => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
+  // Format time for display with null checks
+  const formatTime = (time: string | undefined): string => {
+    if (!time) return '';
+    
+    const [hours, minutes] = time.split(':');
+    if (!hours || !minutes) return time;
+    
+    const hour = parseInt(hours, 10);
+    if (isNaN(hour)) return time;
+    
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
     return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
   
-  // Group availability by day
-  const availabilityByDay: Record<string, AvailabilitySlot[]> = availability.reduce((acc, slot) => {
-    if (!acc[slot.day]) {
-      acc[slot.day] = [];
+  // Handle both formats of availability data
+  const getTimeDisplay = (slot: CustomAvailabilitySlot): { start: string, end: string } => {
+    // If slot has direct startTime/endTime properties
+    if (slot.startTime && slot.endTime) {
+      return {
+        start: formatTime(slot.startTime),
+        end: formatTime(slot.endTime)
+      };
     }
-    acc[slot.day].push(slot);
+    
+    // If slot has nested slots array (from context format)
+    if (slot.slots && slot.slots.length > 0) {
+      return {
+        start: formatTime(slot.slots[0].start),
+        end: formatTime(slot.slots[0].end)
+      };
+    }
+    
+    // Fallback
+    return { start: '', end: '' };
+  };
+  
+  // Group availability by day
+  const availabilityByDay: Record<string, CustomAvailabilitySlot[]> = (availability || []).reduce((acc, slot) => {
+    if (!slot.day) return acc;
+    
+    const day = slot.day.toLowerCase();
+    if (!acc[day]) {
+      acc[day] = [];
+    }
+    acc[day].push(slot);
     return acc;
-  }, {} as Record<string, AvailabilitySlot[]>);
+  }, {} as Record<string, CustomAvailabilitySlot[]>);
   
   // Order days for display
   const orderedDays = [
@@ -45,7 +85,7 @@ const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ avail
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {availability.length === 0 ? (
+        {!availability || availability.length === 0 ? (
           <p className="text-center text-gray-500 py-4">
             No regular availability has been set by this teacher.
           </p>
@@ -56,17 +96,20 @@ const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ avail
                 <div key={day} className="border rounded-md p-3">
                   <h3 className="font-medium text-gray-800 mb-2">{formatDay(day)}</h3>
                   <div className="space-y-2">
-                    {availabilityByDay[day].map((slot, index) => (
-                      <div key={index} className="text-sm flex items-center space-x-1">
-                        <Clock size={14} className="text-gray-400" />
-                        <span className="text-gray-600">
-                          {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          (15-min slots)
-                        </span>
-                      </div>
-                    ))}
+                    {availabilityByDay[day].map((slot, index) => {
+                      const timeDisplay = getTimeDisplay(slot);
+                      return (
+                        <div key={index} className="text-sm flex items-center space-x-1">
+                          <Clock size={14} className="text-gray-400" />
+                          <span className="text-gray-600">
+                            {timeDisplay.start} - {timeDisplay.end}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            (15-min slots)
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )
