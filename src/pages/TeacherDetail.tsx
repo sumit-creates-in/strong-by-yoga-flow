@@ -78,14 +78,14 @@ const TeacherDetail = () => {
                     <h1 className="text-2xl md:text-3xl font-bold mb-2">{teacher.name}</h1>
                     
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {teacher.specialties.map((specialty, index) => (
+                      {teacher.specialties && teacher.specialties.map((specialty, index) => (
                         <Badge key={index} variant="outline" className="bg-gray-50">
                           {specialty}
                         </Badge>
                       ))}
                     </div>
                     
-                    <p className="text-gray-700 mb-4">{teacher.shortBio}</p>
+                    <p className="text-gray-700 mb-4">{teacher.shortBio || teacher.bio}</p>
                     
                     <div className="flex flex-wrap gap-4">
                       <div className="flex items-center text-gray-600">
@@ -94,7 +94,7 @@ const TeacherDetail = () => {
                       </div>
                       <div className="flex items-center text-gray-600">
                         <Languages className="mr-1 text-yoga-blue" size={16} />
-                        <span>{teacher.languages.join(', ')}</span>
+                        <span>{teacher.languages ? teacher.languages.join(', ') : 'English'}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
                         <User className="mr-1 text-yoga-blue" size={16} />
@@ -117,13 +117,13 @@ const TeacherDetail = () => {
                   <CardContent className="p-6 space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold mb-2">About me</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{teacher.fullBio}</p>
+                      <p className="text-gray-700 whitespace-pre-line">{teacher.fullBio || teacher.bio}</p>
                     </div>
                     
                     <div>
                       <h3 className="text-lg font-semibold mb-2">What I can help you with</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {teacher.expertise.map((item, index) => (
+                        {teacher.expertise && teacher.expertise.map((item, index) => (
                           <div key={index} className="flex items-center">
                             <CheckCircle className="mr-2 text-green-500" size={16} />
                             <span>{item}</span>
@@ -134,13 +134,13 @@ const TeacherDetail = () => {
                     
                     <div>
                       <h3 className="text-lg font-semibold mb-2">Teaching style</h3>
-                      <p className="text-gray-700">{teacher.teachingStyle}</p>
+                      <p className="text-gray-700">{teacher.teachingStyle || "My teaching style focuses on personalization and adapting to individual needs."}</p>
                     </div>
                     
                     <div>
                       <h3 className="text-lg font-semibold mb-2">Certifications</h3>
                       <ul className="list-disc pl-5 space-y-1">
-                        {teacher.certifications.map((cert, index) => (
+                        {teacher.certifications && teacher.certifications.map((cert, index) => (
                           <li key={index}>{cert}</li>
                         ))}
                       </ul>
@@ -160,30 +160,36 @@ const TeacherDetail = () => {
                       
                       <div>
                         <p className="font-medium">{teacher.reviewCount} reviews</p>
-                        <p className="text-gray-500 text-sm">Last review {teacher.lastReviewDate}</p>
+                        <p className="text-gray-500 text-sm">Last review {teacher.lastReviewDate || 'recently'}</p>
                       </div>
                     </div>
                     
-                    {teacher.reviews.map((review, index) => (
-                      <div key={index} className="border-b border-gray-200 pb-4 mb-4 last:border-0">
-                        <div className="flex justify-between mb-2">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                              {review.userInitials}
+                    {teacher.reviews && Array.isArray(teacher.reviews) ? (
+                      teacher.reviews.map((review, index) => (
+                        <div key={index} className="border-b border-gray-200 pb-4 mb-4 last:border-0">
+                          <div className="flex justify-between mb-2">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                                {review.userInitials}
+                              </div>
+                              <div>
+                                <p className="font-medium">{review.userName}</p>
+                                <p className="text-gray-500 text-sm">{review.date}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium">{review.userName}</p>
-                              <p className="text-gray-500 text-sm">{review.date}</p>
+                            <div className="flex items-center">
+                              <Star className="text-green-500 fill-green-500 mr-1" size={16} />
+                              <span>{review.rating}</span>
                             </div>
                           </div>
-                          <div className="flex items-center">
-                            <Star className="text-green-500 fill-green-500 mr-1" size={16} />
-                            <span>{review.rating}</span>
-                          </div>
+                          <p className="text-gray-700">{review.comment}</p>
                         </div>
-                        <p className="text-gray-700">{review.comment}</p>
+                      ))
+                    ) : (
+                      <div className="text-center py-6">
+                        <p className="text-gray-500">No reviews yet</p>
                       </div>
-                    ))}
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -200,7 +206,7 @@ const TeacherDetail = () => {
                   <h3 className="font-medium">Session Options</h3>
                   
                   <div className="space-y-3">
-                    {teacher.sessionTypes.map((session, index) => (
+                    {teacher.sessionTypes && teacher.sessionTypes.map((session, index) => (
                       <Button 
                         key={index}
                         variant="outline" 
