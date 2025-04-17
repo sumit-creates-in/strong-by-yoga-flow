@@ -1,181 +1,125 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { useTeachers } from '@/contexts/TeacherContext';
-import { Play, ArrowLeft, Clock, Check } from 'lucide-react';
+import Layout from '@/components/Layout';
 
 const TeacherLearn = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { getTeacher } = useTeachers();
+  const { teachers } = useTeachers();
   
-  const teacher = id ? getTeacher(id) : undefined;
+  const teacher = id ? teachers.find(t => t.id === id) : undefined;
   
-  if (!teacher) {
+  if (!teacher && id) {
     return (
       <Layout>
         <div className="container mx-auto py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Teacher Not Found</h1>
-            <p className="mb-4">The teacher you're looking for doesn't exist or has been removed.</p>
-            <Button onClick={() => navigate('/teachers')}>Back to Teachers</Button>
+          <Button 
+            variant="ghost" 
+            className="mb-6" 
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold mb-4">Teacher not found</h1>
+            <p className="text-gray-600 mb-8">The teacher you're looking for doesn't exist or has been removed.</p>
+            <Button onClick={() => navigate('/teachers')}>
+              View All Teachers
+            </Button>
           </div>
         </div>
       </Layout>
     );
   }
   
-  const videoData = {
-    url: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Replace with actual video URL
-    duration: "60 seconds",
-    title: `Meet ${teacher.name} in 60 Seconds`,
-    description: `Get to know ${teacher.name}'s teaching style, background, and approach to yoga in this quick introduction video.`,
-    highlights: [
-      "Teaching philosophy",
-      "Yoga experience",
-      "Specialties and expertise",
-      "What to expect in sessions"
-    ]
-  };
-
   return (
     <Layout>
       <div className="container mx-auto py-8">
         <Button 
           variant="ghost" 
-          onClick={() => navigate(`/teachers/${id}`)} 
-          className="mb-6 flex items-center"
+          className="mb-6" 
+          onClick={() => navigate(-1)}
         >
-          <ArrowLeft size={16} className="mr-2" /> Back to Teacher Profile
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <Card className="overflow-hidden">
-              <div className="relative pb-[56.25%]">
-                <iframe 
-                  src={videoData.url} 
-                  title={videoData.title}
-                  className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="relative">
+            <div className="bg-gradient-to-r from-yoga-blue to-yoga-light-blue h-40"></div>
+            <div className="absolute left-8 bottom-0 transform translate-y-1/2 flex">
+              <div className="w-32 h-32 rounded-full border-4 border-white bg-white overflow-hidden">
+                <img 
+                  src={teacher?.avatarUrl || "/placeholder.svg"} 
+                  alt={teacher?.name || "Teacher"} 
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-yoga-light-blue flex items-center justify-center">
-                    <Play className="text-yoga-blue h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Video Introduction</p>
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 text-gray-500 mr-1" />
-                      <span className="text-xs text-gray-500">{videoData.duration}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <h2 className="text-2xl font-bold mb-2">{videoData.title}</h2>
-                <p className="text-gray-600 mb-6">{videoData.description}</p>
-                
-                <div className="border-t pt-4">
-                  <h3 className="font-medium mb-3">Video Highlights</h3>
-                  <ul className="space-y-2">
-                    {videoData.highlights.map((highlight, index) => (
-                      <li key={index} className="flex items-start">
-                        <Check className="h-4 w-4 text-green-500 mr-2 mt-1" />
-                        <span>{highlight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+            </div>
           </div>
           
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">About {teacher.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden">
-                    <img 
-                      src={teacher.avatarUrl} 
-                      alt={teacher.name} 
-                      className="w-full h-full object-cover" 
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-bold">{teacher.name}</h4>
-                    <div className="flex items-center space-x-1">
-                      <span className="text-yellow-500">★</span>
-                      <span>{teacher.rating}</span>
-                      <span className="text-gray-500">({teacher.reviewCount} reviews)</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-1">Specialties</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {teacher.specialties.slice(0, 3).map((specialty, index) => (
-                        <span key={index} className="bg-yoga-light-blue/20 text-yoga-blue px-2 py-1 rounded-full text-xs">
-                          {specialty}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium mb-1">Experience</h4>
-                    <p>{teacher.experience} years</p>
-                  </div>
-                  
-                  <div className="pt-2">
-                    <Button 
-                      onClick={() => navigate(`/teachers/${id}`)}
-                      className="w-full"
-                    >
-                      View Full Profile
-                    </Button>
-                  </div>
-                  
-                  <div className="pt-1">
-                    <Button 
-                      variant="outline"
-                      onClick={() => navigate(`/teachers/${id}/book`)}
-                      className="w-full"
-                    >
-                      Book a Session
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="pt-20 pb-8 px-8">
+            <h1 className="text-3xl font-bold mb-1">{teacher?.name || "About Our Teacher"}</h1>
+            <p className="text-yoga-blue font-medium mb-6">{teacher?.title}</p>
             
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Related Teachers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center py-4 text-gray-500">
-                  Explore more teachers with similar specialties
+            <div className="space-y-6">
+              <section>
+                <h2 className="text-2xl font-semibold mb-4">Professional Background</h2>
+                <p className="mb-4 text-gray-700">{teacher?.bio}</p>
+                <p className="text-gray-700">
+                  With {teacher?.experience} years of teaching experience, I have helped hundreds of students transform their practice
+                  and achieve their wellness goals. I've led over {teacher?.totalSessions} sessions, ranging from one-on-one
+                  therapeutic work to group classes and workshops.
                 </p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/teachers')}
-                  className="w-full"
+              </section>
+              
+              <section>
+                <h2 className="text-2xl font-semibold mb-4">Teaching Philosophy</h2>
+                <p className="text-gray-700">
+                  I believe yoga is for everybody and every body. My approach is inclusive, compassionate, and focused on
+                  helping each student discover their own path to wellness. I emphasize proper alignment, mindful movement,
+                  and the integration of breath with movement to create a practice that nurtures both body and mind.
+                </p>
+              </section>
+              
+              <section>
+                <h2 className="text-2xl font-semibold mb-4">Certifications & Training</h2>
+                <ul className="list-disc list-inside space-y-2 text-gray-700">
+                  {teacher?.certifications.map((cert, index) => (
+                    <li key={index}>{cert}</li>
+                  ))}
+                  <li>200+ hours of continuing education in therapeutic applications</li>
+                  <li>Meditation teacher training with renowned masters</li>
+                </ul>
+              </section>
+              
+              <section>
+                <h2 className="text-2xl font-semibold mb-4">Areas of Expertise</h2>
+                <div className="flex flex-wrap gap-2">
+                  {teacher?.expertise.map((exp, index) => (
+                    <span 
+                      key={index}
+                      className="px-3 py-1 bg-yoga-light-yellow rounded-full text-sm"
+                    >
+                      {exp}
+                    </span>
+                  ))}
+                </div>
+              </section>
+              
+              <div className="border-t border-gray-200 pt-6 mt-8">
+                <Button
+                  onClick={() => navigate(`/teachers/${teacher?.id}`)}
+                  className="bg-yoga-blue hover:bg-yoga-blue/90 text-white"
                 >
-                  Browse All Teachers
+                  View Full Profile & Book a Session
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </div>

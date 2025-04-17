@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { YogaClassProvider } from "./contexts/YogaClassContext";
 import { TeacherProvider } from "./contexts/TeacherContext";
 import AuthGuard from "./components/AuthGuard";
+import AdminGuard from "./components/AdminGuard";
 
 // Pages
 import Login from "./pages/Login";
@@ -63,14 +64,14 @@ const App = () => {
               <Route path="/teachers/:id/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               <Route path="/teachers/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               
-              {/* Admin Routes */}
-              <Route path="/admin/classes" element={<AuthGuard><AdminClasses /></AuthGuard>} />
-              <Route path="/admin/bookings" element={<AuthGuard><AdminBookings /></AuthGuard>} />
-              <Route path="/admin/users" element={<AuthGuard><AdminUsers /></AuthGuard>} />
-              <Route path="/admin/teachers" element={<AuthGuard><AdminTeachers /></AuthGuard>} />
-              <Route path="/admin/zoom-settings" element={<AuthGuard><AdminZoomSettings /></AuthGuard>} />
-              <Route path="/admin/credits" element={<AuthGuard><AdminCredits /></AuthGuard>} />
-              <Route path="/admin/notifications" element={<AuthGuard><AdminNotifications /></AuthGuard>} />
+              {/* Admin Routes - Updated to use AdminGuard */}
+              <Route path="/admin/classes" element={<AdminGuard><AdminClasses /></AdminGuard>} />
+              <Route path="/admin/bookings" element={<AdminGuard><AdminBookings /></AdminGuard>} />
+              <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
+              <Route path="/admin/teachers" element={<AdminGuard><AdminTeachers /></AdminGuard>} />
+              <Route path="/admin/zoom-settings" element={<AdminGuard><AdminZoomSettings /></AdminGuard>} />
+              <Route path="/admin/credits" element={<AdminGuard><AdminCredits /></AdminGuard>} />
+              <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
               
               {/* Redirects */}
               <Route path="/" element={<Index />} />

@@ -15,7 +15,9 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (user?.role !== 'admin') {
+  // Make sure we're checking for the admin role correctly
+  if (!user || user.role !== 'admin') {
+    // Redirect to dashboard if not an admin
     return <Navigate to="/dashboard" replace />;
   }
 
