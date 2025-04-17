@@ -19,6 +19,7 @@ interface TeacherAvailabilityCardProps {
 const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ availability }) => {
   // Format day for display
   const formatDay = (day: string): string => {
+    if (!day) return '';
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 

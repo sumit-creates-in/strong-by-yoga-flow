@@ -7,10 +7,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
+} from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Select,
   SelectContent,
@@ -91,49 +91,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const [certifications, setCertifications] = useState<string[]>(teacher?.certifications || []);
   const [newCertification, setNewCertification] = useState('');
   
-  // Map SessionType from context to internal format for UI
-  const mapToCustomSessionTypes = (sessions: SessionType[] | undefined): CustomSessionType[] => {
-    if (!sessions || !Array.isArray(sessions)) return [];
-    
-    return sessions.map(session => ({
-      id: session.id,
-      name: session.name,
-      description: session.description || '',
-      duration: session.duration,
-      price: session.price,
-      credits: session.credits || session.price,
-      type: session.type || 'video',
-      isActive: session.isActive || true,
-      allowRecurring: session.bookingRestrictions?.minTimeBeforeBooking !== undefined 
-        ? true 
-        : true,
-      minTimeBeforeBooking: session.bookingRestrictions?.minTimeBeforeBooking || 2,
-      minTimeBeforeCancel: session.bookingRestrictions?.minTimeBeforeCancelling || 4,
-      minTimeBeforeReschedule: session.bookingRestrictions?.minTimeBeforeRescheduling || 6,
-      maxAdvanceBookingDays: session.bookingRestrictions?.maxAdvanceBookingPeriod || 30
-    }));
-  };
-  
-  // Map back to SessionType format for saving to context
-  const mapToContextSessionTypes = (sessions: CustomSessionType[]): SessionType[] => {
-    return sessions.map(session => ({
-      id: session.id,
-      name: session.name,
-      description: session.description,
-      duration: session.duration,
-      price: session.price,
-      credits: session.credits,
-      type: session.type,
-      isActive: session.isActive,
-      bookingRestrictions: {
-        minTimeBeforeBooking: session.minTimeBeforeBooking,
-        minTimeBeforeCancelling: session.minTimeBeforeCancel,
-        minTimeBeforeRescheduling: session.minTimeBeforeReschedule,
-        maxAdvanceBookingPeriod: session.maxAdvanceBookingDays
-      }
-    }));
-  };
-  
   const [sessionTypes, setSessionTypes] = useState<CustomSessionType[]>(
     mapToCustomSessionTypes(teacher?.sessionTypes) || [
       { 
@@ -169,32 +126,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     ]
   );
 
-  // Map availability data to/from the internal format
-  const mapToCustomAvailability = (availability: AvailabilitySlot[] | undefined): CustomAvailabilitySlot[] => {
-    if (!availability || !Array.isArray(availability)) return [];
-    
-    return availability.map((slot, index) => {
-      return {
-        id: slot.id || `avail-${Date.now()}-${index}`,
-        day: slot.day?.toLowerCase() || 'monday',
-        startTime: slot.startTime || '09:00',
-        endTime: slot.endTime || '10:00', 
-        isRecurring: slot.isRecurring || true
-      };
-    });
-  };
-  
-  // Map back to context format for saving
-  const mapToContextAvailability = (availability: CustomAvailabilitySlot[]): AvailabilitySlot[] => {
-    return availability.map(slot => ({
-      id: slot.id,
-      day: slot.day,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      isRecurring: slot.isRecurring
-    }));
-  };
-
   const [availability, setAvailability] = useState<CustomAvailabilitySlot[]>(
     mapToCustomAvailability(teacher?.availability)
   );
@@ -206,30 +137,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     isRecurring: true
   });
 
-  // Map ZoomAccount to/from internal format
-  const mapToCustomZoomAccount = (account: ZoomAccount | undefined): CustomZoomAccount | null => {
-    if (!account) return null;
-    
-    return {
-      id: account.id || `zoom-${Date.now()}`,
-      email: account.email || '',
-      accountName: account.accountName || account.email || '',
-      connected: account.isConnected || false
-    };
-  };
-  
-  // Map back to context format
-  const mapToContextZoomAccount = (account: CustomZoomAccount | null): ZoomAccount | null => {
-    if (!account) return null;
-    
-    return {
-      id: account.id,
-      email: account.email,
-      accountName: account.accountName,
-      isConnected: account.connected
-    };
-  };
-
   const [zoomAccount, setZoomAccount] = useState<CustomZoomAccount | null>(
     mapToCustomZoomAccount(teacher?.zoomAccount)
   );
@@ -237,7 +144,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const [zoomEmail, setZoomEmail] = useState('');
   const [zoomAccountName, setZoomAccountName] = useState('');
   
-  // Initialize form
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -251,7 +157,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     },
   });
   
-  // Helper functions for managing arrays
   const handleAddSpecialty = () => {
     if (newSpecialty && !specialties.includes(newSpecialty)) {
       setSpecialties([...specialties, newSpecialty]);
@@ -285,12 +190,10 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     setCertifications(certifications.filter(c => c !== cert));
   };
   
-  // Update session type
   const handleSessionTypeChange = (index: number, field: string, value: any) => {
     const updatedTypes = [...sessionTypes];
     updatedTypes[index] = { ...updatedTypes[index], [field]: value };
     
-    // If price is updated, automatically update credits to match (1 credit = $1)
     if (field === 'price') {
       updatedTypes[index].credits = value;
     }
@@ -328,10 +231,9 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     }
   };
 
-  // Availability management
   const handleAddAvailability = () => {
     if (!newAvailability.day || !newAvailability.startTime || !newAvailability.endTime) {
-      return; // Don't add if missing required fields
+      return;
     }
     
     const newSlot: CustomAvailabilitySlot = {
@@ -344,7 +246,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     
     setAvailability([...availability, newSlot]);
     
-    // Reset form
     setNewAvailability({
       day: 'monday',
       startTime: '09:00',
@@ -364,7 +265,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     });
   };
 
-  // Zoom account management
   const handleConnectZoom = () => {
     if (zoomEmail && zoomAccountName) {
       const newZoomAccount: CustomZoomAccount = {
@@ -382,29 +282,26 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const handleDisconnectZoom = () => {
     setZoomAccount(null);
   };
-  
-  // Format day for display
+
   const formatDay = (day: string): string => {
     if (!day) return 'Monday';
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
-  // Format time for display with null checks
   const formatTime = (time: string | undefined): string => {
-    if (!time) return ''; // Return empty string if time is undefined
+    if (!time) return '';
     
     const [hours, minutes] = time.split(':');
-    if (!hours || !minutes) return time; // Return original if splitting fails
+    if (!hours || !minutes) return time;
     
     const hour = parseInt(hours, 10);
-    if (isNaN(hour)) return time; // Return original if parsing fails
+    if (isNaN(hour)) return time;
     
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const formattedHour = hour % 12 || 12;
     return `${formattedHour}:${minutes} ${ampm}`;
   };
-  
-  // Form submission
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const teacherData: Teacher = {
       ...values,
@@ -430,7 +327,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     
     onComplete();
   };
-  
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -444,7 +341,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
           </TabsList>
           
           <TabsContent value="basic" className="space-y-4">
-            {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -739,7 +635,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
                     </div>
                   </div>
                   
-                  {/* Booking Restrictions Section */}
                   <Collapsible>
                     <CollapsibleTrigger asChild>
                       <Button variant="outline" type="button" className="w-full mt-2">
@@ -951,4 +846,71 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {zoomAccount ? (
-                  <div className="space
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 border rounded-md p-4">
+                      <p className="font-medium">{zoomAccount.accountName}</p>
+                      <p className="text-sm text-gray-500">{zoomAccount.email}</p>
+                      <div className="mt-2 flex items-center">
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          {zoomAccount.connected ? "Connected" : "Not Connected"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleDisconnectZoom} 
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      Disconnect Zoom Account
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <FormLabel>Zoom Email</FormLabel>
+                        <Input
+                          value={zoomEmail}
+                          onChange={(e) => setZoomEmail(e.target.value)}
+                          placeholder="your.email@example.com"
+                        />
+                      </div>
+                      <div>
+                        <FormLabel>Account Name</FormLabel>
+                        <Input
+                          value={zoomAccountName}
+                          onChange={(e) => setZoomAccountName(e.target.value)}
+                          placeholder="Display name for this account"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleConnectZoom}
+                      className="w-full"
+                      disabled={!zoomEmail || !zoomAccountName}
+                    >
+                      Connect Zoom Account
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+        
+        <div className="flex justify-end space-x-2 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={onComplete}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            {teacher ? "Update Teacher" : "Add Teacher"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+};
+
+export default TeacherForm;
