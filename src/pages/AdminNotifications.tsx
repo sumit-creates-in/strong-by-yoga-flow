@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import AdminGuard from '@/components/AdminGuard';
@@ -25,28 +24,6 @@ import NotificationTemplateList from '@/components/NotificationTemplateList';
 import NotificationTemplateForm from '@/components/NotificationTemplateForm';
 import WhatsAppSettings from '@/components/WhatsAppSettings';
 import { useTeachers, NotificationTemplate } from '@/contexts/TeacherContext';
-
-// Add this type to match the component's expected props
-type NotificationTemplateFormWithTypeProps = {
-  type: string;
-  template?: NotificationTemplate;
-  onClose: () => void;
-};
-
-// Create a wrapper component that adds the type prop
-const NotificationTemplateFormWrapper = ({ 
-  type, 
-  template, 
-  onClose 
-}: NotificationTemplateFormWithTypeProps) => {
-  // This component passes down only the props that NotificationTemplateForm expects
-  return (
-    <NotificationTemplateForm
-      template={template}
-      onClose={onClose}
-    />
-  );
-};
 
 const AdminNotifications = () => {
   const { teachers, updateTeacher } = useTeachers();
@@ -92,23 +69,43 @@ const AdminNotifications = () => {
     setIsEditTemplateOpen(true);
   };
   
-  const handleDeleteTemplate = (templateId: string) => {
+  const handleSaveTemplate = (template: Omit<NotificationTemplate, 'id'>) => {
     if (teacher) {
       const notificationSettings = { ...teacher.notificationSettings };
-      const templates = notificationSettings[activeTab as keyof typeof notificationSettings].templates.filter(
-        t => t.id !== templateId
-      );
+      const templateType = currentType as keyof typeof notificationSettings;
       
-      const updatedSettings = {
-        ...notificationSettings[activeTab as keyof typeof notificationSettings],
-        templates
-      };
-      
-      handleSaveSettings(activeTab, updatedSettings);
+      if (selectedTemplate) {
+        // Editing an existing template
+        const updatedTemplates = notificationSettings[templateType].templates.map(t => 
+          t.id === selectedTemplate.id ? { ...template, id: selectedTemplate.id } : t
+        );
+        
+        const updatedSettings = {
+          ...notificationSettings[templateType],
+          templates: updatedTemplates
+        };
+        
+        handleSaveSettings(currentType, updatedSettings);
+        setIsEditTemplateOpen(false);
+      } else {
+        // Adding a new template
+        const newTemplate = {
+          ...template,
+          id: `template-${Date.now()}`
+        };
+        
+        const updatedSettings = {
+          ...notificationSettings[templateType],
+          templates: [...notificationSettings[templateType].templates, newTemplate]
+        };
+        
+        handleSaveSettings(currentType, updatedSettings);
+        setIsAddTemplateOpen(false);
+      }
       
       toast({
-        title: "Template deleted",
-        description: "The notification template has been deleted."
+        title: selectedTemplate ? "Template updated" : "Template created",
+        description: `The notification template has been ${selectedTemplate ? "updated" : "created"} successfully.`
       });
     }
   };
@@ -163,7 +160,6 @@ const AdminNotifications = () => {
                   <NotificationTemplateList 
                     templates={teacher?.notificationSettings.email.templates || []}
                     onEdit={handleEditTemplate}
-                    onDelete={handleDeleteTemplate}
                   />
                 </CardContent>
                 <CardFooter className="justify-between">
@@ -215,7 +211,6 @@ const AdminNotifications = () => {
                   <NotificationTemplateList 
                     templates={teacher?.notificationSettings.app.templates || []}
                     onEdit={handleEditTemplate}
-                    onDelete={handleDeleteTemplate}
                   />
                 </CardContent>
                 <CardFooter className="justify-between">
@@ -260,7 +255,6 @@ const AdminNotifications = () => {
                   <NotificationTemplateList 
                     templates={teacher?.notificationSettings.whatsapp.templates || []}
                     onEdit={handleEditTemplate}
-                    onDelete={handleDeleteTemplate}
                   />
                 </CardContent>
                 <CardFooter className="flex justify-end">
@@ -308,7 +302,6 @@ const AdminNotifications = () => {
                   <NotificationTemplateList 
                     templates={teacher?.notificationSettings.sms.templates || []}
                     onEdit={handleEditTemplate}
-                    onDelete={handleDeleteTemplate}
                   />
                 </CardContent>
                 <CardFooter className="justify-between">
@@ -342,9 +335,9 @@ const AdminNotifications = () => {
               Create a new notification template for {currentType} notifications
             </DialogDescription>
           </DialogHeader>
-          <NotificationTemplateFormWrapper 
-            type={currentType} 
-            onClose={() => setIsAddTemplateOpen(false)} 
+          <NotificationTemplateForm 
+            onSave={handleSaveTemplate} 
+            onCancel={() => setIsAddTemplateOpen(false)} 
           />
         </DialogContent>
       </Dialog>
@@ -359,10 +352,10 @@ const AdminNotifications = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedTemplate && (
-            <NotificationTemplateFormWrapper 
-              type={currentType} 
-              template={selectedTemplate} 
-              onClose={() => setIsEditTemplateOpen(false)} 
+            <NotificationTemplateForm 
+              initialTemplate={selectedTemplate} 
+              onSave={handleSaveTemplate} 
+              onCancel={() => setIsEditTemplateOpen(false)} 
             />
           )}
         </DialogContent>

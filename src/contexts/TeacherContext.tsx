@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define types
@@ -28,18 +27,28 @@ export interface SessionType {
     minTimeBeforeCancelling: number; // hours
     minTimeBeforeRescheduling: number; // hours
   };
+  credits?: number; // Make credits optional for backward compatibility
 }
 
 export interface NotificationTemplate {
   id: string;
   name: string;
+  type: 'email' | 'sms' | 'whatsapp' | 'in-app';
   subject?: string;
   body: string;
-  timing: {
+  enabled: boolean;
+  recipientType: 'student' | 'teacher' | 'both'; // Changed from recipients array to recipientType
+  triggerType: 'action' | 'scheduled';
+  triggerAction?: 'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'booking_reminder';
+  scheduledTime?: {
+    when: 'before' | 'after' | 'same-day';
+    time: number;
+  };
+  timing?: { // Keep for backwards compatibility
     type: 'before' | 'after';
     minutes: number;
   };
-  recipients: ('user' | 'teacher')[];
+  recipients?: ('user' | 'teacher')[]; // Keep for backwards compatibility
 }
 
 // Add credit transaction interface
@@ -78,6 +87,9 @@ export interface Teacher {
   sessionTypes: SessionType[];
   availability: AvailabilitySlot[];
   zoomAccount: ZoomAccount;
+  shortBio?: string; // Added missing fields
+  fullBio?: string;
+  teachingStyle?: string;
   notificationSettings: {
     email: {
       enabled: boolean;
@@ -110,6 +122,19 @@ interface TeacherContextProps {
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (id: string, teacher: Partial<Teacher>) => void;
   deleteTeacher: (id: string) => void;
+  
+  // Add notification-related methods
+  updateNotificationTemplate: (template: NotificationTemplate) => void;
+  deleteNotificationTemplate: (id: string) => void;
+  sendTestNotification: (templateId: string, recipient: string) => void;
+  
+  // Add teacher availability methods
+  addTeacherAvailability: (teacherId: string, availability: AvailabilitySlot) => void;
+  removeTeacherAvailability: (teacherId: string, dayIndex: number) => void;
+  
+  // Add zoom account methods
+  connectZoomAccount: (teacherId: string, email: string) => void;
+  disconnectZoomAccount: (teacherId: string) => void;
   
   // Add credit-related properties
   userCredits: number;
@@ -477,6 +502,130 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     setTeachers(prevTeachers => prevTeachers.filter(teacher => teacher.id !== id));
   };
 
+  // Add notification-related methods
+  const updateNotificationTemplate = (template: NotificationTemplate) => {
+    // Implementation will update a notification template in the teacher's settings
+    setTeachers(prevTeachers =>
+      prevTeachers.map(teacher => {
+        const notificationSettings = { ...teacher.notificationSettings };
+        
+        // Find which channel this template belongs to
+        for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
+          const index = notificationSettings[channel].templates.findIndex(t => t.id === template.id);
+          if (index >= 0) {
+            const updatedTemplates = [...notificationSettings[channel].templates];
+            updatedTemplates[index] = template;
+            notificationSettings[channel] = {
+              ...notificationSettings[channel],
+              templates: updatedTemplates
+            };
+            break;
+          }
+        }
+        
+        return { ...teacher, notificationSettings };
+      })
+    );
+  };
+  
+  const deleteNotificationTemplate = (id: string) => {
+    // Implementation will remove a notification template from the teacher's settings
+    setTeachers(prevTeachers =>
+      prevTeachers.map(teacher => {
+        const notificationSettings = { ...teacher.notificationSettings };
+        
+        // Find which channel this template belongs to
+        for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
+          const updatedTemplates = notificationSettings[channel].templates.filter(t => t.id !== id);
+          if (updatedTemplates.length !== notificationSettings[channel].templates.length) {
+            notificationSettings[channel] = {
+              ...notificationSettings[channel],
+              templates: updatedTemplates
+            };
+            break;
+          }
+        }
+        
+        return { ...teacher, notificationSettings };
+      })
+    );
+  };
+  
+  const sendTestNotification = (templateId: string, recipient: string) => {
+    // Mock implementation that would send a test notification
+    console.log(`Sending test notification for template ${templateId} to ${recipient}`);
+    // In a real implementation, this would make an API call to send the notification
+  };
+  
+  // Add teacher availability methods
+  const addTeacherAvailability = (teacherId: string, availability: AvailabilitySlot) => {
+    setTeachers(prevTeachers =>
+      prevTeachers.map(teacher => {
+        if (teacher.id === teacherId) {
+          // Check if day already exists
+          const existingDayIndex = teacher.availability.findIndex(a => a.day === availability.day);
+          const updatedAvailability = [...teacher.availability];
+          
+          if (existingDayIndex >= 0) {
+            // Update existing day
+            updatedAvailability[existingDayIndex] = {
+              ...updatedAvailability[existingDayIndex],
+              slots: [...updatedAvailability[existingDayIndex].slots, ...availability.slots]
+            };
+          } else {
+            // Add new day
+            updatedAvailability.push(availability);
+          }
+          
+          return { ...teacher, availability: updatedAvailability };
+        }
+        return teacher;
+      })
+    );
+  };
+  
+  const removeTeacherAvailability = (teacherId: string, dayIndex: number) => {
+    setTeachers(prevTeachers =>
+      prevTeachers.map(teacher => {
+        if (teacher.id === teacherId) {
+          const updatedAvailability = [...teacher.availability];
+          updatedAvailability.splice(dayIndex, 1);
+          return { ...teacher, availability: updatedAvailability };
+        }
+        return teacher;
+      })
+    );
+  };
+  
+  // Add zoom account methods
+  const connectZoomAccount = (teacherId: string, email: string) => {
+    setTeachers(prevTeachers =>
+      prevTeachers.map(teacher => {
+        if (teacher.id === teacherId) {
+          return {
+            ...teacher,
+            zoomAccount: { email, isConnected: true }
+          };
+        }
+        return teacher;
+      })
+    );
+  };
+  
+  const disconnectZoomAccount = (teacherId: string) => {
+    setTeachers(prevTeachers =>
+      prevTeachers.map(teacher => {
+        if (teacher.id === teacherId) {
+          return {
+            ...teacher,
+            zoomAccount: { ...teacher.zoomAccount, isConnected: false }
+          };
+        }
+        return teacher;
+      })
+    );
+  };
+
   // Credit package methods
   const addCreditPackage = (pkg: Omit<CreditPackage, 'id'>) => {
     const newPackage = {
@@ -503,6 +652,13 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         addTeacher, 
         updateTeacher, 
         deleteTeacher,
+        updateNotificationTemplate,
+        deleteNotificationTemplate,
+        sendTestNotification,
+        addTeacherAvailability,
+        removeTeacherAvailability,
+        connectZoomAccount,
+        disconnectZoomAccount,
         userCredits,
         creditTransactions,
         creditPackages,

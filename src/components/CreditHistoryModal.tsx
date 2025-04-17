@@ -25,7 +25,7 @@ interface CreditHistoryModalProps {
 }
 
 const CreditHistoryModal: React.FC<CreditHistoryModalProps> = ({ open, onOpenChange }) => {
-  const { creditTransactions, userCredits } = useTeachers();
+  const { creditTransactions = [], userCredits = 0 } = useTeachers();
   
   // Sort transactions by date (newest first)
   const sortedTransactions = creditTransactions && creditTransactions.length > 0
