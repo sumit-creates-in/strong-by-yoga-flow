@@ -35,7 +35,7 @@ const TeacherAvailabilityCard: React.FC<TeacherAvailabilityCardProps> = ({ avail
     
     const period = hour >= 12 ? 'PM' : 'AM';
     const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    return `${hour12}:${minutes} ${period}`;
   };
   
   // Handle both formats of availability data

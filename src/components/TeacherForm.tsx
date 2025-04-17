@@ -35,7 +35,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 
-// Define custom internal types that match the expected structure
 interface CustomAvailabilitySlot {
   id: string;
   day: string;
@@ -51,7 +50,7 @@ interface CustomZoomAccount {
   connected: boolean;
 }
 
-interface CustomSessionType extends Omit<SessionType, 'bookingRestrictions' | 'type'> {
+interface CustomSessionType extends Omit<SessionType, 'bookingRestrictions'> {
   type: 'video' | 'call' | 'chat';
   allowRecurring: boolean;
   minTimeBeforeBooking: number;
@@ -60,7 +59,6 @@ interface CustomSessionType extends Omit<SessionType, 'bookingRestrictions' | 't
   maxAdvanceBookingDays: number;
 }
 
-// Define form schema
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   avatarUrl: z.string().optional(),
@@ -90,6 +88,46 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   
   const [certifications, setCertifications] = useState<string[]>(teacher?.certifications || []);
   const [newCertification, setNewCertification] = useState('');
+  
+  const mapToCustomSessionTypes = (sessions: SessionType[] | undefined): CustomSessionType[] => {
+    if (!sessions || !Array.isArray(sessions)) return [];
+    
+    return sessions.map(session => ({
+      id: session.id,
+      name: session.name,
+      description: session.description || '',
+      duration: session.duration,
+      price: session.price,
+      credits: session.credits || session.price,
+      type: (session as any).type || 'video',
+      isActive: session.isActive || true,
+      allowRecurring: session.bookingRestrictions?.minTimeBeforeBooking !== undefined 
+        ? true 
+        : true,
+      minTimeBeforeBooking: session.bookingRestrictions?.minTimeBeforeBooking || 2,
+      minTimeBeforeCancel: session.bookingRestrictions?.minTimeBeforeCancelling || 4,
+      minTimeBeforeReschedule: session.bookingRestrictions?.minTimeBeforeRescheduling || 6,
+      maxAdvanceBookingDays: session.bookingRestrictions?.maxAdvanceBookingPeriod || 30
+    }));
+  };
+  
+  const mapToContextSessionTypes = (sessions: CustomSessionType[]): SessionType[] => {
+    return sessions.map(session => ({
+      id: session.id,
+      name: session.name,
+      description: session.description,
+      duration: session.duration,
+      price: session.price,
+      credits: session.credits,
+      isActive: session.isActive,
+      bookingRestrictions: {
+        minTimeBeforeBooking: session.minTimeBeforeBooking,
+        minTimeBeforeCancelling: session.minTimeBeforeCancel,
+        minTimeBeforeRescheduling: session.minTimeBeforeReschedule,
+        maxAdvanceBookingPeriod: session.maxAdvanceBookingDays
+      }
+    }));
+  };
   
   const [sessionTypes, setSessionTypes] = useState<CustomSessionType[]>(
     mapToCustomSessionTypes(teacher?.sessionTypes) || [
@@ -126,6 +164,40 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     ]
   );
 
+  const mapToCustomAvailability = (availability: AvailabilitySlot[] | undefined): CustomAvailabilitySlot[] => {
+    if (!availability || !Array.isArray(availability)) return [];
+    
+    return availability.map((slot, index) => {
+      if (slot.slots && slot.slots.length > 0) {
+        return {
+          id: `avail-${Date.now()}-${index}`,
+          day: slot.day?.toLowerCase() || 'monday',
+          startTime: slot.slots[0].start || '09:00',
+          endTime: slot.slots[0].end || '10:00',
+          isRecurring: true
+        };
+      } else {
+        return {
+          id: (slot as any).id || `avail-${Date.now()}-${index}`,
+          day: slot.day?.toLowerCase() || 'monday',
+          startTime: (slot as any).startTime || '09:00',
+          endTime: (slot as any).endTime || '10:00',
+          isRecurring: (slot as any).isRecurring || true
+        };
+      }
+    });
+  };
+  
+  const mapToContextAvailability = (availability: CustomAvailabilitySlot[]): AvailabilitySlot[] => {
+    return availability.map(slot => ({
+      day: slot.day,
+      slots: [{
+        start: slot.startTime,
+        end: slot.endTime
+      }]
+    }));
+  };
+
   const [availability, setAvailability] = useState<CustomAvailabilitySlot[]>(
     mapToCustomAvailability(teacher?.availability)
   );
@@ -136,6 +208,26 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     endTime: '10:00',
     isRecurring: true
   });
+
+  const mapToCustomZoomAccount = (account: ZoomAccount | undefined): CustomZoomAccount | null => {
+    if (!account) return null;
+    
+    return {
+      id: (account as any).id || `zoom-${Date.now()}`,
+      email: account.email || '',
+      accountName: (account as any).accountName || account.email || '',
+      connected: account.isConnected || false
+    };
+  };
+  
+  const mapToContextZoomAccount = (account: CustomZoomAccount | null): ZoomAccount | null => {
+    if (!account) return null;
+    
+    return {
+      email: account.email,
+      isConnected: account.connected
+    };
+  };
 
   const [zoomAccount, setZoomAccount] = useState<CustomZoomAccount | null>(
     mapToCustomZoomAccount(teacher?.zoomAccount)
@@ -282,7 +374,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   const handleDisconnectZoom = () => {
     setZoomAccount(null);
   };
-
+  
   const formatDay = (day: string): string => {
     if (!day) return 'Monday';
     return day.charAt(0).toUpperCase() + day.slice(1);
@@ -301,9 +393,9 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
     const formattedHour = hour % 12 || 12;
     return `${formattedHour}:${minutes} ${ampm}`;
   };
-
+  
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const teacherData: Teacher = {
+    const teacherData = {
       ...values,
       id: teacher?.id || `teacher-${Date.now()}`,
       specialties,
@@ -315,8 +407,6 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
       rating: teacher?.rating || 5.0,
       reviewCount: teacher?.reviewCount || 0,
       totalSessions: teacher?.totalSessions || 0,
-      reviews: teacher?.reviews || [],
-      lastReviewDate: teacher?.lastReviewDate || format(new Date(), 'MMMM d, yyyy'),
     };
     
     if (teacher) {
