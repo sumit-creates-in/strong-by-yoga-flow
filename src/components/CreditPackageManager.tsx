@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { useTeachers, CreditPackage } from '../contexts/TeacherContext';
+import { useTeachers, CreditPackage } from '@/contexts/TeacherContext';
 import { Pencil, Trash, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -181,10 +181,18 @@ const CreditPackageManager: React.FC = () => {
     }
     
     setIsDialogOpen(false);
+    toast({
+      title: dialogMode === 'add' ? "Package created" : "Package updated",
+      description: `The credit package "${data.name}" has been ${dialogMode === 'add' ? 'created' : 'updated'}.`,
+    });
   };
   
   const handleDeletePackage = (id: string) => {
     deleteCreditPackage(id);
+    toast({
+      title: "Package deleted",
+      description: "The credit package has been deleted.",
+    });
   };
   
   return (
@@ -212,62 +220,62 @@ const CreditPackageManager: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {creditPackages.map((pkg) => (
-              <TableRow key={pkg.id}>
-                <TableCell className="font-medium">{pkg.name}</TableCell>
-                <TableCell>${pkg.price}</TableCell>
-                <TableCell>{pkg.credits}</TableCell>
-                <TableCell>{pkg.credits / pkg.price} per $</TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    {pkg.popular && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                        Popular
-                      </span>
-                    )}
-                    {pkg.mostValue && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
-                        Best Value
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditPackage(pkg)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Package</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this package? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleDeletePackage(pkg.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            
-            {creditPackages.length === 0 && (
+            {creditPackages && creditPackages.length > 0 ? (
+              creditPackages.map((pkg) => (
+                <TableRow key={pkg.id}>
+                  <TableCell className="font-medium">{pkg.name}</TableCell>
+                  <TableCell>${pkg.price}</TableCell>
+                  <TableCell>{pkg.credits}</TableCell>
+                  <TableCell>{(pkg.credits / pkg.price).toFixed(2)} per $</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      {pkg.popular && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                          Popular
+                        </span>
+                      )}
+                      {pkg.mostValue && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                          Best Value
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditPackage(pkg)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Package</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this package? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDeletePackage(pkg.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                   No credit packages found. Click "Add New Package" to create one.

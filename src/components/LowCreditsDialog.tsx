@@ -28,7 +28,7 @@ const LowCreditsDialog: React.FC<LowCreditsDialogProps> = ({
 }) => {
   const navigate = useNavigate();
   const { userCredits } = useTeachers();
-  const creditsNeeded = requiredCredits - userCredits;
+  const creditsNeeded = requiredCredits - (userCredits || 0);
   
   const goToPricing = () => {
     navigate('/pricing');
@@ -53,7 +53,7 @@ const LowCreditsDialog: React.FC<LowCreditsDialogProps> = ({
             <div className="bg-amber-50 border border-amber-100 p-4 rounded-md">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-700 font-medium">Your current balance:</span>
-                <span className="font-bold">{userCredits} credits</span>
+                <span className="font-bold">{userCredits || 0} credits</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-700 font-medium">Required for this session:</span>

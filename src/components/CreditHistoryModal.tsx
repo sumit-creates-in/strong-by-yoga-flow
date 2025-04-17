@@ -28,9 +28,11 @@ const CreditHistoryModal: React.FC<CreditHistoryModalProps> = ({ open, onOpenCha
   const { creditTransactions, userCredits } = useTeachers();
   
   // Sort transactions by date (newest first)
-  const sortedTransactions = [...creditTransactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const sortedTransactions = creditTransactions && creditTransactions.length > 0
+    ? [...creditTransactions].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+    : [];
   
   const getTransactionIcon = (transaction: CreditTransaction) => {
     switch (transaction.type) {

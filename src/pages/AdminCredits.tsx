@@ -8,7 +8,7 @@ import { useTeachers } from '@/contexts/TeacherContext';
 import { ArrowUp, Coins, TrendingDown } from 'lucide-react';
 
 const AdminCredits = () => {
-  const { creditTransactions, userCredits } = useTeachers();
+  const { creditTransactions = [], userCredits = 0 } = useTeachers();
   
   // Calculate some basic statistics
   const totalPurchased = creditTransactions
@@ -19,8 +19,10 @@ const AdminCredits = () => {
     .filter(t => t.type === 'usage')
     .reduce((sum, t) => sum + t.amount, 0));
     
-  const averageTransactionSize = totalPurchased / 
-    creditTransactions.filter(t => t.type === 'purchase').length || 0;
+  const purchaseTransactions = creditTransactions.filter(t => t.type === 'purchase');
+  const averageTransactionSize = purchaseTransactions.length > 0 
+    ? totalPurchased / purchaseTransactions.length 
+    : 0;
   
   return (
     <Layout>

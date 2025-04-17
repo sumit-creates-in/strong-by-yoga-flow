@@ -42,6 +42,25 @@ export interface NotificationTemplate {
   recipients: ('user' | 'teacher')[];
 }
 
+// Add credit transaction interface
+export interface CreditTransaction {
+  id: string;
+  type: 'purchase' | 'usage' | 'refund' | 'admin' | 'gift';
+  amount: number;
+  description: string;
+  date: string;
+}
+
+// Add credit package interface
+export interface CreditPackage {
+  id: string;
+  name: string;
+  price: number;
+  credits: number;
+  popular?: boolean;
+  mostValue?: boolean;
+}
+
 export interface Teacher {
   id: string;
   name: string;
@@ -91,6 +110,14 @@ interface TeacherContextProps {
   addTeacher: (teacher: Teacher) => void;
   updateTeacher: (id: string, teacher: Partial<Teacher>) => void;
   deleteTeacher: (id: string) => void;
+  
+  // Add credit-related properties
+  userCredits: number;
+  creditTransactions: CreditTransaction[];
+  creditPackages: CreditPackage[];
+  addCreditPackage: (pkg: Omit<CreditPackage, 'id'>) => void;
+  updateCreditPackage: (pkg: CreditPackage) => void;
+  deleteCreditPackage: (id: string) => void;
 }
 
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
@@ -384,6 +411,55 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     }
   ]);
 
+  // Add credit-related state
+  const [userCredits, setUserCredits] = useState<number>(100);
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([
+    {
+      id: 'transaction-1',
+      type: 'purchase',
+      amount: 100,
+      description: 'Initial credit purchase',
+      date: '2025-03-15T10:00:00Z'
+    },
+    {
+      id: 'transaction-2',
+      type: 'usage',
+      amount: -15,
+      description: 'Meditation session with David Chen',
+      date: '2025-03-20T14:30:00Z'
+    },
+    {
+      id: 'transaction-3',
+      type: 'refund',
+      amount: 15,
+      description: 'Refund for cancelled session',
+      date: '2025-03-22T09:15:00Z'
+    }
+  ]);
+
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([
+    {
+      id: 'package-1',
+      name: 'Starter Pack',
+      price: 29,
+      credits: 40,
+      popular: true,
+    },
+    {
+      id: 'package-2',
+      name: 'Standard Pack',
+      price: 49,
+      credits: 75,
+    },
+    {
+      id: 'package-3',
+      name: 'Premium Pack',
+      price: 99,
+      credits: 160,
+      mostValue: true,
+    }
+  ]);
+
   // Context methods
   const addTeacher = (teacher: Teacher) => {
     setTeachers(prevTeachers => [...prevTeachers, teacher]);
@@ -401,8 +477,40 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     setTeachers(prevTeachers => prevTeachers.filter(teacher => teacher.id !== id));
   };
 
+  // Credit package methods
+  const addCreditPackage = (pkg: Omit<CreditPackage, 'id'>) => {
+    const newPackage = {
+      ...pkg,
+      id: `package-${Date.now()}`
+    };
+    setCreditPackages(prevPackages => [...prevPackages, newPackage]);
+  };
+
+  const updateCreditPackage = (pkg: CreditPackage) => {
+    setCreditPackages(prevPackages =>
+      prevPackages.map(p => (p.id === pkg.id ? pkg : p))
+    );
+  };
+
+  const deleteCreditPackage = (id: string) => {
+    setCreditPackages(prevPackages => prevPackages.filter(p => p.id !== id));
+  };
+
   return (
-    <TeacherContext.Provider value={{ teachers, addTeacher, updateTeacher, deleteTeacher }}>
+    <TeacherContext.Provider 
+      value={{ 
+        teachers, 
+        addTeacher, 
+        updateTeacher, 
+        deleteTeacher,
+        userCredits,
+        creditTransactions,
+        creditPackages,
+        addCreditPackage,
+        updateCreditPackage,
+        deleteCreditPackage
+      }}
+    >
       {children}
     </TeacherContext.Provider>
   );
