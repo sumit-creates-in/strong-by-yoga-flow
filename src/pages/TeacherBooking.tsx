@@ -90,22 +90,37 @@ const TeacherBooking = () => {
       const times: string[] = [];
       
       dayAvailability.forEach((slot: any) => {
-        let [startHour, startMinute] = slot.startTime.split(':').map(Number);
-        const [endHour, endMinute] = slot.endTime.split(':').map(Number);
-        
-        // Convert to minutes for easier calculation
-        let currentTimeInMinutes = startHour * 60 + startMinute;
-        const endTimeInMinutes = endHour * 60 + endMinute;
-        
-        // Generate 15-minute slots
-        while (currentTimeInMinutes + 15 <= endTimeInMinutes) {
-          const hours = Math.floor(currentTimeInMinutes / 60);
-          const minutes = currentTimeInMinutes % 60;
-          times.push(
-            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-          );
-          currentTimeInMinutes += 15;
+        // Make sure slot has slots array with valid start/end times
+        if (!slot || !slot.slots || !Array.isArray(slot.slots)) {
+          return;
         }
+        
+        slot.slots.forEach((timeSlot: any) => {
+          if (!timeSlot || !timeSlot.start || !timeSlot.end) {
+            return;
+          }
+          
+          let [startHour, startMinute] = timeSlot.start.split(':').map(Number);
+          const [endHour, endMinute] = timeSlot.end.split(':').map(Number);
+          
+          if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
+            return;
+          }
+          
+          // Convert to minutes for easier calculation
+          let currentTimeInMinutes = startHour * 60 + startMinute;
+          const endTimeInMinutes = endHour * 60 + endMinute;
+          
+          // Generate 15-minute slots
+          while (currentTimeInMinutes + 15 <= endTimeInMinutes) {
+            const hours = Math.floor(currentTimeInMinutes / 60);
+            const minutes = currentTimeInMinutes % 60;
+            times.push(
+              `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+            );
+            currentTimeInMinutes += 15;
+          }
+        });
       });
       
       setAvailableTimes(times);
