@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import AdminGuard from '@/components/AdminGuard';
@@ -26,12 +27,12 @@ import WhatsAppSettings from '@/components/WhatsAppSettings';
 import { useTeachers, NotificationTemplate } from '@/contexts/TeacherContext';
 
 const AdminNotifications = () => {
-  const { teachers, updateTeacher } = useTeachers();
+  const { teachers, updateTeacher, notificationSettings } = useTeachers();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('email');
   
   // Get the first teacher for demo purposes - in a real app, you would manage notifications globally
-  const teacher = teachers[0];
+  const teacher = teachers && teachers.length > 0 ? teachers[0] : null;
   
   // States for dialogs
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
@@ -109,6 +110,22 @@ const AdminNotifications = () => {
       });
     }
   };
+  
+  // Handle the case when there's no teacher data yet
+  if (!teacher) {
+    return (
+      <AdminGuard>
+        <Layout>
+          <div className="container mx-auto py-6 space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold">Notification Management</h1>
+              <p className="text-gray-500">Loading notification data...</p>
+            </div>
+          </div>
+        </Layout>
+      </AdminGuard>
+    );
+  }
   
   return (
     <AdminGuard>
@@ -230,19 +247,7 @@ const AdminNotifications = () => {
             </TabsContent>
             
             <TabsContent value="whatsapp" className="space-y-6">
-              <WhatsAppSettings 
-                settings={teacher?.notificationSettings.whatsapp || {
-                  enabled: false,
-                  phoneNumberId: '',
-                  accessToken: '',
-                  businessAccountId: '',
-                  verifyToken: 'strongbyyoga_verify_token',
-                  autoReplyEnabled: true,
-                  autoReplyMessage: '',
-                  templates: []
-                }}
-                onSave={(settings) => handleSaveSettings('whatsapp', settings)}
-              />
+              <WhatsAppSettings />
               
               <Card>
                 <CardHeader>

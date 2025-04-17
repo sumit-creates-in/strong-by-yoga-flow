@@ -15,28 +15,45 @@ const WhatsAppSettings = () => {
   const [testMessage, setTestMessage] = useState('');
   const [testPhone, setTestPhone] = useState('');
   
+  // Safe default for whatsApp settings if not available
+  const whatsappSettings = notificationSettings?.whatsapp || {
+    enabled: false,
+    phoneNumberId: '',
+    accessToken: '',
+    businessAccountId: '',
+    verifyToken: 'strongbyyoga_verify_token',
+    autoReplyEnabled: true,
+    autoReplyMessage: '',
+  };
+  
   const handleWhatsAppSettingsChange = (field: string, value: any) => {
+    if (!notificationSettings) return;
+    
     updateNotificationSettings({
       whatsapp: {
-        ...notificationSettings.whatsapp,
+        ...whatsappSettings,
         [field]: value
       }
     });
   };
   
   const handleToggleWhatsApp = (enabled: boolean) => {
+    if (!notificationSettings) return;
+    
     updateNotificationSettings({
       whatsapp: {
-        ...notificationSettings.whatsapp,
+        ...whatsappSettings,
         enabled
       }
     });
   };
   
   const handleToggleAutoReply = (enabled: boolean) => {
+    if (!notificationSettings) return;
+    
     updateNotificationSettings({
       whatsapp: {
-        ...notificationSettings.whatsapp,
+        ...whatsappSettings,
         autoReplyEnabled: enabled
       }
     });
@@ -45,9 +62,9 @@ const WhatsAppSettings = () => {
   const verifyConnection = () => {
     // This would actually verify the connection in a real app
     if (
-      notificationSettings.whatsapp.phoneNumberId && 
-      notificationSettings.whatsapp.accessToken && 
-      notificationSettings.whatsapp.businessAccountId
+      whatsappSettings.phoneNumberId && 
+      whatsappSettings.accessToken && 
+      whatsappSettings.businessAccountId
     ) {
       toast({
         title: "Connection verified",
@@ -88,7 +105,7 @@ const WhatsAppSettings = () => {
             <Label htmlFor="whatsapp-enabled">Enable WhatsApp Notifications</Label>
             <Switch 
               id="whatsapp-enabled" 
-              checked={notificationSettings.whatsapp.enabled} 
+              checked={whatsappSettings.enabled} 
               onCheckedChange={handleToggleWhatsApp}
             />
           </div>
@@ -104,7 +121,7 @@ const WhatsAppSettings = () => {
               <Label htmlFor="phone-number-id">Phone Number ID</Label>
               <Input
                 id="phone-number-id"
-                value={notificationSettings.whatsapp.phoneNumberId}
+                value={whatsappSettings.phoneNumberId}
                 onChange={(e) => handleWhatsAppSettingsChange('phoneNumberId', e.target.value)}
                 placeholder="517502901457013"
                 className="w-full"
@@ -115,7 +132,7 @@ const WhatsAppSettings = () => {
               <Label htmlFor="verify-token">WhatsApp Webhook Verify Token</Label>
               <Input
                 id="verify-token"
-                value={notificationSettings.whatsapp.verifyToken}
+                value={whatsappSettings.verifyToken}
                 onChange={(e) => handleWhatsAppSettingsChange('verifyToken', e.target.value)}
                 placeholder="d0dec07ef961c8895174"
                 className="w-full"
@@ -128,7 +145,7 @@ const WhatsAppSettings = () => {
             <Input
               id="access-token"
               type="password"
-              value={notificationSettings.whatsapp.accessToken}
+              value={whatsappSettings.accessToken}
               onChange={(e) => handleWhatsAppSettingsChange('accessToken', e.target.value)}
               placeholder="EAAPUsBzc1DEBO8VCMWNgJUxdYMUpKYPZAXS2PINHWUn0nQkWrwL2vpXqoci..."
               className="w-full"
@@ -139,7 +156,7 @@ const WhatsAppSettings = () => {
             <Label htmlFor="business-id">WhatsApp Business Account ID</Label>
             <Input
               id="business-id"
-              value={notificationSettings.whatsapp.businessAccountId}
+              value={whatsappSettings.businessAccountId}
               onChange={(e) => handleWhatsAppSettingsChange('businessAccountId', e.target.value)}
               placeholder="451608464704525"
               className="w-full"
@@ -174,11 +191,11 @@ const WhatsAppSettings = () => {
               <div className="flex items-center space-x-2">
                 <Switch 
                   id="auto-reply-enabled" 
-                  checked={notificationSettings.whatsapp.autoReplyEnabled} 
+                  checked={whatsappSettings.autoReplyEnabled} 
                   onCheckedChange={handleToggleAutoReply}
                 />
                 <Label htmlFor="auto-reply-enabled" className="font-normal">
-                  {notificationSettings.whatsapp.autoReplyEnabled ? 'Enabled' : 'Disabled'}
+                  {whatsappSettings.autoReplyEnabled ? 'Enabled' : 'Disabled'}
                 </Label>
               </div>
             </div>
@@ -187,7 +204,7 @@ const WhatsAppSettings = () => {
               <Label htmlFor="auto-reply-message">Auto-Reply Message</Label>
               <Textarea
                 id="auto-reply-message"
-                value={notificationSettings.whatsapp.autoReplyMessage}
+                value={whatsappSettings.autoReplyMessage}
                 onChange={(e) => handleWhatsAppSettingsChange('autoReplyMessage', e.target.value)}
                 placeholder="Dear %customer_full_name%, This message does not have an option for responding. If you need additional information about your booking, please contact us at %company_phone%"
                 className="h-24"
@@ -214,7 +231,7 @@ const WhatsAppSettings = () => {
                 <Button 
                   className="w-full" 
                   onClick={sendTestWhatsApp}
-                  disabled={!notificationSettings.whatsapp.enabled || !testPhone}
+                  disabled={!whatsappSettings.enabled || !testPhone}
                 >
                   Send Test Message
                 </Button>
