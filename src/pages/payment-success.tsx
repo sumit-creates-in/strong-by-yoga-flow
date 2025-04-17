@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
@@ -7,7 +6,7 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Check, RefreshCw } from 'lucide-react';
+import { Check, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -29,7 +28,6 @@ const PaymentSuccess = () => {
       }
       
       try {
-        // Call your Edge Function to verify the payment
         const { data, error } = await supabase.functions.invoke('verify-payment', {
           body: { sessionId }
         });
@@ -42,10 +40,8 @@ const PaymentSuccess = () => {
           return;
         }
         
-        // Set the credit amount from the response
         setCreditAmount(data.credits || 0);
         
-        // Update user credits in the context
         if (typeof purchaseCredits === 'function') {
           purchaseCredits(data.credits || 0);
           
