@@ -1,10 +1,31 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Menu, Calendar, LogOut, BookOpen, Settings, Users } from 'lucide-react';
+import { 
+  User, 
+  Menu, 
+  Calendar, 
+  LogOut, 
+  BookOpen, 
+  Settings, 
+  Users, 
+  CreditCard,
+  Bell,
+  Video,
+  BookOpen as ClassIcon,
+  Calendar as BookingIcon
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -17,6 +38,7 @@ export default function Layout({ children }: LayoutProps) {
   const isMobile = useIsMobile();
   
   const isActive = (path: string) => location.pathname === path;
+  const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
   
   const navItems = [
     {
@@ -36,22 +58,44 @@ export default function Layout({ children }: LayoutProps) {
     },
   ];
   
-  // Additional items for admin users
+  // Admin page items
   const adminItems = [
     {
-      name: 'Manage Classes',
+      name: 'Classes',
       path: '/admin/classes',
-      icon: <Settings size={20} />,
+      icon: <ClassIcon size={20} />,
     },
     {
-      name: 'Manage Users',
+      name: 'Users',
       path: '/admin/users',
       icon: <Users size={20} />,
     },
+    {
+      name: 'Teachers',
+      path: '/admin/teachers',
+      icon: <User size={20} />,
+    },
+    {
+      name: 'Bookings',
+      path: '/admin/bookings',
+      icon: <BookingIcon size={20} />,
+    },
+    {
+      name: 'Credits',
+      path: '/admin/credits',
+      icon: <CreditCard size={20} />,
+    },
+    {
+      name: 'Zoom Settings',
+      path: '/admin/zoom-settings',
+      icon: <Video size={20} />,
+    },
+    {
+      name: 'Notifications',
+      path: '/admin/notifications',
+      icon: <Bell size={20} />,
+    },
   ];
-  
-  // Combine items based on user role
-  const menuItems = user?.role === 'admin' ? [...navItems, ...adminItems] : navItems;
 
   return (
     <div className="min-h-screen bg-yoga-light-yellow flex flex-col">
@@ -82,7 +126,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Desktop Navigation */}
         {!isMobile && (
           <nav className="hidden md:flex items-center space-x-1">
-            {menuItems.map((item) => (
+            {navItems.map((item) => (
               <Button
                 key={item.path}
                 variant={isActive(item.path) ? "secondary" : "ghost"}
@@ -95,6 +139,37 @@ export default function Layout({ children }: LayoutProps) {
                 {item.name}
               </Button>
             ))}
+            
+            {/* Admin Dropdown Menu for Desktop */}
+            {user?.role === 'admin' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant={isActivePrefix('/admin') ? "secondary" : "ghost"} 
+                    className={`flex items-center px-4 py-2 ${
+                      isActivePrefix('/admin') ? 'bg-yoga-yellow' : ''
+                    }`}
+                  >
+                    <span className="mr-2"><Settings size={20} /></span>
+                    Admin
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Admin Panel</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {adminItems.map((item) => (
+                    <DropdownMenuItem 
+                      key={item.path} 
+                      className={`flex items-center cursor-pointer ${isActive(item.path) ? 'bg-secondary/50' : ''}`}
+                      onClick={() => navigate(item.path)}
+                    >
+                      <span className="mr-2">{item.icon}</span>
+                      {item.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             
             <Button 
               variant="ghost" 
@@ -114,7 +189,7 @@ export default function Layout({ children }: LayoutProps) {
         className="md:hidden hidden bg-white border-b border-yoga-light-blue"
       >
         <nav className="flex flex-col p-4">
-          {menuItems.map((item) => (
+          {navItems.map((item) => (
             <Button
               key={item.path}
               variant={isActive(item.path) ? "secondary" : "ghost"}
@@ -131,9 +206,34 @@ export default function Layout({ children }: LayoutProps) {
             </Button>
           ))}
           
+          {/* Admin Section for Mobile */}
+          {user?.role === 'admin' && (
+            <>
+              <div className="py-2 px-3 text-sm font-medium text-gray-500 mt-2 mb-1">
+                Admin Panel
+              </div>
+              {adminItems.map((item) => (
+                <Button
+                  key={item.path}
+                  variant={isActive(item.path) ? "secondary" : "ghost"}
+                  className={`flex items-center justify-start mb-2 ${
+                    isActive(item.path) ? 'bg-yoga-yellow' : ''
+                  }`}
+                  onClick={() => {
+                    navigate(item.path);
+                    document.getElementById('mobile-menu')?.classList.add('hidden');
+                  }}
+                >
+                  <span className="mr-2">{item.icon}</span>
+                  {item.name}
+                </Button>
+              ))}
+            </>
+          )}
+          
           <Button 
             variant="ghost" 
-            className="flex items-center text-destructive hover:text-destructive justify-start"
+            className="flex items-center text-destructive hover:text-destructive justify-start mt-2"
             onClick={logout}
           >
             <LogOut className="mr-2" size={20} />
