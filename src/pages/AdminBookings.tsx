@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TabsContent, Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminBookings = () => {
-  const { bookings, teachers, getTeacher } = useTeachers();
+  const { bookings = [], teachers = [], getTeacher } = useTeachers();
   const [isBookDialogOpen, setIsBookDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
@@ -45,7 +45,8 @@ const AdminBookings = () => {
     const teacher = getTeacher(selectedTeacherId);
     if (!teacher) return;
     
-    const sessionType = teacher.sessionTypes.find(s => s.id === selectedSessionType);
+    // Find the session type from the selected teacher
+    const sessionType = teacher.sessionTypes && teacher.sessionTypes.find(s => s.id === selectedSessionType);
     if (!sessionType) return;
     
     // In a real app, this would book the session using the API
@@ -108,7 +109,7 @@ const AdminBookings = () => {
                   <CardTitle>Upcoming Bookings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {bookings.length === 0 ? (
+                  {!bookings || bookings.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-gray-500">No upcoming bookings found</p>
                     </div>
@@ -227,7 +228,7 @@ const AdminBookings = () => {
                     }}
                   >
                     <option value="">Select a teacher</option>
-                    {teachers.map((teacher) => (
+                    {teachers && teachers.map((teacher) => (
                       <option key={teacher.id} value={teacher.id}>
                         {teacher.name}
                       </option>
