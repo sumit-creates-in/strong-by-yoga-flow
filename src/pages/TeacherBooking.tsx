@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ChevronLeft, 
-  ChevronRight, 
   Clock, 
   Video, 
   Phone, 
@@ -61,8 +60,15 @@ const TeacherBooking = () => {
       const teacherData = getTeacher(id);
       if (teacherData) {
         setTeacher(teacherData);
-        if (teacherData.sessionTypes.length > 0) {
-          setSelectedSessionType(teacherData.sessionTypes[0]);
+        if (teacherData.sessionTypes && teacherData.sessionTypes.length > 0) {
+          // Make sure sessionTypes are correctly formatted with credits
+          const sessionTypes = teacherData.sessionTypes.map(type => {
+            return {
+              ...type,
+              credits: type.credits || type.price || 0
+            };
+          });
+          setSelectedSessionType(sessionTypes[0]);
         }
       }
     }
@@ -90,22 +96,36 @@ const TeacherBooking = () => {
       const times: string[] = [];
       
       dayAvailability.forEach((slot: any) => {
-        // Make sure slot has slots array with valid start/end times
-        if (!slot || !slot.slots || !Array.isArray(slot.slots)) {
-          return;
-        }
-        
-        slot.slots.forEach((timeSlot: any) => {
-          if (!timeSlot || !timeSlot.start || !timeSlot.end) {
-            return;
-          }
+        // Check if slot has slots array or direct startTime/endTime properties
+        if (slot.slots && Array.isArray(slot.slots)) {
+          slot.slots.forEach((timeSlot: any) => {
+            if (!timeSlot || !timeSlot.start || !timeSlot.end) return;
+            
+            let [startHour, startMinute] = timeSlot.start.split(':').map(Number);
+            const [endHour, endMinute] = timeSlot.end.split(':').map(Number);
+            
+            if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) return;
+            
+            // Convert to minutes for easier calculation
+            let currentTimeInMinutes = startHour * 60 + startMinute;
+            const endTimeInMinutes = endHour * 60 + endMinute;
+            
+            // Generate 15-minute slots
+            while (currentTimeInMinutes + 15 <= endTimeInMinutes) {
+              const hours = Math.floor(currentTimeInMinutes / 60);
+              const minutes = currentTimeInMinutes % 60;
+              times.push(
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+              );
+              currentTimeInMinutes += 15;
+            }
+          });
+        } else if (slot.startTime && slot.endTime) {
+          // Direct startTime/endTime format
+          let [startHour, startMinute] = slot.startTime.split(':').map(Number);
+          const [endHour, endMinute] = slot.endTime.split(':').map(Number);
           
-          let [startHour, startMinute] = timeSlot.start.split(':').map(Number);
-          const [endHour, endMinute] = timeSlot.end.split(':').map(Number);
-          
-          if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) {
-            return;
-          }
+          if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute)) return;
           
           // Convert to minutes for easier calculation
           let currentTimeInMinutes = startHour * 60 + startMinute;
@@ -120,7 +140,7 @@ const TeacherBooking = () => {
             );
             currentTimeInMinutes += 15;
           }
-        });
+        }
       });
       
       setAvailableTimes(times);
@@ -206,6 +226,15 @@ const TeacherBooking = () => {
       return;
     }
     
+    if (!selectedSessionType.credits) {
+      toast({
+        title: "Session configuration error",
+        description: "This session doesn't have credits configured properly.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (selectedSessionType.credits > userCredits) {
       setIsLowCreditsModalOpen(true);
       return;
@@ -226,14 +255,23 @@ const TeacherBooking = () => {
         recurringEnd: isRecurring ? recurringEnd : undefined
       };
       
-      bookSession(bookingData);
-      navigate(`/teachers/${id}/booking/confirmation`);
-      
-      toast({
-        title: "Session Booked!",
-        description: `Your ${selectedSessionType.name} with ${teacher.name} is confirmed.`,
-        duration: 5000
-      });
+      if (typeof bookSession === 'function') {
+        bookSession(bookingData);
+        navigate(`/teachers/${id}/booking/confirmation`);
+        
+        toast({
+          title: "Session Booked!",
+          description: `Your ${selectedSessionType.name} with ${teacher.name} is confirmed.`,
+          duration: 5000
+        });
+      } else {
+        console.error("bookSession function is not available");
+        toast({
+          title: "Booking Error",
+          description: "Could not book the session. Please try again later.",
+          variant: "destructive"
+        });
+      }
     }
   };
   
@@ -292,9 +330,15 @@ const TeacherBooking = () => {
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center space-x-3">
-                        {sessionType.type === 'video' && <Video className="h-5 w-5 text-yoga-blue" />}
-                        {sessionType.type === 'call' && <Phone className="h-5 w-5 text-yoga-blue" />}
-                        {sessionType.type === 'chat' && <MessageCircle className="h-5 w-5 text-yoga-blue" />}
+                        {(sessionType.type === 'video' || !sessionType.type) && 
+                          <Video className="h-5 w-5 text-yoga-blue" />
+                        }
+                        {sessionType.type === 'call' && 
+                          <Phone className="h-5 w-5 text-yoga-blue" />
+                        }
+                        {sessionType.type === 'chat' && 
+                          <MessageCircle className="h-5 w-5 text-yoga-blue" />
+                        }
                         
                         <div>
                           <h3 className="font-medium">{sessionType.name}</h3>
@@ -308,7 +352,7 @@ const TeacherBooking = () => {
                       <div className="text-right">
                         <div className="font-semibold flex items-center">
                           <Coins size={16} className="text-amber-500 mr-1" />
-                          <span>{sessionType.credits} credits</span>
+                          <span>{sessionType.credits || sessionType.price} credits</span>
                         </div>
                         {sessionType.allowRecurring && (
                           <div className="flex items-center text-xs text-gray-500 mt-1 justify-end">
@@ -327,7 +371,7 @@ const TeacherBooking = () => {
                             <span className="text-green-500 text-sm">Selected</span>
                           </div>
                           <div className="text-xs text-gray-500">
-                            Book {sessionType.minTimeBeforeBooking}h+ in advance, up to {sessionType.maxAdvanceBookingDays} days ahead
+                            Book {sessionType.minTimeBeforeBooking || 0}h+ in advance, up to {sessionType.maxAdvanceBookingDays || 30} days ahead
                           </div>
                         </div>
                       </div>
@@ -461,7 +505,7 @@ const TeacherBooking = () => {
                           <p className="text-sm text-yoga-blue">
                             You're scheduling a recurring {recurringPattern} session with {teacher.name} 
                             until {recurringEnd ? format(recurringEnd, 'MMMM d, yyyy') : 'unknown date'}.
-                            Each occurrence will use {selectedSessionType?.credits} credits.
+                            Each occurrence will use {selectedSessionType?.credits || selectedSessionType?.price || 0} credits.
                           </p>
                         </div>
                       </div>
@@ -511,7 +555,7 @@ const TeacherBooking = () => {
                         <span className="font-medium">Credits Required:</span>
                       </div>
                       <Badge className="bg-amber-500">
-                        {selectedSessionType?.credits || '0'} credits
+                        {selectedSessionType?.credits || selectedSessionType?.price || '0'} credits
                       </Badge>
                     </div>
                     
@@ -536,9 +580,9 @@ const TeacherBooking = () => {
                   
                   {selectedSessionType && (
                     <>
-                      {userCredits < selectedSessionType.credits ? (
+                      {(selectedSessionType.credits || selectedSessionType.price) > userCredits ? (
                         <div className="mt-2 text-sm text-red-600">
-                          You need {selectedSessionType.credits - userCredits} more credits for this session
+                          You need {(selectedSessionType.credits || selectedSessionType.price) - userCredits} more credits for this session
                         </div>
                       ) : (
                         <div className="mt-2 text-sm text-green-600">
@@ -577,7 +621,7 @@ const TeacherBooking = () => {
       <LowCreditsDialog
         open={isLowCreditsModalOpen}
         onOpenChange={setIsLowCreditsModalOpen}
-        requiredCredits={selectedSessionType?.credits || 0}
+        requiredCredits={selectedSessionType?.credits || selectedSessionType?.price || 0}
         onProceed={processBooking}
       />
     </Layout>
