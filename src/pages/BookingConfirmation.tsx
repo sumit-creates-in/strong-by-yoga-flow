@@ -45,7 +45,7 @@ const BookingConfirmation = () => {
     );
   }
   
-  const getSessionTypeIcon = (type: any) => {
+  const getSessionTypeIcon = (type: string | undefined) => {
     if (!type) return <Video className="mr-2" size={20} />;
     
     switch (type) {
@@ -174,9 +174,9 @@ const BookingConfirmation = () => {
         <div className="flex flex-col sm:flex-row gap-4">
           <Button
             className="flex-1 bg-yoga-blue"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/my-bookings')}
           >
-            Go to Dashboard
+            View My Bookings
           </Button>
           
           <Button

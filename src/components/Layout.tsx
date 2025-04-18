@@ -1,23 +1,20 @@
 
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  User, 
   Menu, 
-  Calendar, 
+  X, 
+  User, 
   LogOut, 
-  BookOpen, 
   Settings, 
-  Users, 
-  CreditCard,
-  Bell,
-  Video,
-  BookOpen as ClassIcon,
-  Calendar as BookingIcon
+  ChevronDown, 
+  Bookmark,
+  Calendar,
+  Home,
+  BookOpen,
+  Users,
+  CalendarDays
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,232 +22,346 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
-type LayoutProps = {
+interface LayoutProps {
   children: React.ReactNode;
-};
+}
 
-export default function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuth();
+const Layout = ({ children }: LayoutProps) => {
+  const { currentUser, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
-  
-  const isActive = (path: string) => location.pathname === path;
-  const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
-  
-  const navItems = [
-    {
-      name: 'Dashboard',
-      path: '/dashboard',
-      icon: <BookOpen size={20} />,
-    },
-    {
-      name: 'Classes',
-      path: '/classes',
-      icon: <Calendar size={20} />,
-    },
-    {
-      name: 'Profile',
-      path: '/profile',
-      icon: <User size={20} />,
-    },
-  ];
-  
-  // Admin page items
-  const adminItems = [
-    {
-      name: 'Classes',
-      path: '/admin/classes',
-      icon: <ClassIcon size={20} />,
-    },
-    {
-      name: 'Users',
-      path: '/admin/users',
-      icon: <Users size={20} />,
-    },
-    {
-      name: 'Teachers',
-      path: '/admin/teachers',
-      icon: <User size={20} />,
-    },
-    {
-      name: 'Bookings',
-      path: '/admin/bookings',
-      icon: <BookingIcon size={20} />,
-    },
-    {
-      name: 'Credits',
-      path: '/admin/credits',
-      icon: <CreditCard size={20} />,
-    },
-    {
-      name: 'Zoom Settings',
-      path: '/admin/zoom-settings',
-      icon: <Video size={20} />,
-    },
-    {
-      name: 'Notifications',
-      path: '/admin/notifications',
-      icon: <Bell size={20} />,
-    },
-  ];
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    navigate('/login');
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
-    <div className="min-h-screen bg-yoga-light-yellow flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-yoga-light-blue p-4 flex items-center justify-between">
-        <div className="flex items-center">
-          <h1 
-            onClick={() => navigate('/dashboard')} 
-            className="text-2xl font-bold text-yoga-blue cursor-pointer flex items-center"
-          >
-            <span className="text-3xl mr-2">🧘</span>
-            Strong By Yoga
-          </h1>
-        </div>
-        
-        {/* Mobile Menu Button */}
-        {isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="md:hidden"
-            onClick={() => document.getElementById('mobile-menu')?.classList.toggle('hidden')}
-          >
-            <Menu />
-          </Button>
-        )}
-        
-        {/* Desktop Navigation */}
-        {!isMobile && (
-          <nav className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => (
-              <Button
-                key={item.path}
-                variant={isActive(item.path) ? "secondary" : "ghost"}
-                className={`flex items-center px-4 py-2 ${
-                  isActive(item.path) ? 'bg-yoga-yellow' : ''
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="bg-white border-b border-gray-200 py-4">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <Link to="/" className="text-2xl font-bold text-yoga-blue">
+              Strong By Yoga
+            </Link>
+
+            {/* Mobile menu button */}
+            <button
+              onClick={toggleMenu}
+              className="md:hidden text-gray-700 focus:outline-none"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-6">
+              <Link
+                to="/"
+                className={`font-medium ${
+                  isActive('/') ? 'text-yoga-blue' : 'text-gray-600 hover:text-yoga-blue'
                 }`}
-                onClick={() => navigate(item.path)}
               >
-                <span className="mr-2">{item.icon}</span>
-                {item.name}
-              </Button>
-            ))}
-            
-            {/* Admin Dropdown Menu for Desktop */}
-            {user?.role === 'admin' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant={isActivePrefix('/admin') ? "secondary" : "ghost"} 
-                    className={`flex items-center px-4 py-2 ${
-                      isActivePrefix('/admin') ? 'bg-yoga-yellow' : ''
-                    }`}
-                  >
-                    <span className="mr-2"><Settings size={20} /></span>
-                    Admin
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Admin Panel</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {adminItems.map((item) => (
-                    <DropdownMenuItem 
-                      key={item.path} 
-                      className={`flex items-center cursor-pointer ${isActive(item.path) ? 'bg-secondary/50' : ''}`}
-                      onClick={() => navigate(item.path)}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.name}
+                Home
+              </Link>
+              <Link
+                to="/classes"
+                className={`font-medium ${
+                  isActive('/classes') ? 'text-yoga-blue' : 'text-gray-600 hover:text-yoga-blue'
+                }`}
+              >
+                Classes
+              </Link>
+              <Link
+                to="/teachers"
+                className={`font-medium ${
+                  isActive('/teachers') ? 'text-yoga-blue' : 'text-gray-600 hover:text-yoga-blue'
+                }`}
+              >
+                1-on-1 with Teachers
+              </Link>
+              <Link
+                to="/pricing"
+                className={`font-medium ${
+                  isActive('/pricing') ? 'text-yoga-blue' : 'text-gray-600 hover:text-yoga-blue'
+                }`}
+              >
+                Pricing
+              </Link>
+            </nav>
+
+            {/* User menu */}
+            <div className="hidden md:block">
+              {currentUser ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center space-x-2 focus:outline-none">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={currentUser.photoURL || ''} alt="User" />
+                        <AvatarFallback>
+                          {currentUser.displayName?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-gray-700">{currentUser.displayName || 'User'}</span>
+                      <ChevronDown size={16} className="text-gray-500" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                      <Home size={16} className="mr-2" />
+                      Dashboard
                     </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            
-            <Button 
-              variant="ghost" 
-              className="flex items-center text-destructive hover:text-destructive"
-              onClick={logout}
-            >
-              <LogOut className="mr-2" size={20} />
-              Logout
-            </Button>
-          </nav>
-        )}
+                    <DropdownMenuItem onClick={() => navigate('/my-bookings')}>
+                      <CalendarDays size={16} className="mr-2" />
+                      My Bookings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
+                      <User size={16} className="mr-2" />
+                      Profile
+                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => navigate('/admin/teachers')}>
+                          <Settings size={16} className="mr-2" />
+                          Admin Panel
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOut size={16} className="mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate('/login')}
+                    className="text-gray-700 hover:text-yoga-blue"
+                  >
+                    Log in
+                  </Button>
+                  <Button
+                    onClick={() => navigate('/signup')}
+                    className="bg-yoga-blue hover:bg-yoga-blue/90 text-white"
+                  >
+                    Sign up
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </header>
-      
-      {/* Mobile Menu (Hidden by default) */}
-      <div
-        id="mobile-menu"
-        className="md:hidden hidden bg-white border-b border-yoga-light-blue"
-      >
-        <nav className="flex flex-col p-4">
-          {navItems.map((item) => (
-            <Button
-              key={item.path}
-              variant={isActive(item.path) ? "secondary" : "ghost"}
-              className={`flex items-center justify-start mb-2 ${
-                isActive(item.path) ? 'bg-yoga-yellow' : ''
+
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="md:hidden bg-white border-b border-gray-200">
+          <div className="container mx-auto px-4 py-4 space-y-3">
+            <Link
+              to="/"
+              onClick={closeMenu}
+              className={`block font-medium ${
+                isActive('/') ? 'text-yoga-blue' : 'text-gray-600'
               }`}
-              onClick={() => {
-                navigate(item.path);
-                document.getElementById('mobile-menu')?.classList.add('hidden');
-              }}
             >
-              <span className="mr-2">{item.icon}</span>
-              {item.name}
-            </Button>
-          ))}
-          
-          {/* Admin Section for Mobile */}
-          {user?.role === 'admin' && (
-            <>
-              <div className="py-2 px-3 text-sm font-medium text-gray-500 mt-2 mb-1">
-                Admin Panel
-              </div>
-              {adminItems.map((item) => (
+              Home
+            </Link>
+            <Link
+              to="/classes"
+              onClick={closeMenu}
+              className={`block font-medium ${
+                isActive('/classes') ? 'text-yoga-blue' : 'text-gray-600'
+              }`}
+            >
+              Classes
+            </Link>
+            <Link
+              to="/teachers"
+              onClick={closeMenu}
+              className={`block font-medium ${
+                isActive('/teachers') ? 'text-yoga-blue' : 'text-gray-600'
+              }`}
+            >
+              1-on-1 with Teachers
+            </Link>
+            <Link
+              to="/pricing"
+              onClick={closeMenu}
+              className={`block font-medium ${
+                isActive('/pricing') ? 'text-yoga-blue' : 'text-gray-600'
+              }`}
+            >
+              Pricing
+            </Link>
+
+            {currentUser ? (
+              <>
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={currentUser.photoURL || ''} alt="User" />
+                      <AvatarFallback>
+                        {currentUser.displayName?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-gray-700 font-medium">
+                      {currentUser.displayName || 'User'}
+                    </span>
+                    {isAdmin && (
+                      <Badge variant="secondary" className="ml-1">
+                        Admin
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Link
+                      to="/dashboard"
+                      onClick={closeMenu}
+                      className="flex items-center text-gray-600 hover:text-yoga-blue"
+                    >
+                      <Home size={16} className="mr-2" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/my-bookings"
+                      onClick={closeMenu}
+                      className="flex items-center text-gray-600 hover:text-yoga-blue"
+                    >
+                      <CalendarDays size={16} className="mr-2" />
+                      My Bookings
+                    </Link>
+                    <Link
+                      to="/profile"
+                      onClick={closeMenu}
+                      className="flex items-center text-gray-600 hover:text-yoga-blue"
+                    >
+                      <User size={16} className="mr-2" />
+                      Profile
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/admin/teachers"
+                        onClick={closeMenu}
+                        className="flex items-center text-gray-600 hover:text-yoga-blue"
+                      >
+                        <Settings size={16} className="mr-2" />
+                        Admin Panel
+                      </Link>
+                    )}
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center text-gray-600 hover:text-yoga-blue w-full text-left"
+                    >
+                      <LogOut size={16} className="mr-2" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="pt-2 border-t border-gray-100 flex flex-col space-y-2">
                 <Button
-                  key={item.path}
-                  variant={isActive(item.path) ? "secondary" : "ghost"}
-                  className={`flex items-center justify-start mb-2 ${
-                    isActive(item.path) ? 'bg-yoga-yellow' : ''
-                  }`}
+                  variant="ghost"
                   onClick={() => {
-                    navigate(item.path);
-                    document.getElementById('mobile-menu')?.classList.add('hidden');
+                    navigate('/login');
+                    closeMenu();
+                  }}
+                  className="justify-start px-0"
+                >
+                  Log in
+                </Button>
+                <Button
+                  onClick={() => {
+                    navigate('/signup');
+                    closeMenu();
                   }}
                 >
-                  <span className="mr-2">{item.icon}</span>
-                  {item.name}
+                  Sign up
                 </Button>
-              ))}
-            </>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            className="flex items-center text-destructive hover:text-destructive justify-start mt-2"
-            onClick={logout}
-          >
-            <LogOut className="mr-2" size={20} />
-            Logout
-          </Button>
-        </nav>
-      </div>
-      
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
-        {children}
-      </main>
-      
-      {/* Footer */}
-      <footer className="bg-white border-t border-yoga-light-blue p-4 text-center text-sm text-gray-500">
-        <p>© {new Date().getFullYear()} Strong By Yoga. All rights reserved.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <main className="flex-1 container mx-auto px-4 py-6">{children}</main>
+
+      <footer className="bg-gray-800 text-white py-8">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="text-lg font-bold mb-4">Strong By Yoga</h3>
+              <p className="text-gray-300">
+                Empowering your yoga journey with expert guidance and personalized sessions.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-4">Quick Links</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/" className="text-gray-300 hover:text-white">
+                    Home
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/classes" className="text-gray-300 hover:text-white">
+                    Classes
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/teachers" className="text-gray-300 hover:text-white">
+                    1-on-1 with Teachers
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/pricing" className="text-gray-300 hover:text-white">
+                    Pricing
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-4">Contact Us</h3>
+              <p className="text-gray-300">
+                123 Yoga Street<br />
+                Zen City, ZN 12345<br />
+                support@strongbyyoga.com<br />
+                +1 (555) 123-4567
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
+            <p>&copy; {new Date().getFullYear()} Strong By Yoga. All rights reserved.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );
-}
+};
+
+export default Layout;

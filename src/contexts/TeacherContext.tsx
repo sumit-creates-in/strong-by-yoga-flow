@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define types
@@ -21,6 +22,7 @@ export interface SessionType {
   duration: number;
   price: number;
   isActive: boolean;
+  type?: 'video' | 'call' | 'chat'; // Make type optional for backward compatibility
   bookingRestrictions: {
     minTimeBeforeBooking: number; // hours
     maxAdvanceBookingPeriod: number; // days
@@ -37,7 +39,7 @@ export interface NotificationTemplate {
   subject?: string;
   body: string;
   enabled: boolean;
-  recipientType: 'student' | 'teacher' | 'both'; // Changed from recipients array to recipientType
+  recipientType: 'student' | 'teacher' | 'both';
   triggerType: 'action' | 'scheduled';
   triggerAction?: 'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'booking_reminder';
   scheduledTime?: {
@@ -99,9 +101,11 @@ export interface Teacher {
   sessionTypes: SessionType[];
   availability: AvailabilitySlot[];
   zoomAccount: ZoomAccount;
-  shortBio?: string; // Added missing fields
+  shortBio?: string;
   fullBio?: string;
   teachingStyle?: string;
+  reviews?: any[];
+  lastReviewDate?: string;
   notificationSettings: {
     email: {
       enabled: boolean;
@@ -141,6 +145,8 @@ interface TeacherContextProps {
   updateNotificationTemplate: (template: NotificationTemplate) => void;
   deleteNotificationTemplate: (id: string) => void;
   sendTestNotification: (templateId: string, recipient: string) => void;
+  notificationSettings?: any;
+  updateNotificationSettings?: any;
   
   // Add teacher availability methods
   addTeacherAvailability: (teacherId: string, availability: AvailabilitySlot) => void;
@@ -157,10 +163,14 @@ interface TeacherContextProps {
   addCreditPackage: (pkg: Omit<CreditPackage, 'id'>) => void;
   updateCreditPackage: (pkg: CreditPackage) => void;
   deleteCreditPackage: (id: string) => void;
+  purchaseCredits?: (packageId: string) => void;
   
   // Add booking methods
   bookSession: (bookingData: any) => void;
   getBooking: () => BookingData | null;
+  cancelBooking?: (bookingId: string) => void;
+  rescheduleBooking?: (bookingId: string, newDate: Date, newTime: string) => void;
+  getUserBookings?: () => BookingData[];
 }
 
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
@@ -187,6 +197,12 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
       expertise: ['Injury Recovery', 'Anxiety Management', 'Prenatal Yoga'],
       certifications: ['C-IAYT', 'E-RYT 500', 'RPYT'],
       languages: ['English', 'Spanish'],
+      reviews: [
+        { id: 'review-1', rating: 5, text: 'Amazing instructor, really helped with my back pain.', user: 'Sarah M.', date: '2025-03-15' },
+        { id: 'review-2', rating: 5, text: 'Jennifer is knowledgeable and patient. Great experience!', user: 'Michael K.', date: '2025-03-10' },
+        { id: 'review-3', rating: 4, text: 'Very calming presence. Helped me establish a regular practice.', user: 'Emma L.', date: '2025-02-28' }
+      ],
+      lastReviewDate: '2025-03-15',
       sessionTypes: [
         {
           id: 'session-1',
@@ -195,6 +211,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           duration: 60,
           price: 85,
           isActive: true,
+          type: 'video',
           bookingRestrictions: {
             minTimeBeforeBooking: 24, // 24 hours
             maxAdvanceBookingPeriod: 30, // 30 days
@@ -209,6 +226,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           duration: 45,
           price: 65,
           isActive: true,
+          type: 'video',
           bookingRestrictions: {
             minTimeBeforeBooking: 12, // 12 hours
             maxAdvanceBookingPeriod: 60, // 60 days
@@ -252,6 +270,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               name: 'Session Reminder',
               subject: 'Reminder: Your yoga session is coming up',
               body: 'Hi {{name}}, this is a reminder that your {{sessionType}} with {{teacherName}} is scheduled for {{date}} at {{time}}. Please be ready 5 minutes before the start time. Looking forward to seeing you!',
+              enabled: true,
+              type: 'email',
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -263,6 +285,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               name: 'Session Feedback',
               subject: 'How was your yoga session?',
               body: 'Hi {{name}}, thank you for attending the {{sessionType}} with {{teacherName}}. We hope you enjoyed it! Please take a moment to provide feedback on your experience.',
+              enabled: true,
+              type: 'email',
+              recipientType: 'student',
+              triggerType: 'action',
               timing: {
                 type: 'after',
                 minutes: 60 // 1 hour
@@ -278,6 +304,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'app-1',
               name: 'Session Reminder',
               body: 'Your {{sessionType}} with {{teacherName}} is tomorrow at {{time}}.',
+              enabled: true,
+              type: 'in-app',
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -288,6 +318,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'app-2',
               name: 'Session Starting Soon',
               body: 'Your {{sessionType}} with {{teacherName}} starts in 15 minutes.',
+              enabled: true,
+              type: 'in-app',
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 15
@@ -309,6 +343,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'whatsapp-1',
               name: 'Session Reminder',
               body: 'Hi {{name}}, your yoga session with {{teacherName}} is scheduled for tomorrow at {{time}}. Click the link to join: {{zoomLink}}',
+              enabled: true,
+              type: 'whatsapp',
+              recipientType: 'student',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -324,6 +362,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'sms-1',
               name: 'Session Reminder',
               body: 'Your yoga session with {{teacherName}} is scheduled for tomorrow at {{time}}. Reply YES to confirm.',
+              enabled: true,
+              type: 'sms',
+              recipientType: 'student',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -348,6 +390,11 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
       expertise: ['Athletic Performance', 'Flexibility', 'Core Strength'],
       certifications: ['E-RYT 200', 'NASM-CPT', 'FRC Mobility Specialist'],
       languages: ['English', 'Mandarin'],
+      reviews: [
+        { id: 'review-4', rating: 5, text: 'David\'s mobility training has changed my life. I move better than I have in years.', user: 'Robert J.', date: '2025-03-18' },
+        { id: 'review-5', rating: 4, text: 'Great instructor with attention to detail in form and technique.', user: 'Lisa P.', date: '2025-03-05' }
+      ],
+      lastReviewDate: '2025-03-18',
       sessionTypes: [
         {
           id: 'session-3',
@@ -356,6 +403,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           duration: 75,
           price: 95,
           isActive: true,
+          type: 'video',
           bookingRestrictions: {
             minTimeBeforeBooking: 48, // 48 hours
             maxAdvanceBookingPeriod: 60, // 60 days
@@ -370,6 +418,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           duration: 60,
           price: 80,
           isActive: true,
+          type: 'video',
           bookingRestrictions: {
             minTimeBeforeBooking: 24, // 24 hours
             maxAdvanceBookingPeriod: 30, // 30 days
@@ -413,6 +462,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               name: 'Session Reminder',
               subject: 'Reminder: Your yoga session is coming up',
               body: 'Hi {{name}}, this is a reminder that your {{sessionType}} with {{teacherName}} is scheduled for {{date}} at {{time}}. Please be ready 5 minutes before the start time. Looking forward to seeing you!',
+              enabled: true,
+              type: 'email',
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -428,6 +481,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'app-1',
               name: 'Session Reminder',
               body: 'Your {{sessionType}} with {{teacherName}} is tomorrow at {{time}}.',
+              enabled: true,
+              type: 'in-app',
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -467,6 +524,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         duration: 60,
         price: 85,
         isActive: true,
+        type: 'video',
         bookingRestrictions: {
           minTimeBeforeBooking: 24,
           maxAdvanceBookingPeriod: 30,
@@ -491,6 +549,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         duration: 60,
         price: 80,
         isActive: true,
+        type: 'video',
         bookingRestrictions: {
           minTimeBeforeBooking: 24,
           maxAdvanceBookingPeriod: 30,
@@ -575,7 +634,6 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     setTeachers(prevTeachers => prevTeachers.filter(teacher => teacher.id !== id));
   };
 
-  // Add the getTeacher function that was missing
   const getTeacher = (id: string): Teacher | undefined => {
     return teachers.find(teacher => teacher.id === id);
   };
@@ -723,6 +781,25 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     setCreditPackages(prevPackages => prevPackages.filter(p => p.id !== id));
   };
 
+  const purchaseCredits = (packageId: string) => {
+    const creditPackage = creditPackages.find(pkg => pkg.id === packageId);
+    if (creditPackage) {
+      // Add credits to user
+      setUserCredits(prev => prev + creditPackage.credits);
+      
+      // Add transaction
+      const transaction: CreditTransaction = {
+        id: `transaction-${Date.now()}`,
+        type: 'purchase',
+        amount: creditPackage.credits,
+        description: `Purchased ${creditPackage.name}`,
+        date: new Date().toISOString()
+      };
+      
+      setCreditTransactions(prev => [...prev, transaction]);
+    }
+  };
+
   // Booking methods
   const bookSession = (bookingData: any) => {
     // Create a new booking
@@ -763,6 +840,52 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   const getBooking = (): BookingData | null => {
     return latestBooking;
   };
+  
+  // New methods for my bookings page
+  const cancelBooking = (bookingId: string) => {
+    const bookingToCancel = bookings.find(booking => booking.id === bookingId);
+    
+    if (bookingToCancel) {
+      // Update booking status
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === bookingId 
+            ? { ...booking, status: 'cancelled' } 
+            : booking
+        )
+      );
+      
+      // Refund credits
+      setUserCredits(prev => prev + bookingToCancel.credits);
+      
+      // Add refund transaction
+      const transaction: CreditTransaction = {
+        id: `transaction-${Date.now()}`,
+        type: 'refund',
+        amount: bookingToCancel.credits,
+        description: `Refund for cancelled ${bookingToCancel.sessionType.name} with ${getTeacher(bookingToCancel.teacherId)?.name}`,
+        date: new Date().toISOString()
+      };
+      
+      setCreditTransactions(prev => [...prev, transaction]);
+    }
+  };
+  
+  const rescheduleBooking = (bookingId: string, newDate: Date, newTime: string) => {
+    setBookings(prevBookings => 
+      prevBookings.map(booking => 
+        booking.id === bookingId 
+          ? { ...booking, date: newDate, time: newTime } 
+          : booking
+      )
+    );
+  };
+  
+  // Get all bookings for the current user
+  const getUserBookings = () => {
+    // In a real app, we would filter by the current user's ID
+    return bookings.filter(booking => booking.userId === 'current-user' || booking.userId === 'user1');
+  };
 
   return (
     <TeacherContext.Provider 
@@ -786,8 +909,12 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         addCreditPackage,
         updateCreditPackage,
         deleteCreditPackage,
+        purchaseCredits,
         bookSession,
-        getBooking
+        getBooking,
+        cancelBooking,
+        rescheduleBooking,
+        getUserBookings
       }}
     >
       {children}

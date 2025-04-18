@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -395,7 +396,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   };
   
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const teacherData = {
+    const teacherData: Teacher = {
       ...values,
       id: teacher?.id || `teacher-${Date.now()}`,
       specialties,
@@ -403,10 +404,36 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
       certifications,
       sessionTypes: mapToContextSessionTypes(sessionTypes),
       availability: mapToContextAvailability(availability),
-      zoomAccount: mapToContextZoomAccount(zoomAccount),
+      zoomAccount: mapToContextZoomAccount(zoomAccount) || { email: '', isConnected: false },
       rating: teacher?.rating || 5.0,
       reviewCount: teacher?.reviewCount || 0,
       totalSessions: teacher?.totalSessions || 0,
+      title: teacher?.title || 'Yoga Instructor',
+      bio: teacher?.bio || values.fullBio,
+      notificationSettings: teacher?.notificationSettings || {
+        email: {
+          enabled: true,
+          templates: []
+        },
+        app: {
+          enabled: true,
+          templates: []
+        },
+        whatsapp: {
+          enabled: false,
+          phoneNumberId: '',
+          accessToken: '',
+          businessAccountId: '',
+          verifyToken: '',
+          autoReplyEnabled: false,
+          autoReplyMessage: '',
+          templates: []
+        },
+        sms: {
+          enabled: false,
+          templates: []
+        }
+      }
     };
     
     if (teacher) {

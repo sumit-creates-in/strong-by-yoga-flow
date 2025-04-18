@@ -1,307 +1,212 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Repeat, ChevronRight, Zap, Coins, CreditCard, History } from 'lucide-react';
+
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  PlayCircle, 
+  Users, 
+  Bookmark, 
+  Calendar, 
+  CreditCard, 
+  ArrowRight,
+  Clock,
+  CalendarDays
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { useYogaClasses, YogaClass } from '@/contexts/YogaClassContext';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
-import { format } from 'date-fns';
-import ClassJoinPrompt from '@/components/ClassJoinPrompt';
-import TeacherShowcase from '@/components/TeacherShowcase';
+import { useYogaClasses } from '@/contexts/YogaClassContext';
 import { useTeachers } from '@/contexts/TeacherContext';
-import CreditHistoryModal from '@/components/CreditHistoryModal';
 
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { 
-    filteredClasses, 
-    joinClass, 
-    userMembership, 
-    formatClassDateTime,
-    formatClassDate, 
-    formatRecurringPattern,
-    isClassLive,
-    isClassVisible
-  } = useYogaClasses();
-  const { userCredits } = useTeachers();
-  const navigate = useNavigate();
-  const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<YogaClass | null>(null);
-  const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
-  const [isCreditHistoryOpen, setIsCreditHistoryOpen] = useState(false);
-
-  // Get upcoming classes (including today, next several days)
-  // Sort classes by date/time to ensure consistent ordering
-  const upcomingClasses = filteredClasses
-    .filter((yogaClass) => {
-      const classDate = new Date(yogaClass.date);
-      const now = new Date();
-      return classDate >= now && isClassVisible(yogaClass);
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 6);
-
-  const handleJoinClass = (yogaClass: YogaClass) => {
-    if (userMembership.active) {
-      // Check if class is live or within 3 minutes of starting
-      const classDate = new Date(yogaClass.date);
-      const now = new Date();
-      const threeMinutesBefore = new Date(classDate);
-      threeMinutesBefore.setMinutes(classDate.getMinutes() - 3);
-      
-      if (now >= threeMinutesBefore) {
-        // Class is live or within 3 minutes of starting - join directly
-        joinClass(yogaClass.id);
-        window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
-      } else {
-        // Show countdown dialog
-        setSelectedClass(yogaClass);
-        setIsJoinPromptOpen(true);
-      }
-    } else {
-      setIsMembershipDialogOpen(true);
-    }
-  };
-
-  const ClassCard = ({ yogaClass }: { yogaClass: YogaClass }) => {
-    const isLive = isClassLive(yogaClass);
-    const canJoin = new Date() <= new Date(yogaClass.date);
-    const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
-    const formattedDate = formatClassDate(yogaClass.date);
-    const formattedTime = format(new Date(yogaClass.date), 'h:mm a');
-    
-    return (
-      <Card className="yoga-card h-full flex flex-col shadow-md overflow-hidden">
-        {yogaClass.imageUrl && (
-          <div className="w-full h-40 relative overflow-hidden">
-            <img 
-              src={yogaClass.imageUrl} 
-              alt={yogaClass.name} 
-              className="w-full h-full object-cover"
-            />
-            {isLive && (
-              <div className="absolute top-2 left-2 bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-lg animate-pulse">
-                <Zap size={14} className="mr-1.5" />
-                <span className="font-medium">LIVE</span>
-              </div>
-            )}
-            
-            {/* Tags overlay on image */}
-            <div className="absolute bottom-0 left-0 right-0 p-1 flex flex-wrap gap-1 bg-gradient-to-t from-black/70 to-transparent">
-              {yogaClass.tags.map((tag, idx) => (
-                <span 
-                  key={idx} 
-                  className="text-xs font-medium bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        <CardContent className="pt-6 flex flex-col h-full">
-          <div className="flex flex-col flex-grow">
-            <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
-            
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center text-gray-600">
-                <Calendar size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
-                <span>{formattedDate}</span>
-              </div>
-              
-              <div className="flex items-center text-gray-600">
-                <Clock size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
-                <span>{formattedTime} ({yogaClass.duration} mins)</span>
-              </div>
-              
-              {recurringText && (
-                <div className="flex items-center text-gray-600">
-                  <Repeat size={16} className="mr-2 text-yoga-blue flex-shrink-0" />
-                  <span>{recurringText}</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="mb-3">
-              <span className="font-medium">Teacher:</span> {yogaClass.teacher}
-            </div>
-            
-            <div className="mt-auto">
-              {canJoin && (
-                <Button 
-                  className="w-full bg-yoga-blue text-white hover:bg-yoga-blue/90 flex items-center justify-center"
-                  onClick={() => handleJoinClass(yogaClass)}
-                >
-                  {isLive ? 'Join Live Now' : 'Join Class'}
-                  <ChevronRight size={16} className="ml-1" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  const { currentUser } = useAuth();
+  const { classes } = useYogaClasses();
+  const { userCredits, teachers, getUserBookings } = useTeachers();
+  
+  // Get upcoming bookings
+  const userBookings = getUserBookings?.() || [];
+  const upcomingBookings = userBookings.filter(booking => 
+    booking.status === 'confirmed' && new Date(booking.date) >= new Date()
+  ).slice(0, 3);
+  
+  // Mock data for recently watched classes
+  const recentlyWatchedClasses = classes.slice(0, 3);
   
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-1">
-              Welcome back, {user?.profile?.first_name || user?.email || "Yogi"}!
-            </h1>
-            <p className="text-gray-600">
-              Here's your upcoming yoga sessions
-            </p>
-          </div>
-          
-          <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
-            {/* Credit Balance Card */}
-            <div className="bg-white rounded-lg shadow flex items-center px-4 py-2 border">
-              <Coins className="h-5 w-5 text-amber-500 mr-2" />
-              <div>
-                <div className="text-sm text-gray-500">Credits</div>
-                <div className="font-semibold">{userCredits}</div>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="ml-2"
-                onClick={() => setIsCreditHistoryOpen(true)}
-              >
-                <History className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <Button 
-              className="yoga-button"
-              onClick={() => navigate('/classes')}
-            >
-              Browse All Classes
-            </Button>
-          </div>
-        </div>
-        
-        {/* Teacher Showcase */}
-        <TeacherShowcase />
-        
+      <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Upcoming Classes</h2>
-          {upcomingClasses.length > 0 ? (
-            <div className="md:px-6 lg:px-10 xl:px-12">
-              <Carousel
-                opts={{
-                  align: "start",
-                  loop: true,
-                }}
-                className="w-full"
-              >
-                <CarouselContent>
-                  {upcomingClasses.map((yogaClass) => (
-                    <CarouselItem key={yogaClass.id} className="md:basis-1/2 lg:basis-1/3">
-                      <div className="p-1">
-                        <ClassCard yogaClass={yogaClass} />
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2 md:left-0" />
-                <CarouselNext className="right-2 md:right-0" />
-              </Carousel>
-            </div>
-          ) : (
-            <div className="yoga-card bg-yoga-light-blue/30 text-center py-12">
-              <p className="text-xl">No upcoming classes</p>
-              <p className="text-gray-600 mt-2">
-                Check back soon or contact your instructor
-              </p>
-            </div>
-          )}
-          
-          <div className="flex justify-center mt-6">
-            <Button
-              variant="outline"
-              className="text-yoga-blue border-yoga-blue hover:bg-yoga-blue hover:text-white"
-              onClick={() => navigate('/classes')}
-            >
-              View All Classes
-            </Button>
-          </div>
+          <h1 className="text-3xl font-bold mb-1">Welcome back, {currentUser?.displayName || 'Yogi'}</h1>
+          <p className="text-gray-600">Your yoga journey continues. Here's what's happening.</p>
         </div>
-
-        {/* Membership Dialog */}
-        <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Membership Required</DialogTitle>
-              <DialogDescription>
-                You need an active membership to join yoga classes. Would you like to get a membership now?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm font-medium">
-                Benefits of membership:
-              </p>
-              <ul className="list-disc pl-5 text-sm pt-2">
-                <li>Access to all live yoga classes</li>
-                <li>Recordings of past sessions</li>
-                <li>Personal guidance from instructors</li>
-                <li>Monthly progress tracking</li>
-              </ul>
-            </div>
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsMembershipDialogOpen(false)}
-              >
-                Later
-              </Button>
-              <Button
-                className="bg-yoga-blue hover:bg-yoga-blue/90"
-                onClick={() => {
-                  setIsMembershipDialogOpen(false);
-                  navigate('/pricing');
-                }}
-              >
-                View Plans
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
         
-        {/* Class Join Prompt */}
-        {selectedClass && (
-          <ClassJoinPrompt
-            isOpen={isJoinPromptOpen}
-            onClose={() => setIsJoinPromptOpen(false)}
-            classDate={selectedClass.date}
-            className={selectedClass.name}
-            joinLink={selectedClass.joinLink}
-          />
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-gray-500 font-normal">Your Credits</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-3xl font-bold">{userCredits}</span>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/pricing">Buy More</Link>
+                </Button>
+              </div>
+              <Progress value={70} className="h-2" />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-gray-500 font-normal">Classes Completed</CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-between items-center">
+              <span className="text-3xl font-bold">24</span>
+              <PlayCircle size={32} className="text-yoga-blue" />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-gray-500 font-normal">1-on-1 Sessions</CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-between items-center">
+              <span className="text-3xl font-bold">{userBookings.length}</span>
+              <Users size={32} className="text-yoga-blue" />
+            </CardContent>
+          </Card>
+        </div>
         
-        {/* Credit History Modal */}
-        <CreditHistoryModal
-          open={isCreditHistoryOpen}
-          onOpenChange={setIsCreditHistoryOpen}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Upcoming 1-on-1 Sessions */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Upcoming 1-on-1 Sessions</CardTitle>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/my-bookings" className="flex items-center">
+                  View All <ArrowRight className="ml-1" size={16} />
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {upcomingBookings.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingBookings.map((booking) => {
+                    const teacher = teachers.find(t => t.id === booking.teacherId);
+                    return (
+                      <div key={booking.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-md">
+                        <CalendarDays className="text-yoga-blue mt-1" size={18} />
+                        <div className="flex-grow">
+                          <p className="font-medium">{booking.sessionType.name}</p>
+                          <p className="text-sm text-gray-600">with {teacher?.name}</p>
+                          <div className="flex items-center mt-1 text-xs text-gray-500">
+                            <Clock size={12} className="mr-1" />
+                            {new Date(booking.date).toLocaleDateString()} at {booking.time}
+                          </div>
+                        </div>
+                        <Link to={`/my-bookings`}>
+                          <Button variant="outline" size="sm">Details</Button>
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Calendar className="mx-auto text-gray-300 mb-2" size={32} />
+                  <p className="text-gray-500">No upcoming sessions</p>
+                  <Button variant="outline" size="sm" className="mt-2" asChild>
+                    <Link to="/teachers">Book a Session</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Recently Watched */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Recently Watched Classes</CardTitle>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/classes" className="flex items-center">
+                  View All <ArrowRight className="ml-1" size={16} />
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {recentlyWatchedClasses.length > 0 ? (
+                <div className="space-y-4">
+                  {recentlyWatchedClasses.map((yogaClass) => (
+                    <div key={yogaClass.id} className="flex items-start space-x-3">
+                      <div className="w-16 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                        <img 
+                          src={yogaClass.thumbnailUrl || "/placeholder.svg"} 
+                          alt={yogaClass.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-grow">
+                        <p className="font-medium line-clamp-1">{yogaClass.title}</p>
+                        <p className="text-sm text-gray-600 line-clamp-1">
+                          {yogaClass.teacher}
+                        </p>
+                        <div className="flex items-center mt-1">
+                          <Progress value={75} className="h-1 w-24 mr-2" />
+                          <span className="text-xs text-gray-500">18:45 left</span>
+                        </div>
+                      </div>
+                      <Link to={`/classes/${yogaClass.id}`}>
+                        <Button variant="outline" size="sm">Continue</Button>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <PlayCircle className="mx-auto text-gray-300 mb-2" size={32} />
+                  <p className="text-gray-500">No recently watched classes</p>
+                  <Button variant="outline" size="sm" className="mt-2" asChild>
+                    <Link to="/classes">Browse Classes</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Quick Access Buttons */}
+          <Link to="/classes" className="flex-1">
+            <Card className="hover:border-yoga-blue hover:shadow-md transition-all">
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <PlayCircle size={36} className="text-yoga-blue mb-2" />
+                <h3 className="font-medium">Browse Classes</h3>
+                <p className="text-sm text-gray-500">Explore our library of yoga classes</p>
+              </CardContent>
+            </Card>
+          </Link>
+          
+          <Link to="/teachers" className="flex-1">
+            <Card className="hover:border-yoga-blue hover:shadow-md transition-all">
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <Users size={36} className="text-yoga-blue mb-2" />
+                <h3 className="font-medium">Book 1-on-1 Sessions</h3>
+                <p className="text-sm text-gray-500">Schedule time with our expert teachers</p>
+              </CardContent>
+            </Card>
+          </Link>
+          
+          <Link to="/my-bookings" className="flex-1">
+            <Card className="hover:border-yoga-blue hover:shadow-md transition-all">
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <CalendarDays size={36} className="text-yoga-blue mb-2" />
+                <h3 className="font-medium">Manage Bookings</h3>
+                <p className="text-sm text-gray-500">View and manage your scheduled sessions</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
     </Layout>
   );
