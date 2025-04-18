@@ -14,7 +14,7 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { country, setCountry } = useCountryDetection();
+  const { country, setCountry, isLoading: isCountryLoading } = useCountryDetection();
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +24,15 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
         variant: "destructive",
         title: "Phone number required",
         description: "Please enter your phone number."
+      });
+      return;
+    }
+    
+    if (!country) {
+      toast({
+        variant: "destructive",
+        title: "Country code error",
+        description: "Unable to determine country code. Please try again."
       });
       return;
     }
@@ -51,7 +60,7 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
           Phone Number
         </label>
         <div className="flex gap-2">
-          {country && (
+          {!isCountryLoading && country && (
             <CountryCodeSelector
               selectedCountry={country}
               onSelect={setCountry}
@@ -75,7 +84,7 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
       <Button 
         type="submit" 
         className="yoga-button w-full"
-        disabled={isLoading}
+        disabled={isLoading || isCountryLoading}
       >
         {isLoading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

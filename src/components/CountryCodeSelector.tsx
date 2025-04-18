@@ -54,6 +54,10 @@ export const CountryCodeSelector: React.FC<CountryCodeSelectorProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
+  if (!selectedCountry) {
+    return null;
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -104,6 +108,7 @@ export const CountryCodeSelector: React.FC<CountryCodeSelectorProps> = ({
 export const useCountryDetection = () => {
   const defaultCountry = countries[0]; // Default to US
   const [country, setCountry] = useState<Country>(defaultCountry);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Try to detect user's country
@@ -111,7 +116,7 @@ export const useCountryDetection = () => {
       try {
         const response = await fetch("https://ipapi.co/json/");
         const data = await response.json();
-        const countryCode = data.country_code?.toLowerCase();
+        const countryCode = data?.country_code?.toLowerCase();
         
         if (countryCode) {
           const detectedCountry = countries.find(c => c.code === countryCode);
@@ -121,14 +126,15 @@ export const useCountryDetection = () => {
         }
       } catch (error) {
         console.error("Error detecting country:", error);
-        // Silently fail and use the default country
+      } finally {
+        setIsLoading(false);
       }
     };
 
     detectCountry();
   }, []);
 
-  return { country, setCountry, countries };
+  return { country, setCountry, countries, isLoading };
 };
 
 export default CountryCodeSelector;
