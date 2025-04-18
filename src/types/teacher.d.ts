@@ -14,6 +14,59 @@ export interface Teacher {
   lastReviewDate?: Date;
   reviews?: Review[];
   notificationSettings?: NotificationSettings;
+  avatarUrl?: string;
+  rating?: number;
+  reviewCount?: number;
+  experience?: number;
+}
+
+export interface AvailabilitySlot {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+  date?: string;
+}
+
+export interface ZoomAccount {
+  id?: string;
+  email?: string;
+  verified?: boolean;
+  personalMeetingId?: string;
+}
+
+export interface Review {
+  id: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+}
+
+export interface NotificationSettings {
+  email?: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
+  sms?: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
+  whatsapp?: {
+    enabled: boolean;
+    phoneNumberId: string;
+    accessToken: string;
+    businessAccountId: string;
+    verifyToken: string;
+    autoReplyEnabled: boolean;
+    autoReplyMessage: string;
+    templates: NotificationTemplate[];
+  };
+  zoom?: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
 }
 
 export interface SessionType {
@@ -44,8 +97,11 @@ export interface NotificationTemplate {
 }
 
 export interface TeacherContextProps {
-  // Add all the methods and properties that were missing
-  notificationSettings?: any;
+  teachers: Teacher[];
+  getTeacher: (id: string) => Teacher | undefined;
+  loading: boolean;
+  error: Error | null;
+  notificationSettings?: NotificationSettings;
   updateNotificationSettings?: (settings: any) => void;
   bookSession?: (bookingData: any) => void;
   getBooking?: (bookingId: string) => any;

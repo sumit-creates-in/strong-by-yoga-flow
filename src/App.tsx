@@ -1,20 +1,20 @@
 
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { createBrowserSupabaseClient } from '@supabase/auth-helpers-react';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { TeacherProvider } from './contexts/TeacherContext';
 import Index from './pages/Index';
-import Teachers from './pages/Teachers';
-import TeacherProfile from './pages/TeacherProfile';
-import TeacherBooking from './pages/TeacherBooking';
+import TeachersList from './pages/TeachersList';
+import LoginPage from './pages/Login';
+import Dashboard from './pages/Dashboard';
 import BookingConfirmation from './pages/BookingConfirmation';
 import Pricing from './pages/Pricing';
 import Profile from './pages/Profile';
-import Admin from './pages/Admin';
-import AdminTeachers from './pages/AdminTeachers';
-import AdminCredits from './pages/AdminCredits';
 import PaymentSuccess from './pages/payment-success';
+import NotFound from './pages/NotFound';
+import TeacherDetail from './pages/TeacherDetail';
+import TeacherBooking from './pages/TeacherBooking';
 
 function App() {
   const [supabaseClient] = useState(() => createBrowserSupabaseClient());
@@ -22,21 +22,19 @@ function App() {
   return (
     <SessionContextProvider supabaseClient={supabaseClient} initialSession={null}>
       <TeacherProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route index element={<Index />} />
-            <Route path="/teachers" element={<Teachers />} />
-            <Route path="/teachers/:id" element={<TeacherProfile />} />
-            <Route path="/teachers/:id/booking" element={<TeacherBooking />} />
-            <Route path="/teachers/:id/booking/confirmation" element={<BookingConfirmation />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/admin/teachers" element={<AdminTeachers />} />
-            <Route path="/admin/credits" element={<AdminCredits />} />
-			<Route path="/payment-success" element={<PaymentSuccess />} />
-          </Routes>
-        </BrowserRouter>
+        <Routes>
+          <Route index element={<Index />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/teachers" element={<TeachersList />} />
+          <Route path="/teachers/:id" element={<TeacherDetail />} />
+          <Route path="/teachers/:id/booking" element={<TeacherBooking />} />
+          <Route path="/teachers/:id/booking/confirmation" element={<BookingConfirmation />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </TeacherProvider>
     </SessionContextProvider>
   );
