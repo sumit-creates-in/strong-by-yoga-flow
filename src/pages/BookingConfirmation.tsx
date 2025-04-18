@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useYogaClass } from '@/contexts/YogaClassContext';
+import { useYogaClasses } from '@/contexts/YogaClassContext';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,24 +9,23 @@ import { useToast } from '@/components/ui/use-toast';
 
 const BookingConfirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { getBooking, booking } = useYogaClass();
-  const { currentUser } = useAuth();
+  const { getClass, classes } = useYogaClasses();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [booking, setBooking] = useState(null);
 
   useEffect(() => {
     if (bookingId) {
-      // Call getBooking with the bookingId parameter
-      getBooking(bookingId);
-    }
-  }, [bookingId, getBooking]);
-
-  useEffect(() => {
-    if (booking || !bookingId) {
+      // Find the booking in the classes array
+      const foundBooking = classes.find(cls => cls.id === bookingId);
+      if (foundBooking) {
+        setBooking(foundBooking);
+      }
       setIsLoading(false);
     }
-  }, [booking, bookingId]);
+  }, [bookingId, classes]);
 
   const handleDashboardNavigation = () => {
     navigate('/dashboard');
@@ -74,10 +73,10 @@ const BookingConfirmation = () => {
             </div>
           )}
 
-          {currentUser && (
+          {user && (
             <div className="flex items-center gap-2">
               <span className="font-semibold">Student:</span>
-              <span>{currentUser.name || 'Guest'}</span>
+              <span>{user.name || user.email || 'Guest'}</span>
             </div>
           )}
         </div>
