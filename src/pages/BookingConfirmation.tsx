@@ -1,192 +1,120 @@
-import React, { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  ChevronRight,
-  Video,
-  Phone,
-  MessageCircle,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Calendar, Clock, Video, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useTeachers } from '@/contexts/TeacherContext';
-import { format } from 'date-fns';
 
 const BookingConfirmation = () => {
-  const { id } = useParams();
   const navigate = useNavigate();
-  const { getTeacher, getBooking } = useTeachers();
-  
+  const { getBooking } = useTeachers();
   const booking = getBooking();
-  const teacher = booking ? getTeacher(booking.teacherId) : null;
 
-  useEffect(() => {
-    // If no booking is found, redirect to teachers page
-    if (!booking) {
-      setTimeout(() => {
-        navigate('/teachers');
-      }, 2000);
-    }
-  }, [booking, navigate]);
-  
-  if (!booking || !teacher) {
+  if (!booking) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-4">Booking not found</h2>
-          <p className="mb-4">Redirecting you to the teachers page...</p>
-          <Button onClick={() => navigate('/teachers')}>Back to Teachers</Button>
+        <div className="container max-w-2xl mx-auto px-4 py-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold mb-4">No Booking Found</h2>
+                <p className="text-gray-600 mb-6">
+                  We couldn't find any recent booking information.
+                </p>
+                <Button onClick={() => navigate('/teachers')}>
+                  Browse Teachers
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </Layout>
     );
   }
-  
-  const getSessionTypeIcon = (type: any) => {
-    if (!type) return <Video className="mr-2" size={20} />;
-    
-    switch (type) {
-      case 'video':
-        return <Video className="mr-2" size={20} />;
-      case 'call':
-        return <Phone className="mr-2" size={20} />;
-      case 'chat':
-        return <MessageCircle className="mr-2" size={20} />;
-      default:
-        return <Video className="mr-2" size={20} />;
-    }
-  };
-  
-  const formatTimeDisplay = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-  
+
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center bg-green-100 p-3 rounded-full mb-4">
-            <CheckCircle className="text-green-500" size={40} />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">Booking Confirmed!</h1>
-          <p className="text-gray-600">
-            Your session with {teacher.name} has been scheduled.
-          </p>
-        </div>
-        
-        <Card className="mb-6">
+      <div className="container max-w-2xl mx-auto px-4 py-8">
+        <Card>
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Session Details</h2>
-            
-            <div className="flex flex-col sm:flex-row sm:items-center border-b border-gray-200 pb-4 mb-4">
-              <div className="w-16 h-16 rounded-full overflow-hidden mr-4 mb-4 sm:mb-0">
-                <img 
-                  src={teacher.avatarUrl || "/placeholder.svg"} 
-                  alt={teacher.name} 
-                  className="w-full h-full object-cover"
-                />
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="font-medium">{teacher.name}</h3>
-                <p className="text-gray-500">{teacher.title}</p>
+                <h2 className="text-2xl font-semibold">Booking Confirmed!</h2>
+                <p className="text-gray-600">Your session has been successfully booked</p>
               </div>
             </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center">
-                {getSessionTypeIcon(booking.sessionType.type)}
-                <span className="font-medium">{booking.sessionType.name}</span>
-                <span className="ml-auto">{booking.sessionType.duration} mins</span>
-              </div>
-              
-              <div className="flex items-center">
-                <Calendar className="mr-2 text-yoga-blue" size={20} />
-                <span>{format(new Date(booking.date), 'EEEE, MMMM d, yyyy')}</span>
-              </div>
-              
-              <div className="flex items-center">
-                <Clock className="mr-2 text-yoga-blue" size={20} />
-                <span>{formatTimeDisplay(booking.time)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">What happens next?</h2>
-            
-            <div className="space-y-4">
-              <div className="flex">
-                <div className="bg-yoga-blue/10 rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
-                  <span className="font-semibold text-yoga-blue">1</span>
-                </div>
-                <div>
-                  <h3 className="font-medium">Check your email</h3>
-                  <p className="text-gray-600">
-                    We've sent a confirmation email with all session details. 
-                    If you don't see it, check your spam folder.
-                  </p>
+
+            <div className="space-y-6">
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3">Session Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Date</p>
+                      <p className="font-medium">
+                        {format(new Date(booking.date), 'MMMM d, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Time</p>
+                      <p className="font-medium">{booking.time}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex">
-                <div className="bg-yoga-blue/10 rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
-                  <span className="font-semibold text-yoga-blue">2</span>
-                </div>
-                <div>
-                  <h3 className="font-medium">Prepare for your session</h3>
-                  <p className="text-gray-600">
-                    Find a quiet, comfortable space. Have your yoga mat ready 
-                    and wear comfortable clothing.
-                  </p>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3">Session Information</h3>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Video className="w-5 h-5 text-gray-500 mt-1" />
+                    <div>
+                      <p className="text-sm text-gray-600">Session Type</p>
+                      <p className="font-medium">{booking.sessionType.name}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {booking.sessionType.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      <span className="text-lg">🎓</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Credits Used</p>
+                      <p className="font-medium">{booking.credits} credits</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex">
-                <div className="bg-yoga-blue/10 rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
-                  <span className="font-semibold text-yoga-blue">3</span>
-                </div>
-                <div>
-                  <h3 className="font-medium">Join your session</h3>
-                  <p className="text-gray-600">
-                    {booking.sessionType.type === 'video' && 
-                      "Click the link in the email to join your video session 5 minutes before start time."}
-                    {booking.sessionType.type === 'call' && 
-                      "You'll receive a call from your teacher at the scheduled time."}
-                    {booking.sessionType.type === 'chat' && 
-                      "Open the chat window from the link in your email at the scheduled time."}
-                    {!booking.sessionType.type &&
-                      "Click the link in the email to join your session 5 minutes before start time."}
-                  </p>
+
+              <div className="border-t pt-4">
+                <div className="flex justify-between gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/teachers')}
+                  >
+                    Book Another Session
+                  </Button>
+                  <Button
+                    onClick={() => navigate('/upcoming-sessions')}
+                  >
+                    View My Sessions <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button
-            className="flex-1 bg-yoga-blue"
-            onClick={() => navigate('/dashboard')}
-          >
-            Go to Dashboard
-          </Button>
-          
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => navigate('/teachers')}
-          >
-            Book another session
-            <ChevronRight size={16} className="ml-1" />
-          </Button>
-        </div>
       </div>
     </Layout>
   );

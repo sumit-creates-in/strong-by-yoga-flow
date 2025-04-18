@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 // Define types
 export interface AvailabilitySlot {
@@ -129,7 +130,7 @@ export interface Teacher {
 }
 
 // Create context
-interface TeacherContextProps {
+export interface TeacherContextProps {
   teachers: Teacher[];
   bookings: BookingData[];
   addTeacher: (teacher: Teacher) => void;
@@ -161,6 +162,7 @@ interface TeacherContextProps {
   // Add booking methods
   bookSession: (bookingData: any) => BookingData;
   getBooking: () => BookingData | null;
+  getUserBookings: (userId: string) => BookingData[];
 }
 
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
@@ -221,17 +223,17 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         ],
         availability: [
           {
-            day: 'Monday',
+            day: "monday",
             slots: [
-              { start: '09:00', end: '12:00' },
-              { start: '14:00', end: '18:00' }
+              { start: "09:00", end: "12:00" },
+              { start: "14:00", end: "18:00" }
             ]
           },
           {
-            day: 'Wednesday',
+            day: "wednesday",
             slots: [
-              { start: '09:00', end: '12:00' },
-              { start: '14:00', end: '18:00' }
+              { start: "09:00", end: "12:00" },
+              { start: "14:00", end: "18:00" }
             ]
           },
           {
@@ -541,11 +543,48 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     return savedCredits ? parseInt(savedCredits) : 100;
   });
 
+  // Get the current authenticated user from the AuthContext
+  const { user } = useAuth();
+
+  // Update the userCredits whenever the user changes
   useEffect(() => {
+    if (user) {
+      // Try to get user-specific credits from localStorage
+      const userSpecificCredits = localStorage.getItem(`userCredits_${user.id}`);
+      if (userSpecificCredits) {
+        setUserCredits(parseInt(userSpecificCredits));
+      } else {
+        // If no user-specific credits are found, use the default or global value
+        const savedCredits = localStorage.getItem('userCredits');
+        setUserCredits(savedCredits ? parseInt(savedCredits) : 100);
+        
+        // Store the credits for this specific user
+        localStorage.setItem(`userCredits_${user.id}`, userCredits.toString());
+      }
+    }
+  }, [user?.id]);
+
+  // Update localStorage whenever userCredits changes
+  useEffect(() => {
+    // Save both the global credits (legacy) and user-specific credits
     localStorage.setItem('userCredits', userCredits.toString());
-  }, [userCredits]);
+    
+    // If we have a user, save user-specific credits
+    if (user) {
+      localStorage.setItem(`userCredits_${user.id}`, userCredits.toString());
+    }
+  }, [userCredits, user?.id]);
 
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>(() => {
+    // If we have a user, try to get user-specific transactions
+    if (user) {
+      const userTransactions = localStorage.getItem(`creditTransactions_${user.id}`);
+      if (userTransactions) {
+        return JSON.parse(userTransactions);
+      }
+    }
+    
+    // Fall back to global transactions
     const savedTransactions = localStorage.getItem('creditTransactions');
     return savedTransactions ? JSON.parse(savedTransactions) : [
       {
@@ -572,9 +611,15 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     ];
   });
 
+  // Update localStorage whenever creditTransactions changes
   useEffect(() => {
     localStorage.setItem('creditTransactions', JSON.stringify(creditTransactions));
-  }, [creditTransactions]);
+    
+    // If we have a user, save user-specific transactions
+    if (user) {
+      localStorage.setItem(`creditTransactions_${user.id}`, JSON.stringify(creditTransactions));
+    }
+  }, [creditTransactions, user?.id]);
 
   const [creditPackages, setCreditPackages] = useState<CreditPackage[]>(() => {
     const savedPackages = localStorage.getItem('creditPackages');
@@ -775,11 +820,11 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
 
   // Booking methods
   const bookSession = (bookingData: any): BookingData => {
-    // Create a new booking
+    // Create a new booking with the current user's ID
     const newBooking: BookingData = {
       id: `booking-${Date.now()}`,
       teacherId: bookingData.teacherId,
-      userId: 'current-user', // In a real app, this would be the current user's ID
+      userId: user?.id || 'guest-user', // Use the authenticated user's ID
       sessionType: bookingData.sessionType,
       date: bookingData.date,
       time: bookingData.time,
@@ -816,6 +861,11 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     return latestBooking;
   };
 
+  // New method to get user-specific bookings
+  const getUserBookings = (userId: string): BookingData[] => {
+    return bookings.filter(booking => booking.userId === userId);
+  };
+
   return (
     <TeacherContext.Provider 
       value={{ 
@@ -839,7 +889,8 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         updateCreditPackage,
         deleteCreditPackage,
         bookSession,
-        getBooking
+        getBooking,
+        getUserBookings
       }}
     >
       {children}

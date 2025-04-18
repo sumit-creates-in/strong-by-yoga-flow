@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -50,6 +49,11 @@ export default function Layout({ children }: LayoutProps) {
       name: 'Classes',
       path: '/classes',
       icon: <Calendar size={20} />,
+    },
+    {
+      name: 'Upcoming Sessions',
+      path: '/upcoming-sessions',
+      icon: <BookingIcon size={20} />,
     },
     {
       name: 'Profile',

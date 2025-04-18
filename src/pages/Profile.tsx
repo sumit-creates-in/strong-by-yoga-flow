@@ -15,7 +15,7 @@ import CreditHistoryModal from '@/components/CreditHistoryModal';
 const Profile = () => {
   const { user, logout, updateProfile } = useAuth();
   const { toast } = useToast();
-  const { userCredits } = useTeachers();
+  const { userCredits, bookings, getUserBookings } = useTeachers();
   const navigate = useNavigate();
   
   const [editMode, setEditMode] = useState(false);
@@ -53,6 +53,13 @@ const Profile = () => {
     }
   };
   
+  // Filter upcoming sessions (sessions with dates in the future)
+  // Use getUserBookings to get only the current user's bookings
+  const userBookings = user ? getUserBookings(user.id) : [];
+  const upcomingSessions = userBookings.filter(booking => 
+    new Date(booking.date) > new Date() && booking.status === 'confirmed'
+  );
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -87,7 +94,7 @@ const Profile = () => {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Upcoming Sessions</h3>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{upcomingSessions.length}</p>
               </div>
             </div>
             <Button 

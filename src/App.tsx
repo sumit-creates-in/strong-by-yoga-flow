@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -32,6 +31,7 @@ import TeacherDetail from "./pages/TeacherDetail";
 import TeacherBooking from "./pages/TeacherBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import TeacherLearn from "./pages/TeacherLearn";
+import UpcomingSessions from "./pages/UpcomingSessions";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +55,8 @@ const App = () => {
               <Route path="/classes/:id" element={<AuthGuard><ClassDetail /></AuthGuard>} />
               <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
               <Route path="/pricing" element={<AuthGuard><Pricing /></AuthGuard>} />
+              <Route path="/upcoming-sessions" element={<AuthGuard><UpcomingSessions /></AuthGuard>} />
+              <Route path="/booking/confirmation" element={<AuthGuard><BookingConfirmation /></AuthGuard>} />
               
               {/* Teacher Routes */}
               <Route path="/teachers" element={<AuthGuard><TeachersList /></AuthGuard>} />

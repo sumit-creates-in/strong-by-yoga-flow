@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek } from 'date-fns';
@@ -86,11 +85,11 @@ const TeacherBooking = () => {
   useEffect(() => {
     if (teacher && selectedDate) {
       const dayOfWeek = selectedDate.getDay();
-      const dayName = dayNames[dayOfWeek];
+      const dayName = dayNames[dayOfWeek].toLowerCase();
       
-      // Find availability for this day
+      // Find availability for this day (case-insensitive)
       const dayAvailability = teacher.availability.filter(
-        (slot: any) => slot.day === dayName
+        (slot: any) => slot.day.toLowerCase() === dayName
       );
       
       // Generate time slots in 15-minute increments

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -245,9 +244,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
+      // Create the initial credit transaction for the new user
+      // In a real app, this would be done on the server side or with a secure edge function
+      const userCredits = 100;
+      
+      // Create a credit transaction for the initial 100 credits
+      if (data.user) {
+        const transaction = {
+          id: `transaction-${Date.now()}`,
+          type: 'admin',
+          amount: userCredits,
+          description: 'Initial signup credits',
+          date: new Date().toISOString()
+        };
+        
+        // Set the userCredits in localStorage for this user
+        localStorage.setItem('userCredits', userCredits.toString());
+        
+        // Get existing transactions or create new array
+        const existingTransactions = JSON.parse(localStorage.getItem('creditTransactions') || '[]');
+        localStorage.setItem('creditTransactions', JSON.stringify([...existingTransactions, transaction]));
+        
+        // Wait for profile to be created after signup
+        const profileData = {
+          id: data.user.id,
+          first_name: firstName,
+          last_name: lastName,
+          initial_credits: userCredits
+        };
+        
+        // Insert the profile data
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert(profileData);
+          
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
+        }
+      }
+      
       toast({
         title: 'Registration successful',
-        description: `Welcome to Strong By Yoga!`,
+        description: `Welcome to Strong By Yoga! You've received 100 credits to get started.`,
       });
       
       navigate('/dashboard');
