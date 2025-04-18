@@ -21,7 +21,7 @@ const BookingConfirmation = () => {
   const navigate = useNavigate();
   const { getTeacher, getBooking } = useTeachers();
   
-  const booking = getBooking();
+  const booking = getBooking(id);
   const teacher = booking ? getTeacher(booking.teacherId) : null;
 
   useEffect(() => {
@@ -100,9 +100,9 @@ const BookingConfirmation = () => {
             
             <div className="space-y-4">
               <div className="flex items-center">
-                {getSessionTypeIcon(booking.sessionType.type)}
-                <span className="font-medium">{booking.sessionType.name}</span>
-                <span className="ml-auto">{booking.sessionType.duration} mins</span>
+                {getSessionTypeIcon(booking.sessionType?.type)}
+                <span className="font-medium">{booking.sessionType?.name}</span>
+                <span className="ml-auto">{booking.sessionType?.duration} mins</span>
               </div>
               
               <div className="flex items-center">
@@ -156,13 +156,13 @@ const BookingConfirmation = () => {
                 <div>
                   <h3 className="font-medium">Join your session</h3>
                   <p className="text-gray-600">
-                    {booking.sessionType.type === 'video' && 
+                    {booking.sessionType?.type === 'video' && 
                       "Click the link in the email to join your video session 5 minutes before start time."}
-                    {booking.sessionType.type === 'call' && 
+                    {booking.sessionType?.type === 'call' && 
                       "You'll receive a call from your teacher at the scheduled time."}
-                    {booking.sessionType.type === 'chat' && 
+                    {booking.sessionType?.type === 'chat' && 
                       "Open the chat window from the link in your email at the scheduled time."}
-                    {!booking.sessionType.type &&
+                    {!booking.sessionType?.type &&
                       "Click the link in the email to join your session 5 minutes before start time."}
                   </p>
                 </div>
