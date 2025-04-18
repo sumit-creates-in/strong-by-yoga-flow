@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/router';
+import { useNavigate } from 'react-router-dom';
 import {
   Sheet,
   SheetContent,
@@ -16,7 +16,7 @@ import { ModeToggle } from './ModeToggle';
 import { Link } from 'react-router-dom';
 import { useTeachers } from '@/contexts/TeacherContext';
 import { useYogaClasses } from '@/contexts/YogaClassContext';
-import { AlignJustify, Book, Calendar, CheckCircle2, CircleUserRound, Coins, CreditCard, LayoutDashboard, ListChecks, LucideIcon, MessageSquare, Settings, User2, Users2, Zoom } from 'lucide-react';
+import { AlignJustify, Book, Calendar, CheckCircle2, CircleUserRound, Coins, CreditCard, LayoutDashboard, ListChecks, LucideIcon, MessageSquare, Settings, User2, Users2, Video } from 'lucide-react';
 
 interface NavItemProps {
   icon: LucideIcon;
@@ -36,7 +36,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, href }) => (
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const session = useSession();
   const supabase = useSupabaseClient();
-  const router = useRouter();
+  const navigate = useNavigate();
   const { userCredits } = useTeachers();
   const { userMembership } = useYogaClasses();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -45,7 +45,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    navigate('/login');
   };
 
   return (
@@ -81,7 +81,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <NavItem icon={MessageSquare} label="Notifications" href="/admin/notifications" />
                   <NavItem icon={User2} label="Teachers" href="/admin/teachers" />
                   <NavItem icon={Users2} label="Users" href="/admin/users" />
-                  <NavItem icon={Zoom} label="Zoom Settings" href="/admin/zoom-settings" />
+                  <NavItem icon={Video} label="Zoom Settings" href="/admin/zoom-settings" />
                 </>
               )}
             </ul>
@@ -89,7 +89,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </SheetContent>
       </Sheet>
 
-      {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
           <Link to="/" className="text-lg font-semibold">
@@ -114,7 +113,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <NavItem icon={MessageSquare} label="Notifications" href="/admin/notifications" />
                 <NavItem icon={User2} label="Teachers" href="/admin/teachers" />
                 <NavItem icon={Users2} label="Users" href="/admin/users" />
-                <NavItem icon={Zoom} label="Zoom Settings" href="/admin/zoom-settings" />
+                <NavItem icon={Video} label="Zoom Settings" href="/admin/zoom-settings" />
               </>
             )}
           </ul>
