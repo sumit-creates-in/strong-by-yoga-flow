@@ -18,6 +18,14 @@ import NotFound from './pages/NotFound';
 import TeacherDetail from './pages/TeacherDetail';
 import TeacherBooking from './pages/TeacherBooking';
 import SignUp from './pages/SignUp';
+import Classes from './pages/Classes';
+import AdminCredits from './pages/AdminCredits';
+import AdminBookings from './pages/AdminBookings';
+import AdminClasses from './pages/AdminClasses';
+import AdminNotifications from './pages/AdminNotifications';
+import AdminTeachers from './pages/AdminTeachers';
+import AdminUsers from './pages/AdminUsers';
+import AdminZoomSettings from './pages/AdminZoomSettings';
 
 function App() {
   return (
@@ -37,6 +45,17 @@ function App() {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/classes" element={<Classes />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/credits" element={<AdminCredits />} />
+              <Route path="/admin/bookings" element={<AdminBookings />} />
+              <Route path="/admin/classes" element={<AdminClasses />} />
+              <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/admin/teachers" element={<AdminTeachers />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/zoom-settings" element={<AdminZoomSettings />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </YogaClassProvider>

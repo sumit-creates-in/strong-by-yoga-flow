@@ -101,10 +101,35 @@ export interface TeacherContextProps {
   getTeacher: (id: string) => Teacher | undefined;
   loading: boolean;
   error: Error | null;
-  notificationSettings?: NotificationSettings;
-  updateNotificationSettings?: (settings: any) => void;
-  bookSession?: (bookingData: any) => void;
-  getBooking?: (bookingId: string) => any;
-  purchaseCredits?: (amount: number | string) => void;
-  userCredits?: number;
+  notificationSettings: NotificationSettings;
+  updateNotificationSettings: (settings: any) => void;
+  bookSession: (bookingData: any) => void;
+  getBooking: (bookingId: string) => any;
+  purchaseCredits: (amount: number | string) => void;
+  userCredits: number;
+  creditPackages?: CreditPackage[];
+  creditTransactions?: CreditTransaction[];
+  addCreditPackage?: (packageData: Partial<CreditPackage>) => void;
+  updateCreditPackage?: (packageData: CreditPackage) => void;
+  deleteCreditPackage?: (packageId: string) => void;
+}
+
+export interface CreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+  popular?: boolean;
+  mostValue?: boolean;
+}
+
+export interface CreditTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: 'purchase' | 'usage' | 'refund' | 'adjustment';
+  created_at: string;
+  payment_id?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  metadata?: any;
 }

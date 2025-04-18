@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useTeachers } from '@/contexts/TeacherContext';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Check, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useStripeService } from '@/services/stripe-service';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const { purchaseCredits } = useTeachers();
   const { toast } = useToast();
-  const supabase = useSupabaseClient();
+  const stripeService = useStripeService();
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Verifying your payment...');
@@ -28,11 +28,7 @@ const PaymentSuccess = () => {
       }
       
       try {
-        const { data, error } = await supabase.functions.invoke('verify-payment', {
-          body: { sessionId }
-        });
-        
-        if (error) throw new Error(error.message);
+        const data = await stripeService.verifyPayment(sessionId);
         
         if (!data.success || !data.verified) {
           setStatus('error');
@@ -42,8 +38,8 @@ const PaymentSuccess = () => {
         
         setCreditAmount(data.credits || 0);
         
-        if (typeof purchaseCredits === 'function') {
-          purchaseCredits(data.credits || 0);
+        if (typeof purchaseCredits === 'function' && data.credits) {
+          purchaseCredits(data.credits);
           
           toast({
             title: "Credits Added!",
@@ -61,7 +57,7 @@ const PaymentSuccess = () => {
     };
     
     verifyPayment();
-  }, [sessionId, supabase, purchaseCredits, toast]);
+  }, [sessionId, purchaseCredits, toast, stripeService]);
   
   return (
     <Layout>

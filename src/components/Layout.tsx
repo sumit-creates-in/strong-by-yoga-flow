@@ -1,256 +1,185 @@
-
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  User, 
-  Menu, 
-  Calendar, 
-  LogOut, 
-  BookOpen, 
-  Settings, 
-  Users, 
-  CreditCard,
-  Bell,
-  Video,
-  BookOpen as ClassIcon,
-  Calendar as BookingIcon
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
+import React, { useState } from 'react';
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
+import { useRouter } from 'next/router';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ModeToggle } from './ModeToggle';
+import { Link } from 'react-router-dom';
+import { useTeachers } from '@/contexts/TeacherContext';
+import { useYogaClasses } from '@/contexts/YogaClassContext';
+import { AlignJustify, Book, Calendar, CheckCircle2, CircleUserRound, Coins, CreditCard, LayoutDashboard, ListChecks, LucideIcon, MessageSquare, Settings, User2, Users2, Zoom } from 'lucide-react';
 
-type LayoutProps = {
-  children: React.ReactNode;
-};
+interface NavItemProps {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+}
 
-export default function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isMobile = useIsMobile();
+const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, href }) => (
+  <li>
+    <Link to={href} className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </Link>
+  </li>
+);
+
+const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const session = useSession();
+  const supabase = useSupabaseClient();
+  const router = useRouter();
+  const { userCredits } = useTeachers();
+  const { userMembership } = useYogaClasses();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  const isActive = (path: string) => location.pathname === path;
-  const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
-  
-  const navItems = [
-    {
-      name: 'Dashboard',
-      path: '/dashboard',
-      icon: <BookOpen size={20} />,
-    },
-    {
-      name: 'Classes',
-      path: '/classes',
-      icon: <Calendar size={20} />,
-    },
-    {
-      name: 'Profile',
-      path: '/profile',
-      icon: <User size={20} />,
-    },
-  ];
-  
-  // Admin page items
-  const adminItems = [
-    {
-      name: 'Classes',
-      path: '/admin/classes',
-      icon: <ClassIcon size={20} />,
-    },
-    {
-      name: 'Users',
-      path: '/admin/users',
-      icon: <Users size={20} />,
-    },
-    {
-      name: 'Teachers',
-      path: '/admin/teachers',
-      icon: <User size={20} />,
-    },
-    {
-      name: 'Bookings',
-      path: '/admin/bookings',
-      icon: <BookingIcon size={20} />,
-    },
-    {
-      name: 'Credits',
-      path: '/admin/credits',
-      icon: <CreditCard size={20} />,
-    },
-    {
-      name: 'Zoom Settings',
-      path: '/admin/zoom-settings',
-      icon: <Video size={20} />,
-    },
-    {
-      name: 'Notifications',
-      path: '/admin/notifications',
-      icon: <Bell size={20} />,
-    },
-  ];
+  const isAdmin = session?.user?.email === 'admin@example.com';
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
   return (
-    <div className="min-h-screen bg-yoga-light-yellow flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-yoga-light-blue p-4 flex items-center justify-between">
-        <div className="flex items-center">
-          <h1 
-            onClick={() => navigate('/dashboard')} 
-            className="text-2xl font-bold text-yoga-blue cursor-pointer flex items-center"
-          >
-            <span className="text-3xl mr-2">🧘</span>
-            Strong By Yoga
-          </h1>
-        </div>
-        
-        {/* Mobile Menu Button */}
-        {isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="md:hidden"
-            onClick={() => document.getElementById('mobile-menu')?.classList.toggle('hidden')}
-          >
-            <Menu />
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
+      <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="md:hidden">
+            <AlignJustify className="h-5 w-5" />
           </Button>
-        )}
-        
-        {/* Desktop Navigation */}
-        {!isMobile && (
-          <nav className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => (
-              <Button
-                key={item.path}
-                variant={isActive(item.path) ? "secondary" : "ghost"}
-                className={`flex items-center px-4 py-2 ${
-                  isActive(item.path) ? 'bg-yoga-yellow' : ''
-                }`}
-                onClick={() => navigate(item.path)}
-              >
-                <span className="mr-2">{item.icon}</span>
-                {item.name}
-              </Button>
-            ))}
-            
-            {/* Admin Dropdown Menu for Desktop */}
-            {user?.role === 'admin' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant={isActivePrefix('/admin') ? "secondary" : "ghost"} 
-                    className={`flex items-center px-4 py-2 ${
-                      isActivePrefix('/admin') ? 'bg-yoga-yellow' : ''
-                    }`}
-                  >
-                    <span className="mr-2"><Settings size={20} /></span>
-                    Admin
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Admin Panel</DropdownMenuLabel>
+        </SheetTrigger>
+        <SheetContent className="w-full sm:w-64">
+          <SheetHeader>
+            <SheetTitle>Menu</SheetTitle>
+            <SheetDescription>
+              Navigate through the application.
+            </SheetDescription>
+          </SheetHeader>
+          <nav className="mt-4">
+            <ul className="space-y-2">
+              <NavItem icon={LayoutDashboard} label="Dashboard" href="/dashboard" />
+              <NavItem icon={CircleUserRound} label="Profile" href="/profile" />
+              <NavItem icon={Calendar} label="Bookings" href="/bookings" />
+              <NavItem icon={Book} label="Classes" href="/classes" />
+              <NavItem icon={CreditCard} label="Pricing" href="/pricing" />
+              <NavItem icon={MessageSquare} label="Contact" href="/contact" />
+              {isAdmin && (
+                <>
                   <DropdownMenuSeparator />
-                  {adminItems.map((item) => (
-                    <DropdownMenuItem 
-                      key={item.path} 
-                      className={`flex items-center cursor-pointer ${isActive(item.path) ? 'bg-secondary/50' : ''}`}
-                      onClick={() => navigate(item.path)}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            
-            <Button 
-              variant="ghost" 
-              className="flex items-center text-destructive hover:text-destructive"
-              onClick={logout}
-            >
-              <LogOut className="mr-2" size={20} />
-              Logout
-            </Button>
+                  <li><DropdownMenuLabel>Admin</DropdownMenuLabel></li>
+                  <NavItem icon={Coins} label="Credits" href="/admin/credits" />
+                  <NavItem icon={ListChecks} label="Bookings" href="/admin/bookings" />
+                  <NavItem icon={Book} label="Classes" href="/admin/classes" />
+                  <NavItem icon={MessageSquare} label="Notifications" href="/admin/notifications" />
+                  <NavItem icon={User2} label="Teachers" href="/admin/teachers" />
+                  <NavItem icon={Users2} label="Users" href="/admin/users" />
+                  <NavItem icon={Zoom} label="Zoom Settings" href="/admin/zoom-settings" />
+                </>
+              )}
+            </ul>
           </nav>
-        )}
-      </header>
-      
-      {/* Mobile Menu (Hidden by default) */}
-      <div
-        id="mobile-menu"
-        className="md:hidden hidden bg-white border-b border-yoga-light-blue"
-      >
-        <nav className="flex flex-col p-4">
-          {navItems.map((item) => (
-            <Button
-              key={item.path}
-              variant={isActive(item.path) ? "secondary" : "ghost"}
-              className={`flex items-center justify-start mb-2 ${
-                isActive(item.path) ? 'bg-yoga-yellow' : ''
-              }`}
-              onClick={() => {
-                navigate(item.path);
-                document.getElementById('mobile-menu')?.classList.add('hidden');
-              }}
-            >
-              <span className="mr-2">{item.icon}</span>
-              {item.name}
-            </Button>
-          ))}
-          
-          {/* Admin Section for Mobile */}
-          {user?.role === 'admin' && (
-            <>
-              <div className="py-2 px-3 text-sm font-medium text-gray-500 mt-2 mb-1">
-                Admin Panel
-              </div>
-              {adminItems.map((item) => (
-                <Button
-                  key={item.path}
-                  variant={isActive(item.path) ? "secondary" : "ghost"}
-                  className={`flex items-center justify-start mb-2 ${
-                    isActive(item.path) ? 'bg-yoga-yellow' : ''
-                  }`}
-                  onClick={() => {
-                    navigate(item.path);
-                    document.getElementById('mobile-menu')?.classList.add('hidden');
-                  }}
-                >
-                  <span className="mr-2">{item.icon}</span>
-                  {item.name}
-                </Button>
-              ))}
-            </>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            className="flex items-center text-destructive hover:text-destructive justify-start mt-2"
-            onClick={logout}
-          >
-            <LogOut className="mr-2" size={20} />
-            Logout
-          </Button>
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 border-r border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
+          <Link to="/" className="text-lg font-semibold">
+            Lovable
+          </Link>
+        </div>
+        <nav className="flex-grow p-4">
+          <ul className="space-y-2">
+            <NavItem icon={LayoutDashboard} label="Dashboard" href="/dashboard" />
+            <NavItem icon={CircleUserRound} label="Profile" href="/profile" />
+            <NavItem icon={Calendar} label="Bookings" href="/bookings" />
+            <NavItem icon={Book} label="Classes" href="/classes" />
+            <NavItem icon={CreditCard} label="Pricing" href="/pricing" />
+            <NavItem icon={MessageSquare} label="Contact" href="/contact" />
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <li><DropdownMenuLabel>Admin</DropdownMenuLabel></li>
+                <NavItem icon={Coins} label="Credits" href="/admin/credits" />
+                <NavItem icon={ListChecks} label="Bookings" href="/admin/bookings" />
+                <NavItem icon={Book} label="Classes" href="/admin/classes" />
+                <NavItem icon={MessageSquare} label="Notifications" href="/admin/notifications" />
+                <NavItem icon={User2} label="Teachers" href="/admin/teachers" />
+                <NavItem icon={Users2} label="Users" href="/admin/users" />
+                <NavItem icon={Zoom} label="Zoom Settings" href="/admin/zoom-settings" />
+              </>
+            )}
+          </ul>
         </nav>
+      </aside>
+
+      <div className="flex flex-col flex-1">
+        <header className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center">
+            <ModeToggle />
+          </div>
+          {session ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={session.user?.user_metadata?.avatar_url as string} alt={session.user?.email as string} />
+                    <AvatarFallback>{session.user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel>
+                  {session.user?.email}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/pricing">
+                    {userCredits} Credits
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/pricing">
+                    {userMembership?.active ? 'Membership Active' : 'Buy Membership'}
+                  </Link>
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/credits">Admin Dashboard</Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div>
+              <Link to="/login" className="mr-4">Login</Link>
+              <Link to="/signup">Sign Up</Link>
+            </div>
+          )}
+        </header>
+
+        <main className="flex-1 p-6">
+          {children}
+        </main>
       </div>
-      
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
-        {children}
-      </main>
-      
-      {/* Footer */}
-      <footer className="bg-white border-t border-yoga-light-blue p-4 text-center text-sm text-gray-500">
-        <p>© {new Date().getFullYear()} Strong By Yoga. All rights reserved.</p>
-      </footer>
     </div>
   );
-}
+};
+
+export default Layout;
