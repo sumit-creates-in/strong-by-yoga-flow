@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-react';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { TeacherProvider } from './contexts/TeacherContext';
+import { supabase } from './integrations/supabase/client';
 import Index from './pages/Index';
 import TeachersList from './pages/TeachersList';
 import LoginPage from './pages/Login';
@@ -17,10 +17,8 @@ import TeacherDetail from './pages/TeacherDetail';
 import TeacherBooking from './pages/TeacherBooking';
 
 function App() {
-  const [supabaseClient] = useState(() => createBrowserSupabaseClient());
-
   return (
-    <SessionContextProvider supabaseClient={supabaseClient} initialSession={null}>
+    <SessionContextProvider supabaseClient={supabase} initialSession={null}>
       <TeacherProvider>
         <Routes>
           <Route index element={<Index />} />
