@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -39,6 +38,9 @@ const TeacherDetail = () => {
     );
   }
   
+  const formattedLastReviewDate = teacher.lastReviewDate ? 
+    (typeof teacher.lastReviewDate === 'string' ? teacher.lastReviewDate : 'recently') : 'recently';
+  
   return (
     <Layout>
       <div className="space-y-6">
@@ -52,7 +54,6 @@ const TeacherDetail = () => {
         </Button>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left column - Teacher info */}
           <div className="md:col-span-2 space-y-6">
             <Card>
               <CardContent className="p-6">
@@ -160,7 +161,7 @@ const TeacherDetail = () => {
                       
                       <div>
                         <p className="font-medium">{teacher.reviewCount} reviews</p>
-                        <p className="text-gray-500 text-sm">Last review {teacher.lastReviewDate || 'recently'}</p>
+                        <p className="text-gray-500 text-sm">Last review {formattedLastReviewDate}</p>
                       </div>
                     </div>
                     
@@ -170,11 +171,11 @@ const TeacherDetail = () => {
                           <div className="flex justify-between mb-2">
                             <div className="flex items-center">
                               <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                                {review.userInitials}
+                                {review.userInitials || review.userId?.charAt(0)?.toUpperCase() || 'U'}
                               </div>
                               <div>
-                                <p className="font-medium">{review.userName}</p>
-                                <p className="text-gray-500 text-sm">{review.date}</p>
+                                <p className="font-medium">{review.userName || `User ${review.userId}`}</p>
+                                <p className="text-gray-500 text-sm">{review.date || new Date(review.createdAt).toLocaleDateString()}</p>
                               </div>
                             </div>
                             <div className="flex items-center">
@@ -196,7 +197,6 @@ const TeacherDetail = () => {
             </Tabs>
           </div>
           
-          {/* Right column - Booking */}
           <div>
             <Card className="sticky top-24">
               <CardContent className="p-6">
@@ -243,8 +243,6 @@ const TeacherDetail = () => {
                     variant="outline" 
                     className="w-full flex items-center justify-center gap-2"
                     onClick={() => {
-                      // This would typically save to favorites in a real app
-                      // For now, just a placeholder
                       alert('Added to favorites!');
                     }}
                   >

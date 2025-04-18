@@ -12,7 +12,7 @@ export interface Teacher {
   zoomAccount: ZoomAccount;
   notificationSettings: NotificationSettings;
   teachingStyle?: string;
-  lastReviewDate?: Date;
+  lastReviewDate?: string;  // Changed from Date to string for React compatibility
   reviews?: Review[];
   avatarUrl?: string;
   rating?: number;
@@ -53,6 +53,9 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: Date;
+  userName?: string;     // Added for TeacherDetail.tsx
+  userInitials?: string; // Added for TeacherDetail.tsx
+  date?: string;         // Added for TeacherDetail.tsx
 }
 
 export interface NotificationSettings {
@@ -133,7 +136,7 @@ export interface TeacherContextProps {
   notificationSettings?: NotificationSettings;
   updateNotificationSettings?: (settings: any) => void;
   bookSession?: (bookingData: any) => void;
-  getBooking?: (bookingId: string) => any;
+  getBooking?: (bookingId: string) => BookingData | undefined;
   purchaseCredits?: (amount: number | string) => void;
   userCredits: number;
   creditPackages?: CreditPackage[];

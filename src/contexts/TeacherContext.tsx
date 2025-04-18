@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Teacher, AvailabilitySlot, ZoomAccount, SessionType, NotificationTemplate, BookingData, CreditTransaction, CreditPackage, TeacherContextProps } from '@/types/teacher';
+import { Teacher, AvailabilitySlot, ZoomAccount, SessionType, NotificationTemplate, BookingData, CreditTransaction, CreditPackage, TeacherContextProps, NotificationSettings } from '@/types/teacher';
 
 // Create context
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
@@ -464,15 +464,17 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         
         // Find which channel this template belongs to
         for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
-          const index = notificationSettings[channel]?.templates.findIndex(t => t.id === template.id);
-          if (index >= 0) {
-            const updatedTemplates = [...notificationSettings[channel].templates];
-            updatedTemplates[index] = template;
-            notificationSettings[channel] = {
-              ...notificationSettings[channel],
-              templates: updatedTemplates
-            };
-            break;
+          if (notificationSettings[channel]) {
+            const index = notificationSettings[channel].templates.findIndex(t => t.id === template.id);
+            if (index >= 0) {
+              const updatedTemplates = [...notificationSettings[channel].templates];
+              updatedTemplates[index] = template;
+              notificationSettings[channel] = {
+                ...notificationSettings[channel],
+                templates: updatedTemplates
+              };
+              break;
+            }
           }
         }
         
@@ -612,7 +614,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     console.log('Booking session:', bookingData);
   };
 
-  const getBooking = (bookingId: string) => {
+  const getBooking = (bookingId: string): BookingData | undefined => {
     return bookings.find(booking => booking.id === bookingId);
   };
 
@@ -677,3 +679,18 @@ export const useTeachers = () => {
   }
   return context;
 };
+
+// Export all the types from teacher.d.ts so they are available from TeacherContext.tsx
+export type { 
+  Teacher, 
+  AvailabilitySlot, 
+  ZoomAccount, 
+  Review, 
+  NotificationSettings, 
+  SessionType, 
+  NotificationTemplate, 
+  TeacherContextProps, 
+  CreditPackage, 
+  CreditTransaction, 
+  BookingData 
+} from '@/types/teacher';
