@@ -157,6 +157,10 @@ interface TeacherContextProps {
   addCreditPackage: (pkg: Omit<CreditPackage, 'id'>) => void;
   updateCreditPackage: (pkg: CreditPackage) => void;
   deleteCreditPackage: (id: string) => void;
+  
+  // Add booking methods
+  bookSession: (bookingData: any) => void;
+  getBooking: () => BookingData | null;
 }
 
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
@@ -502,6 +506,9 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     }
   ]);
 
+  // Latest booking for confirmation page
+  const [latestBooking, setLatestBooking] = useState<BookingData | null>(null);
+
   // Add credit-related state
   const [userCredits, setUserCredits] = useState<number>(100);
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([
@@ -716,6 +723,47 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     setCreditPackages(prevPackages => prevPackages.filter(p => p.id !== id));
   };
 
+  // Booking methods
+  const bookSession = (bookingData: any) => {
+    // Create a new booking
+    const newBooking: BookingData = {
+      id: `booking-${Date.now()}`,
+      teacherId: bookingData.teacherId,
+      userId: 'current-user', // In a real app, this would be the current user's ID
+      sessionType: bookingData.sessionType,
+      date: bookingData.date,
+      time: bookingData.time,
+      status: 'confirmed',
+      credits: bookingData.sessionType.credits || bookingData.sessionType.price || 0
+    };
+    
+    // Add booking to bookings list
+    setBookings(prevBookings => [...prevBookings, newBooking]);
+    
+    // Update latest booking for confirmation page
+    setLatestBooking(newBooking);
+    
+    // Deduct credits
+    setUserCredits(prev => prev - (newBooking.credits || 0));
+    
+    // Add credit transaction
+    const transaction: CreditTransaction = {
+      id: `transaction-${Date.now()}`,
+      type: 'usage',
+      amount: -(newBooking.credits || 0),
+      description: `${newBooking.sessionType.name} with ${getTeacher(newBooking.teacherId)?.name}`,
+      date: new Date().toISOString()
+    };
+    
+    setCreditTransactions(prev => [...prev, transaction]);
+    
+    return newBooking;
+  };
+
+  const getBooking = (): BookingData | null => {
+    return latestBooking;
+  };
+
   return (
     <TeacherContext.Provider 
       value={{ 
@@ -737,7 +785,9 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         creditPackages,
         addCreditPackage,
         updateCreditPackage,
-        deleteCreditPackage
+        deleteCreditPackage,
+        bookSession,
+        getBooking
       }}
     >
       {children}

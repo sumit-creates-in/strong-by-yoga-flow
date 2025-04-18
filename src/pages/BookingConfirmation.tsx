@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Calendar, 
@@ -23,19 +23,31 @@ const BookingConfirmation = () => {
   
   const booking = getBooking();
   const teacher = booking ? getTeacher(booking.teacherId) : null;
+
+  useEffect(() => {
+    // If no booking is found, redirect to teachers page
+    if (!booking) {
+      setTimeout(() => {
+        navigate('/teachers');
+      }, 2000);
+    }
+  }, [booking, navigate]);
   
   if (!booking || !teacher) {
     return (
       <Layout>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold mb-4">Booking not found</h2>
+          <p className="mb-4">Redirecting you to the teachers page...</p>
           <Button onClick={() => navigate('/teachers')}>Back to Teachers</Button>
         </div>
       </Layout>
     );
   }
   
-  const getSessionTypeIcon = (type: string) => {
+  const getSessionTypeIcon = (type: any) => {
+    if (!type) return <Video className="mr-2" size={20} />;
+    
     switch (type) {
       case 'video':
         return <Video className="mr-2" size={20} />;
@@ -44,8 +56,15 @@ const BookingConfirmation = () => {
       case 'chat':
         return <MessageCircle className="mr-2" size={20} />;
       default:
-        return null;
+        return <Video className="mr-2" size={20} />;
     }
+  };
+  
+  const formatTimeDisplay = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
   
   return (
@@ -75,7 +94,7 @@ const BookingConfirmation = () => {
               </div>
               <div>
                 <h3 className="font-medium">{teacher.name}</h3>
-                <p className="text-gray-500">Yoga Therapist</p>
+                <p className="text-gray-500">{teacher.title}</p>
               </div>
             </div>
             
@@ -88,12 +107,12 @@ const BookingConfirmation = () => {
               
               <div className="flex items-center">
                 <Calendar className="mr-2 text-yoga-blue" size={20} />
-                <span>{format(booking.date, 'EEEE, MMMM d, yyyy')}</span>
+                <span>{format(new Date(booking.date), 'EEEE, MMMM d, yyyy')}</span>
               </div>
               
               <div className="flex items-center">
                 <Clock className="mr-2 text-yoga-blue" size={20} />
-                <span>{booking.time}</span>
+                <span>{formatTimeDisplay(booking.time)}</span>
               </div>
             </div>
           </CardContent>
@@ -143,6 +162,8 @@ const BookingConfirmation = () => {
                       "You'll receive a call from your teacher at the scheduled time."}
                     {booking.sessionType.type === 'chat' && 
                       "Open the chat window from the link in your email at the scheduled time."}
+                    {!booking.sessionType.type &&
+                      "Click the link in the email to join your session 5 minutes before start time."}
                   </p>
                 </div>
               </div>

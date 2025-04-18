@@ -47,6 +47,7 @@ const TeacherBooking = () => {
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [selectedSessionType, setSelectedSessionType] = useState<any>(null);
   const [isLowCreditsModalOpen, setIsLowCreditsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Recurring booking options
   const [isRecurring, setIsRecurring] = useState(false);
@@ -62,7 +63,7 @@ const TeacherBooking = () => {
         setTeacher(teacherData);
         if (teacherData.sessionTypes && teacherData.sessionTypes.length > 0) {
           // Make sure sessionTypes are correctly formatted with credits
-          const sessionTypes = teacherData.sessionTypes.map(type => {
+          const sessionTypes = teacherData.sessionTypes.map((type: any) => {
             return {
               ...type,
               credits: type.credits || type.price || 0
@@ -85,11 +86,11 @@ const TeacherBooking = () => {
   useEffect(() => {
     if (teacher && selectedDate) {
       const dayOfWeek = selectedDate.getDay();
-      const dayName = dayNames[dayOfWeek].toLowerCase();
+      const dayName = dayNames[dayOfWeek];
       
       // Find availability for this day
       const dayAvailability = teacher.availability.filter(
-        (slot: any) => slot.day.toLowerCase() === dayName
+        (slot: any) => slot.day === dayName
       );
       
       // Generate time slots in 15-minute increments
@@ -173,14 +174,14 @@ const TeacherBooking = () => {
     bookingDate.setHours(hours, minutes, 0, 0);
     
     // Check if booking is too close to start time
-    const minTimeBeforeBooking = selectedSessionType.minTimeBeforeBooking || 0;
+    const minTimeBeforeBooking = selectedSessionType.bookingRestrictions?.minTimeBeforeBooking || 0;
     const minTimeBeforeBookingMs = minTimeBeforeBooking * 60 * 60 * 1000;
     if (bookingDate.getTime() - now.getTime() < minTimeBeforeBookingMs) {
       return false;
     }
     
     // Check if booking is too far in advance
-    const maxAdvanceBookingDays = selectedSessionType.maxAdvanceBookingDays || 30;
+    const maxAdvanceBookingDays = selectedSessionType.bookingRestrictions?.maxAdvanceBookingPeriod || 30;
     const maxAdvanceBookingMs = maxAdvanceBookingDays * 24 * 60 * 60 * 1000;
     if (bookingDate.getTime() - now.getTime() > maxAdvanceBookingMs) {
       return false;
@@ -199,14 +200,14 @@ const TeacherBooking = () => {
     const [hours, minutes] = selectedTime.split(':').map(Number);
     bookingDate.setHours(hours, minutes, 0, 0);
     
-    const minTimeBeforeBooking = selectedSessionType.minTimeBeforeBooking || 0;
+    const minTimeBeforeBooking = selectedSessionType.bookingRestrictions?.minTimeBeforeBooking || 0;
     const minTimeBeforeBookingMs = minTimeBeforeBooking * 60 * 60 * 1000;
     
     if (bookingDate.getTime() - now.getTime() < minTimeBeforeBookingMs) {
       return `Booking must be made at least ${minTimeBeforeBooking} hours in advance`;
     }
     
-    const maxAdvanceBookingDays = selectedSessionType.maxAdvanceBookingDays || 30;
+    const maxAdvanceBookingDays = selectedSessionType.bookingRestrictions?.maxAdvanceBookingPeriod || 30;
     const maxAdvanceBookingMs = maxAdvanceBookingDays * 24 * 60 * 60 * 1000;
     
     if (bookingDate.getTime() - now.getTime() > maxAdvanceBookingMs) {
@@ -244,7 +245,11 @@ const TeacherBooking = () => {
   };
 
   const processBooking = () => {
+    if (isSubmitting) return; // Prevent double submission
+    
     if (teacher && selectedDate && selectedTime && selectedSessionType) {
+      setIsSubmitting(true);
+      
       const bookingData = {
         teacherId: teacher.id,
         sessionType: selectedSessionType,
@@ -255,22 +260,26 @@ const TeacherBooking = () => {
         recurringEnd: isRecurring ? recurringEnd : undefined
       };
       
-      if (typeof bookSession === 'function') {
+      try {
         bookSession(bookingData);
-        navigate(`/teachers/${id}/booking/confirmation`);
         
         toast({
           title: "Session Booked!",
           description: `Your ${selectedSessionType.name} with ${teacher.name} is confirmed.`,
           duration: 5000
         });
-      } else {
-        console.error("bookSession function is not available");
+        
+        // Redirect to confirmation page
+        navigate(`/booking/confirmation`);
+      } catch (error) {
+        console.error("Error booking session:", error);
         toast({
           title: "Booking Error",
           description: "Could not book the session. Please try again later.",
           variant: "destructive"
         });
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
@@ -309,7 +318,7 @@ const TeacherBooking = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">{teacher.name}</h1>
-                <p className="text-gray-600">{teacher.shortBio}</p>
+                <p className="text-gray-600">{teacher.shortBio || teacher.title}</p>
               </div>
             </div>
             
@@ -371,7 +380,7 @@ const TeacherBooking = () => {
                             <span className="text-green-500 text-sm">Selected</span>
                           </div>
                           <div className="text-xs text-gray-500">
-                            Book {sessionType.minTimeBeforeBooking || 0}h+ in advance, up to {sessionType.maxAdvanceBookingDays || 30} days ahead
+                            Book {sessionType.bookingRestrictions?.minTimeBeforeBooking || 0}h+ in advance, up to {sessionType.bookingRestrictions?.maxAdvanceBookingPeriod || 30} days ahead
                           </div>
                         </div>
                       </div>
@@ -419,8 +428,8 @@ const TeacherBooking = () => {
                           timeDate.setHours(hours, minutes, 0, 0);
                           
                           const now = new Date();
-                          const minTimeMs = selectedSessionType?.minTimeBeforeBooking 
-                            ? selectedSessionType.minTimeBeforeBooking * 60 * 60 * 1000 
+                          const minTimeMs = selectedSessionType?.bookingRestrictions?.minTimeBeforeBooking 
+                            ? selectedSessionType.bookingRestrictions.minTimeBeforeBooking * 60 * 60 * 1000 
                             : 0;
                           
                           const isDisabled = timeDate.getTime() - now.getTime() < minTimeMs;
@@ -596,18 +605,25 @@ const TeacherBooking = () => {
               <CardFooter className="flex flex-col gap-3">
                 <Button
                   className="w-full"
-                  disabled={!isBookingAllowed()}
+                  disabled={!isBookingAllowed() || isSubmitting}
                   onClick={handleBookSession}
                   title={!isBookingAllowed() ? getBookingDisabledReason() : ''}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  Book Session
+                  {isSubmitting ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      Book Session
+                    </>
+                  )}
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   className="w-full" 
                   onClick={() => navigate('/pricing')}
+                  disabled={isSubmitting}
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
                   Purchase Credits
