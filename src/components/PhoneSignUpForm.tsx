@@ -23,7 +23,7 @@ const PhoneSignUpForm: React.FC<PhoneSignUpFormProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { country, setCountry, isLoading: isCountryLoading } = useCountryDetection();
+  const { country, setCountry } = useCountryDetection();
   
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,15 +33,6 @@ const PhoneSignUpForm: React.FC<PhoneSignUpFormProps> = ({
         variant: "destructive",
         title: "Missing information",
         description: "Please enter your name and phone number."
-      });
-      return;
-    }
-    
-    if (!country) {
-      toast({
-        variant: "destructive",
-        title: "Country code error",
-        description: "Unable to determine country code. Please try again."
       });
       return;
     }
@@ -83,12 +74,10 @@ const PhoneSignUpForm: React.FC<PhoneSignUpFormProps> = ({
           Phone Number
         </label>
         <div className="flex gap-2">
-          {!isCountryLoading && country && (
-            <CountryCodeSelector
-              selectedCountry={country}
-              onSelect={setCountry}
-            />
-          )}
+          <CountryCodeSelector
+            selectedCountry={country}
+            onSelect={setCountry}
+          />
           <Input
             id="phone"
             type="tel"
@@ -107,7 +96,7 @@ const PhoneSignUpForm: React.FC<PhoneSignUpFormProps> = ({
       <Button 
         type="submit" 
         className="yoga-button w-full"
-        disabled={isLoading || isCountryLoading}
+        disabled={isLoading}
       >
         {isLoading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

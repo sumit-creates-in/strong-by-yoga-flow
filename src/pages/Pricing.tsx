@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -20,14 +21,10 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { useStripeService } from '@/services/stripe-service';
-import { useToast } from '@/components/ui/use-toast';
 
 const Pricing = () => {
   const { membershipTiers, purchaseMembership, userMembership } = useYogaClasses();
   const { creditPackages, userCredits, purchaseCredits } = useTeachers();
-  const stripeService = useStripeService();
-  const { toast } = useToast();
   
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -53,75 +50,18 @@ const Pricing = () => {
     setIsPaymentDialogOpen(true);
   }
   
-  const handlePurchase = async () => {
-    setIsPaymentDialogOpen(false);
-    
-    try {
-      if (paymentType === 'membership' && selectedTier) {
-        const selectedMembership = membershipTiers.find(t => t.id === selectedTier);
-        if (!selectedMembership) throw new Error('Membership tier not found');
-        
-        // Create Stripe checkout session for membership
-        await stripeService.createCheckoutSession({
-          packageId: selectedMembership.id,
-          packageName: selectedMembership.name,
-          price: selectedMembership.price,
-          mode: 'subscription',
-          interval: 'month',
-          metadata: {
-            type: 'membership',
-            tier: selectedMembership.name,
-            duration: String(selectedMembership.duration)
-          }
-        });
-      } 
-      else if (paymentType === 'credits' && selectedCreditPackage) {
-        const selectedPackage = creditPackages.find(p => p.id === selectedCreditPackage);
-        if (!selectedPackage) throw new Error('Credit package not found');
-        
-        // Create Stripe checkout session for credit package
-        await stripeService.createCheckoutSession({
-          packageId: selectedPackage.id,
-          packageName: selectedPackage.name,
-          creditAmount: selectedPackage.credits,
-          price: selectedPackage.price,
-          metadata: {
-            type: 'credit_purchase'
-          }
-        });
-      } 
-      else if (paymentType === 'custom') {
-        // Custom credits purchase logic
-        const price = paymentMethod === 'subscription' 
-          ? Math.round(customCredits * 0.95 * 100) / 100 
-          : customCredits;
-          
-        await stripeService.createCheckoutSession({
-          packageId: `custom-${Date.now()}`,
-          packageName: `${customCredits} Credits ${paymentMethod === 'subscription' ? '(Subscription)' : ''}`,
-          creditAmount: customCredits,
-          price: price,
-          mode: paymentMethod === 'subscription' ? 'subscription' : 'payment',
-          interval: paymentMethod === 'subscription' ? 'month' : undefined,
-          metadata: {
-            type: 'credit_purchase',
-            subscription: paymentMethod === 'subscription' ? 'true' : 'false'
-          }
-        });
-        
-        // Optional credit purchase function - would be replaced by actual webhook verification
-        if (purchaseCredits && paymentType === 'custom') {
-          // This is only for demo purposes - real apps should not add credits before payment verification
-          // purchaseCredits(customCredits);
-        }
-      }
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast({
-        title: "Payment Error",
-        description: error instanceof Error ? error.message : "Failed to process payment",
-        variant: "destructive",
-      });
+  const handlePurchase = () => {
+    if (paymentType === 'membership' && selectedTier) {
+      purchaseMembership(selectedTier);
+      setIsPaymentDialogOpen(false);
+    } else if (paymentType === 'credits' && selectedCreditPackage) {
+      purchaseCredits(selectedCreditPackage);
+      setIsPaymentDialogOpen(false);
+    } else if (paymentType === 'custom') {
+      // Create a custom package ID
+      const customPackageId = `custom-${Date.now()}`;
+      purchaseCredits(customPackageId);
+      setIsPaymentDialogOpen(false);
     }
   };
 

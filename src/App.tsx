@@ -1,68 +1,89 @@
 
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { SessionContextProvider } from '@supabase/auth-helpers-react';
-import { AuthProvider } from './contexts/AuthContext';
-import { TeacherProvider } from './contexts/TeacherContext';
-import { YogaClassProvider } from './contexts/YogaClassContext';
-import { supabase } from './integrations/supabase/client';
-import Index from './pages/Index';
-import TeachersList from './pages/TeachersList';
-import LoginPage from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import BookingConfirmation from './pages/BookingConfirmation';
-import Pricing from './pages/Pricing';
-import Profile from './pages/Profile';
-import PaymentSuccess from './pages/payment-success';
-import NotFound from './pages/NotFound';
-import TeacherDetail from './pages/TeacherDetail';
-import TeacherBooking from './pages/TeacherBooking';
-import SignUp from './pages/SignUp';
-import Classes from './pages/Classes';
-import AdminCredits from './pages/AdminCredits';
-import AdminBookings from './pages/AdminBookings';
-import AdminClasses from './pages/AdminClasses';
-import AdminNotifications from './pages/AdminNotifications';
-import AdminTeachers from './pages/AdminTeachers';
-import AdminUsers from './pages/AdminUsers';
-import AdminZoomSettings from './pages/AdminZoomSettings';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { YogaClassProvider } from "./contexts/YogaClassContext";
+import { TeacherProvider } from "./contexts/TeacherContext";
+import AuthGuard from "./components/AuthGuard";
+import AdminGuard from "./components/AdminGuard";
 
-function App() {
+// Pages
+import Login from "./pages/Login";
+import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
+import Dashboard from "./pages/Dashboard";
+import Classes from "./pages/Classes";
+import ClassDetail from "./pages/ClassDetail";
+import Profile from "./pages/Profile";
+import AdminClasses from "./pages/AdminClasses";
+import AdminUsers from "./pages/AdminUsers";
+import AdminTeachers from "./pages/AdminTeachers";
+import AdminZoomSettings from "./pages/AdminZoomSettings";
+import AdminCredits from "./pages/AdminCredits";
+import AdminBookings from "./pages/AdminBookings";
+import AdminNotifications from "./pages/AdminNotifications";
+import NotFound from "./pages/NotFound";
+import Index from "./pages/Index";
+import Pricing from "./pages/Pricing";
+import TeachersList from "./pages/TeachersList";
+import TeacherDetail from "./pages/TeacherDetail";
+import TeacherBooking from "./pages/TeacherBooking";
+import BookingConfirmation from "./pages/BookingConfirmation";
+import TeacherLearn from "./pages/TeacherLearn";
+
+const queryClient = new QueryClient();
+
+const App = () => {
   return (
-    <SessionContextProvider supabaseClient={supabase} initialSession={null}>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TeacherProvider>
-          <YogaClassProvider>
+        <YogaClassProvider>
+          <TeacherProvider>
+            <Toaster />
+            <Sonner />
             <Routes>
-              <Route index element={<Index />} />
-              <Route path="/login" element={<LoginPage />} />
+              {/* Auth Routes */}
+              <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/teachers" element={<TeachersList />} />
-              <Route path="/teachers/:id" element={<TeacherDetail />} />
-              <Route path="/teachers/:id/booking" element={<TeacherBooking />} />
-              <Route path="/teachers/:id/booking/confirmation" element={<BookingConfirmation />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/classes" element={<Classes />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               
-              {/* Admin Routes */}
-              <Route path="/admin/credits" element={<AdminCredits />} />
-              <Route path="/admin/bookings" element={<AdminBookings />} />
-              <Route path="/admin/classes" element={<AdminClasses />} />
-              <Route path="/admin/notifications" element={<AdminNotifications />} />
-              <Route path="/admin/teachers" element={<AdminTeachers />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/zoom-settings" element={<AdminZoomSettings />} />
+              {/* Protected Routes */}
+              <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+              <Route path="/classes" element={<AuthGuard><Classes /></AuthGuard>} />
+              <Route path="/classes/:id" element={<AuthGuard><ClassDetail /></AuthGuard>} />
+              <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+              <Route path="/pricing" element={<AuthGuard><Pricing /></AuthGuard>} />
               
+              {/* Teacher Routes */}
+              <Route path="/teachers" element={<AuthGuard><TeachersList /></AuthGuard>} />
+              <Route path="/teachers/:id" element={<AuthGuard><TeacherDetail /></AuthGuard>} />
+              <Route path="/teachers/:id/book" element={<AuthGuard><TeacherBooking /></AuthGuard>} />
+              <Route path="/teachers/:id/booking/confirmation" element={<AuthGuard><BookingConfirmation /></AuthGuard>} />
+              <Route path="/teachers/:id/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
+              <Route path="/teachers/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
+              
+              {/* Admin Routes - Updated to use AdminGuard */}
+              <Route path="/admin/classes" element={<AdminGuard><AdminClasses /></AdminGuard>} />
+              <Route path="/admin/bookings" element={<AdminGuard><AdminBookings /></AdminGuard>} />
+              <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
+              <Route path="/admin/teachers" element={<AdminGuard><AdminTeachers /></AdminGuard>} />
+              <Route path="/admin/zoom-settings" element={<AdminGuard><AdminZoomSettings /></AdminGuard>} />
+              <Route path="/admin/credits" element={<AdminGuard><AdminCredits /></AdminGuard>} />
+              <Route path="/admin/notifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
+              
+              {/* Redirects */}
+              <Route path="/" element={<Index />} />
+              
+              {/* 404 page */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </YogaClassProvider>
-        </TeacherProvider>
+          </TeacherProvider>
+        </YogaClassProvider>
       </AuthProvider>
-    </SessionContextProvider>
+    </QueryClientProvider>
   );
-}
+};
 
 export default App;

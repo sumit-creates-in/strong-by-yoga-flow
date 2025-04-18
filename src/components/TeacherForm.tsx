@@ -1,462 +1,1005 @@
-import React, { useState, useEffect } from 'react';
-import { Teacher, NotificationTemplate } from '@/types/teacher';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useToast } from "@/components/ui/use-toast"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import {
+} from "@/components/ui/form";
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command"
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { X, Plus, Trash2, Clock, Info } from 'lucide-react';
+import { useTeachers, Teacher, SessionType, AvailabilitySlot, ZoomAccount } from '@/contexts/TeacherContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
-interface TeacherFormProps {
-  teacher: Teacher;
-  onSubmit: (teacher: Teacher) => void;
-  onCancel: () => void;
+interface CustomAvailabilitySlot {
+  id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
 }
 
-const sessionTypesData = [
-  { id: "one-on-one", name: "One-on-One", description: "Personalized individual sessions" },
-  { id: "group", name: "Group Session", description: "Sessions with multiple participants" },
-  { id: "workshop", name: "Workshop", description: "Specialized workshops on specific topics" },
-  { id: "retreat", name: "Retreat", description: "Immersive retreat experiences" },
-];
+interface CustomZoomAccount {
+  id: string;
+  email: string;
+  accountName: string;
+  connected: boolean;
+}
 
-const expertiseData = [
-  { id: "beginner", name: "Beginner" },
-  { id: "intermediate", name: "Intermediate" },
-  { id: "advanced", name: "Advanced" },
-];
+interface CustomSessionType extends Omit<SessionType, 'bookingRestrictions'> {
+  type: 'video' | 'call' | 'chat';
+  allowRecurring: boolean;
+  minTimeBeforeBooking: number;
+  minTimeBeforeCancel: number;
+  minTimeBeforeReschedule: number;
+  maxAdvanceBookingDays: number;
+}
 
-const specialtiesData = [
-  { id: "yoga", name: "Yoga" },
-  { id: "meditation", name: "Meditation" },
-  { id: "pilates", name: "Pilates" },
-  { id: "fitness", name: "Fitness" },
-];
+const formSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  avatarUrl: z.string().optional(),
+  shortBio: z.string().min(1, 'Short bio is required').max(150, 'Short bio should be under 150 characters'),
+  fullBio: z.string().min(50, 'Full bio should be at least 50 characters'),
+  experience: z.coerce.number().min(0, 'Experience cannot be negative'),
+  teachingStyle: z.string().min(1, 'Teaching style is required'),
+  languages: z.array(z.string()).min(1, 'At least one language is required'),
+});
 
-const languagesData = [
-  { id: "en", name: "English" },
-  { id: "es", name: "Spanish" },
-  { id: "fr", name: "French" },
-  { id: "de", name: "German" },
-];
+interface TeacherFormProps {
+  teacher?: Teacher;
+  onComplete: () => void;
+}
 
-const timeSlots = [
-  "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00",
-  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00",
-  "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
-];
+const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
+  const { 
+    addTeacher, 
+    updateTeacher
+  } = useTeachers();
+  
+  const [specialties, setSpecialties] = useState<string[]>(teacher?.specialties || []);
+  const [newSpecialty, setNewSpecialty] = useState('');
+  
+  const [expertise, setExpertise] = useState<string[]>(teacher?.expertise || []);
+  const [newExpertise, setNewExpertise] = useState('');
+  
+  const [certifications, setCertifications] = useState<string[]>(teacher?.certifications || []);
+  const [newCertification, setNewCertification] = useState('');
+  
+  const mapToCustomSessionTypes = (sessions: SessionType[] | undefined): CustomSessionType[] => {
+    if (!sessions || !Array.isArray(sessions)) return [];
+    
+    return sessions.map(session => ({
+      id: session.id,
+      name: session.name,
+      description: session.description || '',
+      duration: session.duration,
+      price: session.price,
+      credits: session.credits || session.price,
+      type: (session as any).type || 'video',
+      isActive: session.isActive || true,
+      allowRecurring: session.bookingRestrictions?.minTimeBeforeBooking !== undefined 
+        ? true 
+        : true,
+      minTimeBeforeBooking: session.bookingRestrictions?.minTimeBeforeBooking || 2,
+      minTimeBeforeCancel: session.bookingRestrictions?.minTimeBeforeCancelling || 4,
+      minTimeBeforeReschedule: session.bookingRestrictions?.minTimeBeforeRescheduling || 6,
+      maxAdvanceBookingDays: session.bookingRestrictions?.maxAdvanceBookingPeriod || 30
+    }));
+  };
+  
+  const mapToContextSessionTypes = (sessions: CustomSessionType[]): SessionType[] => {
+    return sessions.map(session => ({
+      id: session.id,
+      name: session.name,
+      description: session.description,
+      duration: session.duration,
+      price: session.price,
+      credits: session.credits,
+      isActive: session.isActive,
+      bookingRestrictions: {
+        minTimeBeforeBooking: session.minTimeBeforeBooking,
+        minTimeBeforeCancelling: session.minTimeBeforeCancel,
+        minTimeBeforeRescheduling: session.minTimeBeforeReschedule,
+        maxAdvanceBookingPeriod: session.maxAdvanceBookingDays
+      }
+    }));
+  };
+  
+  const [sessionTypes, setSessionTypes] = useState<CustomSessionType[]>(
+    mapToCustomSessionTypes(teacher?.sessionTypes) || [
+      { 
+        id: '1',
+        name: 'Video Consultation',
+        description: 'Video consultation session',
+        type: 'video' as const,
+        duration: 60,
+        price: 50,
+        credits: 50,
+        isActive: true,
+        allowRecurring: true,
+        minTimeBeforeBooking: 2,
+        minTimeBeforeCancel: 4,
+        minTimeBeforeReschedule: 6,
+        maxAdvanceBookingDays: 30
+      },
+      { 
+        id: '2',
+        name: 'Phone Call',
+        description: 'Phone call session',
+        type: 'call' as const,
+        duration: 30,
+        price: 35,
+        credits: 35,
+        isActive: true,
+        allowRecurring: false,
+        minTimeBeforeBooking: 1,
+        minTimeBeforeCancel: 2,
+        minTimeBeforeReschedule: 2,
+        maxAdvanceBookingDays: 14
+      }
+    ]
+  );
 
-const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-const TeacherForm: React.FC<TeacherFormProps> = ({ teacher, onSubmit, onCancel }) => {
-  const [name, setName] = useState(teacher.name || '');
-  const [title, setTitle] = useState(teacher.title || '');
-  const [bio, setBio] = useState(teacher.bio || '');
-  const [imageUrl, setImageUrl] = useState(teacher.imageUrl || '');
-  const [zoomEmail, setZoomEmail] = useState(teacher.zoomAccount?.email || '');
-  const [oneOnOneRate, setOneOnOneRate] = useState(teacher.pricing?.oneOnOne?.toString() || '50');
-  const [groupRate, setGroupRate] = useState(teacher.pricing?.group?.toString() || '30');
-  const [experience, setExperience] = useState(teacher.experience?.toString() || '5');
-  const [location, setLocation] = useState(teacher.location || '');
-  const [teachingStyle, setTeachingStyle] = useState(teacher.teachingStyle || '');
-  const [education, setEducation] = useState(teacher.education || '');
-  const [certifications, setCertifications] = useState(teacher.certifications || '');
-  const [selectedSpecialties, setSelectedSpecialties] = useState(teacher.specialties || []);
-  const [selectedExpertise, setSelectedExpertise] = useState(teacher.expertise || []);
-  const [selectedLanguages, setSelectedLanguages] = useState(teacher.languages || []);
-  const [sessionTypes, setSessionTypes] = useState(teacher.sessionTypes || []);
-  const [availability, setAvailability] = useState(teacher.availability || []);
-  const [submitting, setSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const validateForm = () => {
-    if (!name || !title || !bio) {
-      toast({
-        variant: "destructive",
-        title: "Required fields",
-        description: "Please fill in all required fields."
-      });
-      return false;
-    }
-    return true;
+  const mapToCustomAvailability = (availability: AvailabilitySlot[] | undefined): CustomAvailabilitySlot[] => {
+    if (!availability || !Array.isArray(availability)) return [];
+    
+    return availability.map((slot, index) => {
+      if (slot.slots && slot.slots.length > 0) {
+        return {
+          id: `avail-${Date.now()}-${index}`,
+          day: slot.day?.toLowerCase() || 'monday',
+          startTime: slot.slots[0].start || '09:00',
+          endTime: slot.slots[0].end || '10:00',
+          isRecurring: true
+        };
+      } else {
+        return {
+          id: (slot as any).id || `avail-${Date.now()}-${index}`,
+          day: slot.day?.toLowerCase() || 'monday',
+          startTime: (slot as any).startTime || '09:00',
+          endTime: (slot as any).endTime || '10:00',
+          isRecurring: (slot as any).isRecurring || true
+        };
+      }
+    });
+  };
+  
+  const mapToContextAvailability = (availability: CustomAvailabilitySlot[]): AvailabilitySlot[] => {
+    return availability.map(slot => ({
+      day: slot.day,
+      slots: [{
+        start: slot.startTime,
+        end: slot.endTime
+      }]
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const [availability, setAvailability] = useState<CustomAvailabilitySlot[]>(
+    mapToCustomAvailability(teacher?.availability)
+  );
+  
+  const [newAvailability, setNewAvailability] = useState<Partial<CustomAvailabilitySlot>>({
+    day: 'monday',
+    startTime: '09:00',
+    endTime: '10:00',
+    isRecurring: true
+  });
+
+  const mapToCustomZoomAccount = (account: ZoomAccount | undefined): CustomZoomAccount | null => {
+    if (!account) return null;
     
-    if (!validateForm()) {
+    return {
+      id: (account as any).id || `zoom-${Date.now()}`,
+      email: account.email || '',
+      accountName: (account as any).accountName || account.email || '',
+      connected: account.isConnected || false
+    };
+  };
+  
+  const mapToContextZoomAccount = (account: CustomZoomAccount | null): ZoomAccount | null => {
+    if (!account) return null;
+    
+    return {
+      email: account.email,
+      isConnected: account.connected
+    };
+  };
+
+  const [zoomAccount, setZoomAccount] = useState<CustomZoomAccount | null>(
+    mapToCustomZoomAccount(teacher?.zoomAccount)
+  );
+  
+  const [zoomEmail, setZoomEmail] = useState('');
+  const [zoomAccountName, setZoomAccountName] = useState('');
+  
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: teacher?.name || '',
+      avatarUrl: teacher?.avatarUrl || '',
+      shortBio: teacher?.shortBio || '',
+      fullBio: teacher?.fullBio || '',
+      experience: teacher?.experience || 0,
+      teachingStyle: teacher?.teachingStyle || '',
+      languages: teacher?.languages || ['English'],
+    },
+  });
+  
+  const handleAddSpecialty = () => {
+    if (newSpecialty && !specialties.includes(newSpecialty)) {
+      setSpecialties([...specialties, newSpecialty]);
+      setNewSpecialty('');
+    }
+  };
+  
+  const handleRemoveSpecialty = (specialty: string) => {
+    setSpecialties(specialties.filter(s => s !== specialty));
+  };
+  
+  const handleAddExpertise = () => {
+    if (newExpertise && !expertise.includes(newExpertise)) {
+      setExpertise([...expertise, newExpertise]);
+      setNewExpertise('');
+    }
+  };
+  
+  const handleRemoveExpertise = (item: string) => {
+    setExpertise(expertise.filter(e => e !== item));
+  };
+  
+  const handleAddCertification = () => {
+    if (newCertification && !certifications.includes(newCertification)) {
+      setCertifications([...certifications, newCertification]);
+      setNewCertification('');
+    }
+  };
+  
+  const handleRemoveCertification = (cert: string) => {
+    setCertifications(certifications.filter(c => c !== cert));
+  };
+  
+  const handleSessionTypeChange = (index: number, field: string, value: any) => {
+    const updatedTypes = [...sessionTypes];
+    updatedTypes[index] = { ...updatedTypes[index], [field]: value };
+    
+    if (field === 'price') {
+      updatedTypes[index].credits = value;
+    }
+    
+    setSessionTypes(updatedTypes);
+  };
+  
+  const handleAddSessionType = () => {
+    const newId = `session-${Date.now()}`;
+    setSessionTypes([
+      ...sessionTypes, 
+      { 
+        id: newId, 
+        name: 'New Session',
+        description: 'New session description',
+        type: 'video' as const,
+        duration: 60,
+        price: 50,
+        credits: 50,
+        isActive: true,
+        allowRecurring: true,
+        minTimeBeforeBooking: 2,
+        minTimeBeforeCancel: 4,
+        minTimeBeforeReschedule: 6,
+        maxAdvanceBookingDays: 30
+      }
+    ]);
+  };
+  
+  const handleRemoveSessionType = (index: number) => {
+    if (sessionTypes.length > 1) {
+      const updatedTypes = [...sessionTypes];
+      updatedTypes.splice(index, 1);
+      setSessionTypes(updatedTypes);
+    }
+  };
+
+  const handleAddAvailability = () => {
+    if (!newAvailability.day || !newAvailability.startTime || !newAvailability.endTime) {
       return;
     }
     
-    setSubmitting(true);
+    const newSlot: CustomAvailabilitySlot = {
+      id: `avail-${Date.now()}`,
+      day: newAvailability.day,
+      startTime: newAvailability.startTime,
+      endTime: newAvailability.endTime,
+      isRecurring: newAvailability.isRecurring || true
+    };
     
-    try {
-      const updatedTeacher: Teacher = {
-        id: teacher.id || crypto.randomUUID(),
-        name: name || teacher.name, // Ensure name is always provided
-        title: title,
-        bio: bio,
-        specialties: selectedSpecialties,
-        expertise: selectedExpertise,
-        certifications: certifications,
-        sessionTypes: sessionTypes,
-        availability: availability,
-        zoomAccount: {
-          email: zoomEmail,
-          connected: !!zoomEmail,
-        },
-        imageUrl: imageUrl || teacher.imageUrl,
-        pricing: {
-          oneOnOne: Number(oneOnOneRate),
-          group: Number(groupRate),
-        },
-        languages: selectedLanguages,
-        education: education,
-        location: location,
-        experience: Number(experience),
-        ratings: teacher.ratings || { average: 0, count: 0 },
-        teachingStyle: teachingStyle,
-        notificationSettings: teacher.notificationSettings || {
-          email: { enabled: true, templates: [] },
-          sms: { enabled: true, templates: [] },
-          whatsapp: { 
-            enabled: false, 
-            phoneNumberId: '', 
-            accessToken: '', 
-            businessAccountId: '', 
-            verifyToken: '', 
-            autoReplyEnabled: false, 
-            autoReplyMessage: '',
-            templates: [] 
-          },
-          inApp: { enabled: true, templates: [] }
-        },
-        reviews: teacher.reviews || []
+    setAvailability([...availability, newSlot]);
+    
+    setNewAvailability({
+      day: 'monday',
+      startTime: '09:00',
+      endTime: '10:00',
+      isRecurring: true
+    });
+  };
+
+  const handleRemoveAvailability = (id: string) => {
+    setAvailability(availability.filter(slot => slot.id !== id));
+  };
+
+  const handleAvailabilityChange = (field: keyof CustomAvailabilitySlot, value: any) => {
+    setNewAvailability({
+      ...newAvailability,
+      [field]: value
+    });
+  };
+
+  const handleConnectZoom = () => {
+    if (zoomEmail && zoomAccountName) {
+      const newZoomAccount: CustomZoomAccount = {
+        id: `zoom-${Date.now()}`,
+        email: zoomEmail,
+        accountName: zoomAccountName,
+        connected: true
       };
-      
-      onSubmit(updatedTeacher);
-    } catch (error) {
-      console.error("Error submitting teacher form:", error);
-      toast({
-        variant: "destructive",
-        title: "Submission Error",
-        description: "Failed to submit teacher information. Please try again.",
-      });
-    } finally {
-      setSubmitting(false);
+      setZoomAccount(newZoomAccount);
+      setZoomEmail('');
+      setZoomAccountName('');
     }
   };
 
-  return (
-    <div className="p-4 bg-white rounded-lg border">
-      <h3 className="font-medium text-lg mb-4">
-        {teacher.id ? 'Edit Teacher' : 'Create Teacher'}
-      </h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="name">Name</Label>
-          <Input
-            type="text"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="title">Title</Label>
-          <Input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="bio">Bio</Label>
-          <Textarea
-            id="bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            required
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="imageUrl">Image URL</Label>
-          <Input
-            type="url"
-            id="imageUrl"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-          />
-          {imageUrl && (
-            <Avatar className="w-24 h-24 mt-2">
-              <AvatarFallback>{name?.substring(0, 2).toUpperCase()}</AvatarFallback>
-              <img src={imageUrl} alt={name} className="rounded-full" />
-            </Avatar>
-          )}
-        </div>
-        
-        <div>
-          <Label htmlFor="zoomEmail">Zoom Email</Label>
-          <Input
-            type="email"
-            id="zoomEmail"
-            value={zoomEmail}
-            onChange={(e) => setZoomEmail(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="oneOnOneRate">One-on-One Rate</Label>
-          <Input
-            type="number"
-            id="oneOnOneRate"
-            value={oneOnOneRate}
-            onChange={(e) => setOneOnOneRate(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="groupRate">Group Rate</Label>
-          <Input
-            type="number"
-            id="groupRate"
-            value={groupRate}
-            onChange={(e) => setGroupRate(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="experience">Experience (years)</Label>
-          <Input
-            type="number"
-            id="experience"
-            value={experience}
-            onChange={(e) => setExperience(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="location">Location</Label>
-          <Input
-            type="text"
-            id="location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="teachingStyle">Teaching Style</Label>
-          <Input
-            type="text"
-            id="teachingStyle"
-            value={teachingStyle}
-            onChange={(e) => setTeachingStyle(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="education">Education</Label>
-          <Input
-            type="text"
-            id="education"
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="certifications">Certifications</Label>
-          <Input
-            type="text"
-            id="certifications"
-            value={certifications}
-            onChange={(e) => setCertifications(e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label>Specialties</Label>
-          <div className="flex flex-wrap gap-2">
-            {specialtiesData.map((specialty) => (
-              <div key={specialty.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`specialty-${specialty.id}`}
-                  checked={selectedSpecialties.some((s) => s.id === specialty.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedSpecialties([...selectedSpecialties, specialty]);
-                    } else {
-                      setSelectedSpecialties(selectedSpecialties.filter((s) => s.id !== specialty.id));
-                    }
-                  }}
-                />
-                <Label htmlFor={`specialty-${specialty.id}`}>{specialty.name}</Label>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <Label>Expertise</Label>
-          <div className="flex flex-wrap gap-2">
-            {expertiseData.map((expertise) => (
-              <div key={expertise.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`expertise-${expertise.id}`}
-                  checked={selectedExpertise.some((e) => e.id === expertise.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedExpertise([...selectedExpertise, expertise]);
-                    } else {
-                      setSelectedExpertise(selectedExpertise.filter((e) => e.id !== expertise.id));
-                    }
-                  }}
-                />
-                <Label htmlFor={`expertise-${expertise.id}`}>{expertise.name}</Label>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <Label>Languages</Label>
-          <div className="flex flex-wrap gap-2">
-            {languagesData.map((language) => (
-              <div key={language.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`language-${language.id}`}
-                  checked={selectedLanguages.some((l) => l.id === language.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedLanguages([...selectedLanguages, language]);
-                    } else {
-                      setSelectedLanguages(selectedLanguages.filter((l) => l.id !== language.id));
-                    }
-                  }}
-                />
-                <Label htmlFor={`language-${language.id}`}>{language.name}</Label>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <Label>Session Types</Label>
-          <div className="flex flex-wrap gap-2">
-            {sessionTypesData.map((sessionType) => (
-              <div key={sessionType.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`sessionType-${sessionType.id}`}
-                  checked={sessionTypes.some((st) => st.id === sessionType.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSessionTypes([...sessionTypes, sessionType]);
-                    } else {
-                      setSessionTypes(sessionTypes.filter((st) => st.id !== sessionType.id));
-                    }
-                  }}
-                />
-                <Label htmlFor={`sessionType-${sessionType.id}`}>{sessionType.name}</Label>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <Label>Availability</Label>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {daysOfWeek.map((day) => (
-              <div key={day} className="space-y-2">
-                <h4 className="font-semibold">{day}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {timeSlots.map((time) => {
-                    const isAvailable = availability.some(
-                      (slot) => slot.day === day && slot.time === time
-                    );
-                    return (
-                      <div key={`${day}-${time}`} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${day}-${time}`}
-                          checked={isAvailable}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setAvailability([
-                                ...availability,
-                                { day, time },
-                              ]);
-                            } else {
-                              setAvailability(
-                                availability.filter(
-                                  (slot) => !(slot.day === day && slot.time === time)
-                                )
-                              );
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`${day}-${time}`}>{time}</Label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+  const handleDisconnectZoom = () => {
+    setZoomAccount(null);
+  };
+  
+  const formatDay = (day: string): string => {
+    if (!day) return 'Monday';
+    return day.charAt(0).toUpperCase() + day.slice(1);
+  };
 
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+  const formatTime = (time: string | undefined): string => {
+    if (!time) return '';
+    
+    const [hours, minutes] = time.split(':');
+    if (!hours || !minutes) return time;
+    
+    const hour = parseInt(hours, 10);
+    if (isNaN(hour)) return time;
+    
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    return `${formattedHour}:${minutes} ${ampm}`;
+  };
+  
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    const teacherData = {
+      ...values,
+      id: teacher?.id || `teacher-${Date.now()}`,
+      specialties,
+      expertise,
+      certifications,
+      sessionTypes: mapToContextSessionTypes(sessionTypes),
+      availability: mapToContextAvailability(availability),
+      zoomAccount: mapToContextZoomAccount(zoomAccount),
+      rating: teacher?.rating || 5.0,
+      reviewCount: teacher?.reviewCount || 0,
+      totalSessions: teacher?.totalSessions || 0,
+    };
+    
+    if (teacher) {
+      updateTeacher(teacherData.id, teacherData);
+    } else {
+      addTeacher(teacherData);
+    }
+    
+    onComplete();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Tabs defaultValue="basic">
+          <TabsList className="grid grid-cols-5 mb-4">
+            <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="qualifications">Qualifications</TabsTrigger>
+            <TabsTrigger value="sessions">Session Types</TabsTrigger>
+            <TabsTrigger value="availability">Availability</TabsTrigger>
+            <TabsTrigger value="zoom">Zoom Integration</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="basic" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="avatarUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Profile Image URL</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="https://example.com/image.jpg" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="experience"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Years of Experience</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} min={0} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="languages"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Languages Spoken</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value[0]}
+                        onValueChange={(value) => field.onChange([value])}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="English">English</SelectItem>
+                          <SelectItem value="Spanish">Spanish</SelectItem>
+                          <SelectItem value="French">French</SelectItem>
+                          <SelectItem value="German">German</SelectItem>
+                          <SelectItem value="Portuguese">Portuguese</SelectItem>
+                          <SelectItem value="Hindi">Hindi</SelectItem>
+                          <SelectItem value="Mandarin">Mandarin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <FormField
+              control={form.control}
+              name="shortBio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Short Bio (displayed on cards)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Brief introduction (max 150 characters)"
+                      className="resize-none"
+                      rows={2}
+                    />
+                  </FormControl>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {field.value.length}/150 characters
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="fullBio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Biography</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Detailed biography with information about background, approach and teaching philosophy"
+                      className="resize-none"
+                      rows={6}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div>
+              <FormLabel>Specialties</FormLabel>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {specialties.map((specialty, index) => (
+                  <Badge key={index} className="bg-gray-100 text-gray-800 pl-2">
+                    {specialty}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSpecialty(specialty)}
+                      className="ml-1 p-1 rounded-full hover:bg-gray-200"
+                    >
+                      <X size={14} />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newSpecialty}
+                  onChange={(e) => setNewSpecialty(e.target.value)}
+                  placeholder="Add a specialty"
+                  onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+                />
+                <Button type="button" size="sm" onClick={handleAddSpecialty}>
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="qualifications" className="space-y-4">
+            <FormField
+              control={form.control}
+              name="teachingStyle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Teaching Style</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Describe your teaching approach and style"
+                      className="resize-none"
+                      rows={4}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div>
+              <FormLabel>Areas of Expertise</FormLabel>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {expertise.map((item, index) => (
+                  <Badge key={index} className="bg-gray-100 text-gray-800 pl-2">
+                    {item}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveExpertise(item)}
+                      className="ml-1 p-1 rounded-full hover:bg-gray-200"
+                    >
+                      <X size={14} />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newExpertise}
+                  onChange={(e) => setNewExpertise(e.target.value)}
+                  placeholder="Add an area of expertise"
+                  onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+                />
+                <Button type="button" size="sm" onClick={handleAddExpertise}>
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </div>
+            
+            <div>
+              <FormLabel>Certifications</FormLabel>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {certifications.map((cert, index) => (
+                  <Badge key={index} className="bg-gray-100 text-gray-800 pl-2">
+                    {cert}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCertification(cert)}
+                      className="ml-1 p-1 rounded-full hover:bg-gray-200"
+                    >
+                      <X size={14} />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newCertification}
+                  onChange={(e) => setNewCertification(e.target.value)}
+                  placeholder="Add a certification"
+                  onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+                />
+                <Button type="button" size="sm" onClick={handleAddCertification}>
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="sessions" className="space-y-4">
+            <div className="space-y-4">
+              {sessionTypes.map((session, index) => (
+                <div key={index} className="border rounded-md p-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-medium">Session Type {index + 1}</h3>
+                    {sessionTypes.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveSessionType(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X size={16} className="mr-1" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <FormLabel>Session Name</FormLabel>
+                      <Input
+                        value={session.name}
+                        onChange={(e) => handleSessionTypeChange(index, 'name', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <FormLabel>Session Type</FormLabel>
+                      <Select
+                        value={session.type}
+                        onValueChange={(value: 'video' | 'call' | 'chat') => handleSessionTypeChange(index, 'type', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="video">Video Call</SelectItem>
+                          <SelectItem value="call">Phone Call</SelectItem>
+                          <SelectItem value="chat">Chat/Messaging</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <FormLabel>Duration (minutes)</FormLabel>
+                      <Input
+                        type="number"
+                        value={session.duration}
+                        onChange={(e) => handleSessionTypeChange(index, 'duration', Number(e.target.value))}
+                        min={15}
+                        step={5}
+                      />
+                    </div>
+                    
+                    <div>
+                      <FormLabel>Price ($)</FormLabel>
+                      <Input
+                        type="number"
+                        value={session.price}
+                        onChange={(e) => handleSessionTypeChange(index, 'price', Number(e.target.value))}
+                        min={1}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Credits: {session.credits} (1 credit = $1)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" type="button" className="w-full mt-2">
+                        <Info className="w-4 h-4 mr-2" /> Booking Restrictions
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 space-y-4 border-t pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <FormLabel>Allow Recurring Bookings</FormLabel>
+                          <div className="flex items-center mt-2">
+                            <Switch
+                              id={`recurring-${index}`}
+                              checked={session.allowRecurring}
+                              onCheckedChange={(checked) => handleSessionTypeChange(index, 'allowRecurring', checked)}
+                            />
+                            <Label htmlFor={`recurring-${index}`} className="ml-2">
+                              {session.allowRecurring ? "Enabled" : "Disabled"}
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <FormLabel>Minimum Time Before Booking (hours)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.minTimeBeforeBooking || 2}
+                            onChange={(e) => handleSessionTypeChange(index, 'minTimeBeforeBooking', Number(e.target.value))}
+                            min={0}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many hours in advance must the booking be made
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Minimum Time Before Cancelling (hours)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.minTimeBeforeCancel || 4}
+                            onChange={(e) => handleSessionTypeChange(index, 'minTimeBeforeCancel', Number(e.target.value))}
+                            min={0}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many hours in advance must cancellations be made
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Minimum Time Before Rescheduling (hours)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.minTimeBeforeReschedule || 6}
+                            onChange={(e) => handleSessionTypeChange(index, 'minTimeBeforeReschedule', Number(e.target.value))}
+                            min={0}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many hours in advance must rescheduling be done
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Maximum Advance Booking Period (days)</FormLabel>
+                          <Input
+                            type="number"
+                            value={session.maxAdvanceBookingDays || 30}
+                            onChange={(e) => handleSessionTypeChange(index, 'maxAdvanceBookingDays', Number(e.target.value))}
+                            min={1}
+                            max={365}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many days in advance can bookings be made
+                          </p>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              ))}
+              
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddSessionType}
+                className="w-full"
+              >
+                <Plus size={16} className="mr-1" /> Add Another Session Type
+              </Button>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="availability" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Availability Schedule</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {availability.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    No availability has been set for this teacher.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {availability.map((slot) => (
+                      <div key={slot.id} className="flex items-center justify-between border rounded-md p-3">
+                        <div className="flex items-center space-x-3">
+                          <Clock size={18} className="text-gray-500" />
+                          <div>
+                            <p className="font-medium">{formatDay(slot.day)}</p>
+                            <p className="text-sm text-gray-500">
+                              {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                            </p>
+                          </div>
+                          {slot.isRecurring && (
+                            <Badge variant="outline" className="bg-gray-50">
+                              Recurring
+                            </Badge>
+                          )}
+                        </div>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveAvailability(slot.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Add New Availability</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <FormLabel>Day of the Week</FormLabel>
+                    <Select
+                      value={newAvailability.day}
+                      onValueChange={(value: string) => handleAvailabilityChange('day', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monday">Monday</SelectItem>
+                        <SelectItem value="tuesday">Tuesday</SelectItem>
+                        <SelectItem value="wednesday">Wednesday</SelectItem>
+                        <SelectItem value="thursday">Thursday</SelectItem>
+                        <SelectItem value="friday">Friday</SelectItem>
+                        <SelectItem value="saturday">Saturday</SelectItem>
+                        <SelectItem value="sunday">Sunday</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FormLabel>Start Time</FormLabel>
+                    <Input
+                      type="time"
+                      value={newAvailability.startTime}
+                      onChange={(e) => handleAvailabilityChange('startTime', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <FormLabel>End Time</FormLabel>
+                    <Input
+                      type="time"
+                      value={newAvailability.endTime}
+                      onChange={(e) => handleAvailabilityChange('endTime', e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 pt-2">
+                  <Switch 
+                    id="recurring"
+                    checked={newAvailability.isRecurring}
+                    onCheckedChange={(checked) => handleAvailabilityChange('isRecurring', checked)}
+                  />
+                  <Label htmlFor="recurring">Recurring weekly availability</Label>
+                </div>
+                
+                <Button
+                  type="button"
+                  onClick={handleAddAvailability}
+                  className="w-full"
+                >
+                  <Plus size={16} className="mr-1" /> Add Time Slot
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="zoom" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Zoom Integration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {zoomAccount ? (
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 border rounded-md p-4">
+                      <p className="font-medium">{zoomAccount.accountName}</p>
+                      <p className="text-sm text-gray-500">{zoomAccount.email}</p>
+                      <div className="mt-2 flex items-center">
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          {zoomAccount.connected ? "Connected" : "Not Connected"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleDisconnectZoom} 
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      Disconnect Zoom Account
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <FormLabel>Zoom Email</FormLabel>
+                        <Input
+                          value={zoomEmail}
+                          onChange={(e) => setZoomEmail(e.target.value)}
+                          placeholder="your.email@example.com"
+                        />
+                      </div>
+                      <div>
+                        <FormLabel>Account Name</FormLabel>
+                        <Input
+                          value={zoomAccountName}
+                          onChange={(e) => setZoomAccountName(e.target.value)}
+                          placeholder="Display name for this account"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleConnectZoom}
+                      className="w-full"
+                      disabled={!zoomEmail || !zoomAccountName}
+                    >
+                      Connect Zoom Account
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+        
+        <div className="flex justify-end space-x-2 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={onComplete}>
             Cancel
           </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Submitting...' : 'Submit'}
+          <Button type="submit">
+            {teacher ? "Update Teacher" : "Add Teacher"}
           </Button>
         </div>
       </form>
-    </div>
+    </Form>
   );
 };
 

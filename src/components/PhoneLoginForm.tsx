@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import CountryCodeSelector, { useCountryDetection } from './CountryCodeSelector';
 
 interface PhoneLoginFormProps {
@@ -14,7 +15,7 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { country, setCountry, isLoading: isCountryLoading } = useCountryDetection();
+  const { country, setCountry } = useCountryDetection();
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,15 +25,6 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
         variant: "destructive",
         title: "Phone number required",
         description: "Please enter your phone number."
-      });
-      return;
-    }
-    
-    if (!country) {
-      toast({
-        variant: "destructive",
-        title: "Country code error",
-        description: "Unable to determine country code. Please try again."
       });
       return;
     }
@@ -60,12 +52,10 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
           Phone Number
         </label>
         <div className="flex gap-2">
-          {!isCountryLoading && country && (
-            <CountryCodeSelector
-              selectedCountry={country}
-              onSelect={setCountry}
-            />
-          )}
+          <CountryCodeSelector
+            selectedCountry={country}
+            onSelect={setCountry}
+          />
           <Input
             id="phone"
             type="tel"
@@ -84,7 +74,7 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
       <Button 
         type="submit" 
         className="yoga-button w-full"
-        disabled={isLoading || isCountryLoading}
+        disabled={isLoading}
       >
         {isLoading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

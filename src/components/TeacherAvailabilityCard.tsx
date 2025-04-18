@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
+import { Clock, Coins } from 'lucide-react';
 
 interface CustomAvailabilitySlot {
   id?: string;

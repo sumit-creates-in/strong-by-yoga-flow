@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertTriangle, CreditCard } from 'lucide-react';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
 
 interface StripePaymentIntegrationProps {
   isActive?: boolean;
@@ -24,11 +24,9 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
   const [enableCoupons, setEnableCoupons] = useState(true);
   const [enableSubscriptions, setEnableSubscriptions] = useState(false);
   const [activationStatus, setActivationStatus] = useState(isActive);
-  const [testingConnection, setTestingConnection] = useState(false);
   const { toast } = useToast();
-  const supabase = useSupabaseClient();
   
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = () => {
     const requiredTest = [testApiKey];
     const requiredLive = [apiKey];
     
@@ -45,34 +43,16 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       return;
     }
     
-    setTestingConnection(true);
-    
-    try {
-      toast({
-        title: "Testing Stripe connection...",
-        description: "Checking API key validity...",
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setActivationStatus(true);
-      setTestingConnection(false);
-      
-      toast({
-        title: "Settings saved",
-        description: `Stripe integration ${isLiveMode ? 'LIVE' : 'TEST'} mode has been activated.`,
-      });
-    } catch (error) {
-      setTestingConnection(false);
-      toast({
-        title: "Connection error",
-        description: "Could not connect to Stripe. Please check your API key.",
-        variant: "destructive",
-      });
-    }
+    // In a real app, this would save the settings to the server
+    setActivationStatus(true);
+    toast({
+      title: "Settings saved",
+      description: `Stripe integration ${isLiveMode ? 'LIVE' : 'TEST'} mode has been activated.`,
+    });
   };
   
   const handleDisconnect = () => {
+    // In a real app, this would disconnect Stripe from the server
     setActivationStatus(false);
     toast({
       title: "Disconnected",
@@ -131,43 +111,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       description: "The coupon has been deleted.",
     });
   };
-  
-  const handleTestCheckout = async () => {
-    try {
-      setTestingConnection(true);
-      toast({
-        title: "Creating test checkout session...",
-        description: "Redirecting to Stripe...",
-      });
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          packageId: 'test-package',
-          packageName: 'Test Package',
-          creditAmount: 100,
-          price: 10
-        }
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
-    } catch (error) {
-      toast({
-        title: "Checkout Error",
-        description: error instanceof Error ? error.message : "Failed to create checkout session",
-        variant: "destructive",
-      });
-    } finally {
-      setTestingConnection(false);
-    }
-  };
 
   return (
     <Card>
@@ -193,7 +136,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
             <TabsList className="mb-4">
               <TabsTrigger value="settings">Settings</TabsTrigger>
               <TabsTrigger value="coupons">Coupon Codes</TabsTrigger>
-              <TabsTrigger value="testing">Test Integration</TabsTrigger>
             </TabsList>
             
             <TabsContent value="settings">
@@ -310,8 +252,8 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                   <Button variant="outline" onClick={handleDisconnect}>
                     Disconnect Stripe
                   </Button>
-                  <Button onClick={handleSaveSettings} disabled={testingConnection}>
-                    {testingConnection ? 'Connecting...' : 'Save Settings'}
+                  <Button onClick={handleSaveSettings}>
+                    Save Settings
                   </Button>
                 </div>
               </div>
@@ -419,44 +361,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                 </div>
               </div>
             </TabsContent>
-            
-            <TabsContent value="testing">
-              <div className="space-y-6">
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                  <h3 className="font-medium">Test Stripe Integration</h3>
-                  <p className="mt-2 text-sm text-gray-600">
-                    You can test the payment flow by creating a test checkout session.
-                    This will simulate a real payment using Stripe's test environment.
-                  </p>
-                </div>
-                
-                <div className="p-4 border border-gray-200 rounded-md">
-                  <h4 className="font-medium">Test Checkout</h4>
-                  <p className="mt-2 text-sm text-gray-600">
-                    Create a test checkout session for 100 credits ($10).
-                  </p>
-                  <Button 
-                    onClick={handleTestCheckout} 
-                    className="mt-4"
-                    disabled={testingConnection}
-                  >
-                    {testingConnection ? 'Processing...' : 'Create Test Checkout'}
-                  </Button>
-                </div>
-                
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <h4 className="font-medium text-yellow-800">Stripe Test Cards</h4>
-                  <p className="mt-2 text-sm text-yellow-800">
-                    Use these card details for testing:
-                  </p>
-                  <ul className="mt-2 space-y-1 text-sm text-yellow-800">
-                    <li>Success: 4242 4242 4242 4242</li>
-                    <li>Decline: 4000 0000 0000 0002</li>
-                    <li>Any future date, any 3 digits for CVC</li>
-                  </ul>
-                </div>
-              </div>
-            </TabsContent>
           </Tabs>
         ) : (
           <div className="space-y-6">
@@ -529,12 +433,8 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                 )}
               </div>
               
-              <Button 
-                onClick={handleSaveSettings} 
-                className="w-full"
-                disabled={testingConnection}
-              >
-                {testingConnection ? 'Connecting...' : 'Connect Stripe'}
+              <Button onClick={handleSaveSettings} className="w-full">
+                Connect Stripe
               </Button>
             </div>
           </div>

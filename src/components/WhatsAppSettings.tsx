@@ -1,17 +1,17 @@
+
 import React, { useState } from 'react';
-import { useTeachers } from '@/contexts/TeacherContext';
+import { useTeachers } from '../contexts/TeacherContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const WhatsAppSettings = () => {
   const { notificationSettings, updateNotificationSettings } = useTeachers();
-  const { toast } = useToast();
   const [testMessage, setTestMessage] = useState('');
   const [testPhone, setTestPhone] = useState('');
   
@@ -24,11 +24,10 @@ const WhatsAppSettings = () => {
     verifyToken: 'strongbyyoga_verify_token',
     autoReplyEnabled: true,
     autoReplyMessage: '',
-    templates: []
   };
   
   const handleWhatsAppSettingsChange = (field: string, value: any) => {
-    if (!notificationSettings || !updateNotificationSettings) return;
+    if (!notificationSettings) return;
     
     updateNotificationSettings({
       whatsapp: {
@@ -39,7 +38,7 @@ const WhatsAppSettings = () => {
   };
   
   const handleToggleWhatsApp = (enabled: boolean) => {
-    if (!notificationSettings || !updateNotificationSettings) return;
+    if (!notificationSettings) return;
     
     updateNotificationSettings({
       whatsapp: {
@@ -50,7 +49,7 @@ const WhatsAppSettings = () => {
   };
   
   const handleToggleAutoReply = (enabled: boolean) => {
-    if (!notificationSettings || !updateNotificationSettings) return;
+    if (!notificationSettings) return;
     
     updateNotificationSettings({
       whatsapp: {
@@ -96,20 +95,6 @@ const WhatsAppSettings = () => {
       description: "Your test WhatsApp message has been sent.",
     });
   };
-  
-  // If the required props aren't available, show a simple message
-  if (!notificationSettings || !updateNotificationSettings) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>WhatsApp Integration</CardTitle>
-          <CardDescription>
-            WhatsApp integration settings are not available
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
   
   return (
     <Card>
