@@ -10,10 +10,10 @@ export interface Teacher {
   sessionTypes: SessionType[];
   availability: AvailabilitySlot[];
   zoomAccount: ZoomAccount;
+  notificationSettings: NotificationSettings;
   teachingStyle?: string;
   lastReviewDate?: Date;
   reviews?: Review[];
-  notificationSettings?: NotificationSettings;
   avatarUrl?: string;
   rating?: number;
   reviewCount?: number;
@@ -106,4 +106,5 @@ export interface TeacherContextProps {
   bookSession?: (bookingData: any) => void;
   getBooking?: (bookingId: string) => any;
   purchaseCredits?: (amount: number | string) => void;
+  userCredits?: number;
 }
