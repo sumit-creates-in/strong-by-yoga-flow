@@ -395,15 +395,32 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   };
   
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const teacherData = {
+    const teacherData: Teacher = {
       ...values,
       id: teacher?.id || `teacher-${Date.now()}`,
+      title: teacher?.title || values.name.split(' ')[0] + "'s Yoga",
+      bio: values.fullBio || '',
       specialties,
       expertise,
       certifications,
       sessionTypes: mapToContextSessionTypes(sessionTypes),
       availability: mapToContextAvailability(availability),
-      zoomAccount: mapToContextZoomAccount(zoomAccount),
+      zoomAccount: mapToContextZoomAccount(zoomAccount) || { email: '', isConnected: false },
+      notificationSettings: teacher?.notificationSettings || {
+        email: { enabled: true, templates: [] },
+        app: { enabled: true, templates: [] },
+        whatsapp: { 
+          enabled: false, 
+          templates: [],
+          phoneNumberId: '',
+          accessToken: '',
+          businessAccountId: '',
+          verifyToken: 'verify_token',
+          autoReplyEnabled: false,
+          autoReplyMessage: ''
+        },
+        sms: { enabled: false, templates: [] }
+      },
       rating: teacher?.rating || 5.0,
       reviewCount: teacher?.reviewCount || 0,
       totalSessions: teacher?.totalSessions || 0,

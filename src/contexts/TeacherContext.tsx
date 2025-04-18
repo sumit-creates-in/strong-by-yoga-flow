@@ -1,164 +1,8 @@
+
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-// Define types
-export interface AvailabilitySlot {
-  day: string;
-  slots: {
-    start: string;
-    end: string;
-  }[];
-}
-
-export interface ZoomAccount {
-  email: string;
-  isConnected: boolean;
-}
-
-export interface SessionType {
-  id: string;
-  name: string;
-  description: string;
-  duration: number;
-  price: number;
-  isActive: boolean;
-  bookingRestrictions: {
-    minTimeBeforeBooking: number; // hours
-    maxAdvanceBookingPeriod: number; // days
-    minTimeBeforeCancelling: number; // hours
-    minTimeBeforeRescheduling: number; // hours
-  };
-  credits?: number; // Make credits optional for backward compatibility
-}
-
-export interface NotificationTemplate {
-  id: string;
-  name: string;
-  type: 'email' | 'sms' | 'whatsapp' | 'in-app';
-  subject?: string;
-  body: string;
-  enabled: boolean;
-  recipientType: 'student' | 'teacher' | 'both'; // Changed from recipients array to recipientType
-  triggerType: 'action' | 'scheduled';
-  triggerAction?: 'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'booking_reminder';
-  scheduledTime?: {
-    when: 'before' | 'after' | 'same-day';
-    time: number;
-  };
-  timing?: { // Keep for backwards compatibility
-    type: 'before' | 'after';
-    minutes: number;
-  };
-  recipients?: ('user' | 'teacher')[]; // Keep for backwards compatibility
-}
-
-// Add booking data interface
-export interface BookingData {
-  id: string;
-  teacherId: string;
-  userId: string;
-  sessionType: SessionType;
-  date: Date;
-  time: string;
-  status: 'confirmed' | 'cancelled' | 'completed' | 'pending';
-  credits: number;
-}
-
-// Add credit transaction interface
-export interface CreditTransaction {
-  id: string;
-  type: 'purchase' | 'usage' | 'refund' | 'admin' | 'gift';
-  amount: number;
-  description: string;
-  date: string;
-}
-
-// Add credit package interface
-export interface CreditPackage {
-  id: string;
-  name: string;
-  price: number;
-  credits: number;
-  popular?: boolean;
-  mostValue?: boolean;
-}
-
-export interface Teacher {
-  id: string;
-  name: string;
-  title: string;
-  bio: string;
-  avatarUrl: string;
-  rating: number;
-  reviewCount: number;
-  experience: number;
-  totalSessions: number;
-  specialties: string[];
-  expertise: string[];
-  certifications: string[];
-  languages?: string[];
-  sessionTypes: SessionType[];
-  availability: AvailabilitySlot[];
-  zoomAccount: ZoomAccount;
-  shortBio?: string; // Added missing fields
-  fullBio?: string;
-  teachingStyle?: string;
-  notificationSettings: {
-    email: {
-      enabled: boolean;
-      templates: NotificationTemplate[];
-    };
-    app: {
-      enabled: boolean;
-      templates: NotificationTemplate[];
-    };
-    whatsapp: {
-      enabled: boolean;
-      phoneNumberId: string;
-      accessToken: string;
-      businessAccountId: string;
-      verifyToken: string;
-      autoReplyEnabled: boolean;
-      autoReplyMessage: string;
-      templates: NotificationTemplate[];
-    };
-    sms: {
-      enabled: boolean;
-      templates: NotificationTemplate[];
-    };
-  };
-}
+import { Teacher, AvailabilitySlot, ZoomAccount, SessionType, NotificationTemplate, BookingData, CreditTransaction, CreditPackage, TeacherContextProps } from '@/types/teacher';
 
 // Create context
-interface TeacherContextProps {
-  teachers: Teacher[];
-  bookings: BookingData[];
-  addTeacher: (teacher: Teacher) => void;
-  updateTeacher: (id: string, teacher: Partial<Teacher>) => void;
-  deleteTeacher: (id: string) => void;
-  getTeacher: (id: string) => Teacher | undefined;
-  
-  // Add notification-related methods
-  updateNotificationTemplate: (template: NotificationTemplate) => void;
-  deleteNotificationTemplate: (id: string) => void;
-  sendTestNotification: (templateId: string, recipient: string) => void;
-  
-  // Add teacher availability methods
-  addTeacherAvailability: (teacherId: string, availability: AvailabilitySlot) => void;
-  removeTeacherAvailability: (teacherId: string, dayIndex: number) => void;
-  
-  // Add zoom account methods
-  connectZoomAccount: (teacherId: string, email: string) => void;
-  disconnectZoomAccount: (teacherId: string) => void;
-  
-  // Add credit-related properties
-  userCredits: number;
-  creditTransactions: CreditTransaction[];
-  creditPackages: CreditPackage[];
-  addCreditPackage: (pkg: Omit<CreditPackage, 'id'>) => void;
-  updateCreditPackage: (pkg: CreditPackage) => void;
-  deleteCreditPackage: (id: string) => void;
-}
-
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
 
 // Create provider
@@ -191,6 +35,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           duration: 60,
           price: 85,
           isActive: true,
+          type: 'video',
           bookingRestrictions: {
             minTimeBeforeBooking: 24, // 24 hours
             maxAdvanceBookingPeriod: 30, // 30 days
@@ -204,6 +49,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           description: 'Learn meditation techniques tailored to your lifestyle and goals with personalized guidance.',
           duration: 45,
           price: 65,
+          type: 'video',
           isActive: true,
           bookingRestrictions: {
             minTimeBeforeBooking: 12, // 12 hours
@@ -248,6 +94,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               name: 'Session Reminder',
               subject: 'Reminder: Your yoga session is coming up',
               body: 'Hi {{name}}, this is a reminder that your {{sessionType}} with {{teacherName}} is scheduled for {{date}} at {{time}}. Please be ready 5 minutes before the start time. Looking forward to seeing you!',
+              type: 'email',
+              enabled: true,
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -259,6 +109,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               name: 'Session Feedback',
               subject: 'How was your yoga session?',
               body: 'Hi {{name}}, thank you for attending the {{sessionType}} with {{teacherName}}. We hope you enjoyed it! Please take a moment to provide feedback on your experience.',
+              type: 'email',
+              enabled: true,
+              recipientType: 'student',
+              triggerType: 'scheduled',
               timing: {
                 type: 'after',
                 minutes: 60 // 1 hour
@@ -274,6 +128,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'app-1',
               name: 'Session Reminder',
               body: 'Your {{sessionType}} with {{teacherName}} is tomorrow at {{time}}.',
+              type: 'in-app',
+              enabled: true,
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -284,6 +142,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'app-2',
               name: 'Session Starting Soon',
               body: 'Your {{sessionType}} with {{teacherName}} starts in 15 minutes.',
+              type: 'in-app',
+              enabled: true,
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 15
@@ -305,6 +167,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'whatsapp-1',
               name: 'Session Reminder',
               body: 'Hi {{name}}, your yoga session with {{teacherName}} is scheduled for tomorrow at {{time}}. Click the link to join: {{zoomLink}}',
+              type: 'whatsapp',
+              enabled: true,
+              recipientType: 'student',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -320,6 +186,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'sms-1',
               name: 'Session Reminder',
               body: 'Your yoga session with {{teacherName}} is scheduled for tomorrow at {{time}}. Reply YES to confirm.',
+              type: 'sms',
+              enabled: true,
+              recipientType: 'student',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -351,6 +221,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           description: 'Comprehensive assessment of your movement patterns followed by a personalized mobility routine.',
           duration: 75,
           price: 95,
+          type: 'video',
           isActive: true,
           bookingRestrictions: {
             minTimeBeforeBooking: 48, // 48 hours
@@ -365,6 +236,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
           description: 'Private vinyasa yoga session tailored to your level and goals, focusing on fluid movement and breath.',
           duration: 60,
           price: 80,
+          type: 'video',
           isActive: true,
           bookingRestrictions: {
             minTimeBeforeBooking: 24, // 24 hours
@@ -409,6 +281,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               name: 'Session Reminder',
               subject: 'Reminder: Your yoga session is coming up',
               body: 'Hi {{name}}, this is a reminder that your {{sessionType}} with {{teacherName}} is scheduled for {{date}} at {{time}}. Please be ready 5 minutes before the start time. Looking forward to seeing you!',
+              type: 'email',
+              enabled: true,
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -424,6 +300,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
               id: 'app-1',
               name: 'Session Reminder',
               body: 'Your {{sessionType}} with {{teacherName}} is tomorrow at {{time}}.',
+              type: 'in-app',
+              enabled: true,
+              recipientType: 'both',
+              triggerType: 'scheduled',
               timing: {
                 type: 'before',
                 minutes: 1440 // 24 hours
@@ -463,6 +343,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         duration: 60,
         price: 85,
         isActive: true,
+        type: 'video',
         bookingRestrictions: {
           minTimeBeforeBooking: 24,
           maxAdvanceBookingPeriod: 30,
@@ -487,6 +368,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         duration: 60,
         price: 80,
         isActive: true,
+        type: 'video',
         bookingRestrictions: {
           minTimeBeforeBooking: 24,
           maxAdvanceBookingPeriod: 30,
@@ -582,7 +464,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         
         // Find which channel this template belongs to
         for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
-          const index = notificationSettings[channel].templates.findIndex(t => t.id === template.id);
+          const index = notificationSettings[channel]?.templates.findIndex(t => t.id === template.id);
           if (index >= 0) {
             const updatedTemplates = [...notificationSettings[channel].templates];
             updatedTemplates[index] = template;
@@ -607,13 +489,15 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         
         // Find which channel this template belongs to
         for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
-          const updatedTemplates = notificationSettings[channel].templates.filter(t => t.id !== id);
-          if (updatedTemplates.length !== notificationSettings[channel].templates.length) {
-            notificationSettings[channel] = {
-              ...notificationSettings[channel],
-              templates: updatedTemplates
-            };
-            break;
+          if (notificationSettings[channel]) {
+            const updatedTemplates = notificationSettings[channel].templates.filter(t => t.id !== id);
+            if (updatedTemplates.length !== notificationSettings[channel].templates.length) {
+              notificationSettings[channel] = {
+                ...notificationSettings[channel],
+                templates: updatedTemplates
+              };
+              break;
+            }
           }
         }
         
@@ -626,6 +510,12 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     // Mock implementation that would send a test notification
     console.log(`Sending test notification for template ${templateId} to ${recipient}`);
     // In a real implementation, this would make an API call to send the notification
+  };
+
+  // Add notification settings update method
+  const updateNotificationSettings = (settings: any) => {
+    // This is a simplified implementation that would be replaced with actual API calls
+    console.log('Updating notification settings:', settings);
   };
   
   // Add teacher availability methods
@@ -641,7 +531,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
             // Update existing day
             updatedAvailability[existingDayIndex] = {
               ...updatedAvailability[existingDayIndex],
-              slots: [...updatedAvailability[existingDayIndex].slots, ...availability.slots]
+              slots: [...updatedAvailability[existingDayIndex].slots || [], ...(availability.slots || [])]
             };
           } else {
             // Add new day
@@ -716,6 +606,35 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     setCreditPackages(prevPackages => prevPackages.filter(p => p.id !== id));
   };
 
+  // Add booking methods
+  const bookSession = (bookingData: any) => {
+    // Implementation would create a booking and update credits
+    console.log('Booking session:', bookingData);
+  };
+
+  const getBooking = (bookingId: string) => {
+    return bookings.find(booking => booking.id === bookingId);
+  };
+
+  // Add credit purchase method
+  const purchaseCredits = (amount: number | string) => {
+    const creditAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;
+    if (isNaN(creditAmount) || creditAmount <= 0) return;
+    
+    setUserCredits(prev => prev + creditAmount);
+    
+    // Add transaction record
+    const newTransaction: CreditTransaction = {
+      id: `transaction-${Date.now()}`,
+      type: 'purchase',
+      amount: creditAmount,
+      description: `Purchased ${creditAmount} credits`,
+      date: new Date().toISOString()
+    };
+    
+    setCreditTransactions(prev => [newTransaction, ...prev]);
+  };
+
   return (
     <TeacherContext.Provider 
       value={{ 
@@ -737,7 +656,12 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         creditPackages,
         addCreditPackage,
         updateCreditPackage,
-        deleteCreditPackage
+        deleteCreditPackage,
+        bookSession,
+        getBooking,
+        purchaseCredits,
+        updateNotificationSettings,
+        notificationSettings: teachers[0]?.notificationSettings
       }}
     >
       {children}

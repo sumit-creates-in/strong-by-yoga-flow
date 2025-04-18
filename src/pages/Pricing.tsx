@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -92,7 +91,7 @@ const Pricing = () => {
         });
       } 
       else if (paymentType === 'custom') {
-        // Custom credits purchase
+        // Custom credits purchase logic
         const price = paymentMethod === 'subscription' 
           ? Math.round(customCredits * 0.95 * 100) / 100 
           : customCredits;
@@ -109,6 +108,12 @@ const Pricing = () => {
             subscription: paymentMethod === 'subscription' ? 'true' : 'false'
           }
         });
+        
+        // Optional credit purchase function - would be replaced by actual webhook verification
+        if (purchaseCredits && paymentType === 'custom') {
+          // This is only for demo purposes - real apps should not add credits before payment verification
+          // purchaseCredits(customCredits);
+        }
       }
     } catch (error) {
       console.error('Payment error:', error);

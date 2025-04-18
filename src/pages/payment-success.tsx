@@ -1,129 +1,118 @@
+
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useStripeService } from '@/services/stripe-service';
 import { useTeachers } from '@/contexts/TeacherContext';
 import Layout from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { Check, RefreshCw, AlertTriangle } from 'lucide-react';
-import { useStripeService } from '@/services/stripe-service';
+import { CheckCircle2 } from 'lucide-react';
 
-const PaymentSuccess = () => {
+const PaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('session_id');
+  const navigate = useNavigate();
+  const { verifyPayment } = useStripeService();
   const { purchaseCredits } = useTeachers();
-  const { toast } = useToast();
-  const stripeService = useStripeService();
+  const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [creditAmount, setCreditAmount] = useState<number | null>(null);
   
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('Verifying your payment...');
-  const [creditAmount, setCreditAmount] = useState(0);
+  const sessionId = searchParams.get('session_id');
   
   useEffect(() => {
-    const verifyPayment = async () => {
+    const verifyAndAddCredits = async () => {
       if (!sessionId) {
-        setStatus('error');
-        setMessage('Invalid session ID');
+        setVerificationStatus('error');
         return;
       }
       
       try {
-        const data = await stripeService.verifyPayment(sessionId);
+        const result = await verifyPayment(sessionId);
         
-        if (!data.success || !data.verified) {
-          setStatus('error');
-          setMessage(data.message || 'Payment verification failed');
-          return;
-        }
-        
-        setCreditAmount(data.credits || 0);
-        
-        if (typeof purchaseCredits === 'function' && data.credits) {
-          purchaseCredits(data.credits);
+        if (result?.success && result?.verified) {
+          setCreditAmount(result.credits);
+          setVerificationStatus('success');
           
-          toast({
-            title: "Credits Added!",
-            description: `${data.credits} credits have been added to your account.`,
-          });
+          // Add credits to user account
+          if (purchaseCredits && result.credits) {
+            purchaseCredits(result.credits);
+          }
+        } else {
+          setVerificationStatus('error');
         }
-        
-        setStatus('success');
-        setMessage('Payment successful! Your credits have been added.');
       } catch (error) {
         console.error('Payment verification error:', error);
-        setStatus('error');
-        setMessage('An error occurred while verifying your payment.');
+        setVerificationStatus('error');
       }
     };
     
-    verifyPayment();
-  }, [sessionId, purchaseCredits, toast, stripeService]);
+    verifyAndAddCredits();
+  }, [sessionId, purchaseCredits]);
   
   return (
     <Layout>
-      <div className="container max-w-lg mx-auto px-4 py-12">
+      <div className="max-w-md mx-auto mt-10">
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">
-              {status === 'loading' && 'Processing Payment'}
-              {status === 'success' && 'Payment Successful!'}
-              {status === 'error' && 'Payment Verification Issue'}
-            </CardTitle>
+            <div className="flex items-center space-x-2">
+              {verificationStatus === 'loading' ? (
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+              ) : verificationStatus === 'success' ? (
+                <CheckCircle2 className="text-green-500 h-8 w-8" />
+              ) : (
+                <div className="bg-red-100 text-red-600 p-1 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+              <CardTitle>
+                {verificationStatus === 'loading' && 'Processing Payment...'}
+                {verificationStatus === 'success' && 'Payment Successful!'}
+                {verificationStatus === 'error' && 'Payment Verification Failed'}
+              </CardTitle>
+            </div>
+            <CardDescription>
+              {verificationStatus === 'loading' && 'Please wait while we verify your payment.'}
+              {verificationStatus === 'success' && 'Your purchase has been completed successfully.'}
+              {verificationStatus === 'error' && 'We could not verify your payment. Please contact support.'}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {status === 'loading' && (
-              <div className="flex flex-col items-center justify-center py-6">
-                <RefreshCw className="h-12 w-12 text-blue-500 animate-spin" />
-                <p className="mt-4 text-lg text-center">{message}</p>
-              </div>
-            )}
-            
-            {status === 'success' && (
-              <div className="flex flex-col items-center justify-center py-6">
-                <div className="bg-green-100 p-4 rounded-full">
-                  <Check className="h-12 w-12 text-green-500" />
-                </div>
-                
-                <p className="mt-4 text-lg text-center">{message}</p>
-                
-                <div className="mt-6 bg-gray-50 rounded-lg p-4 w-full">
-                  <h3 className="font-medium text-center mb-2">Order Summary</h3>
-                  <div className="flex justify-between items-center border-b pb-2 mb-2">
-                    <span>Credit Package:</span>
-                    <span className="font-medium">{creditAmount} Credits</span>
-                  </div>
-                  <div className="flex justify-between items-center font-medium">
-                    <span>Your new credit balance:</span>
-                    <span>View in Profile</span>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full">
-                  <Button asChild className="flex-1">
-                    <Link to="/teachers">Browse Teachers</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="flex-1">
-                    <Link to="/profile">View Profile</Link>
-                  </Button>
+          
+          <CardContent>
+            {verificationStatus === 'success' && creditAmount && (
+              <div className="text-center py-4">
+                <p className="text-lg mb-2">
+                  {creditAmount} credits have been added to your account!
+                </p>
+                <p className="text-sm text-gray-500 mb-6">
+                  You can now use these credits to book one-on-one sessions with our teachers.
+                </p>
+                <div className="flex space-x-4 justify-center">
+                  <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
+                  <Button variant="outline" onClick={() => navigate('/bookings')}>View Bookings</Button>
                 </div>
               </div>
             )}
             
-            {status === 'error' && (
-              <div className="flex flex-col items-center justify-center py-6">
-                <div className="bg-red-100 p-4 rounded-full">
-                  <AlertTriangle className="h-12 w-12 text-red-500" />
+            {verificationStatus === 'error' && (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500 mb-6">
+                  If you believe this is an error, please contact our support team with your order reference.
+                </p>
+                <div className="flex space-x-4 justify-center">
+                  <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
+                  <Button variant="outline" onClick={() => navigate('/contact')}>Contact Support</Button>
                 </div>
-                
-                <p className="mt-4 text-lg text-center">{message}</p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full">
-                  <Button asChild className="flex-1">
-                    <Link to="/pricing">Try Again</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="flex-1">
-                    <Link to="/">Go Home</Link>
-                  </Button>
+              </div>
+            )}
+            
+            {verificationStatus === 'loading' && (
+              <div className="flex justify-center py-8">
+                <div className="animate-pulse flex space-x-4">
+                  <div className="flex-1 space-y-4 py-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
                 </div>
               </div>
             )}
@@ -134,4 +123,4 @@ const PaymentSuccess = () => {
   );
 };
 
-export default PaymentSuccess;
+export default PaymentSuccessPage;

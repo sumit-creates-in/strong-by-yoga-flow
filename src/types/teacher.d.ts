@@ -18,15 +18,24 @@ export interface Teacher {
   rating?: number;
   reviewCount?: number;
   experience?: number;
+  shortBio?: string;
+  fullBio?: string;
+  totalSessions?: number;
+  languages?: string[];
 }
 
 export interface AvailabilitySlot {
-  id: string;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isRecurring: boolean;
+  id?: string;
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+  isRecurring?: boolean;
   date?: string;
+  day?: string;
+  slots?: {
+    start: string;
+    end: string;
+  }[];
 }
 
 export interface ZoomAccount {
@@ -34,6 +43,8 @@ export interface ZoomAccount {
   email?: string;
   verified?: boolean;
   personalMeetingId?: string;
+  isConnected?: boolean;
+  accountName?: string;
 }
 
 export interface Review {
@@ -67,17 +78,30 @@ export interface NotificationSettings {
     enabled: boolean;
     templates: NotificationTemplate[];
   };
+  app?: {
+    enabled: boolean;
+    templates: NotificationTemplate[];
+  };
 }
 
 export interface SessionType {
   id: string;
   name: string;
   duration: number;
-  credits: number;
+  credits?: number;
+  price?: number;
   type?: 'video' | 'call' | 'chat';
   minTimeBeforeBooking?: number;
   maxAdvanceBookingDays?: number;
   allowRecurring?: boolean;
+  description?: string;
+  isActive?: boolean;
+  bookingRestrictions?: {
+    minTimeBeforeBooking: number;
+    maxAdvanceBookingPeriod: number;
+    minTimeBeforeCancelling: number;
+    minTimeBeforeRescheduling: number;
+  };
 }
 
 export interface NotificationTemplate {
@@ -89,29 +113,45 @@ export interface NotificationTemplate {
   enabled: boolean;
   recipientType: string;
   triggerType: string;
-  timing: {
+  timing?: {
     type: 'before' | 'after';
     minutes: number;
   };
-  recipients: ('user' | 'teacher')[];
+  recipients?: ('user' | 'teacher')[];
+  triggerAction?: 'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'booking_reminder';
+  scheduledTime?: {
+    when: 'before' | 'after' | 'same-day';
+    time: number;
+  };
 }
 
 export interface TeacherContextProps {
   teachers: Teacher[];
   getTeacher: (id: string) => Teacher | undefined;
-  loading: boolean;
-  error: Error | null;
-  notificationSettings: NotificationSettings;
-  updateNotificationSettings: (settings: any) => void;
-  bookSession: (bookingData: any) => void;
-  getBooking: (bookingId: string) => any;
-  purchaseCredits: (amount: number | string) => void;
+  loading?: boolean;
+  error?: Error | null;
+  notificationSettings?: NotificationSettings;
+  updateNotificationSettings?: (settings: any) => void;
+  bookSession?: (bookingData: any) => void;
+  getBooking?: (bookingId: string) => any;
+  purchaseCredits?: (amount: number | string) => void;
   userCredits: number;
   creditPackages?: CreditPackage[];
   creditTransactions?: CreditTransaction[];
   addCreditPackage?: (packageData: Partial<CreditPackage>) => void;
   updateCreditPackage?: (packageData: CreditPackage) => void;
   deleteCreditPackage?: (packageId: string) => void;
+  addTeacher?: (teacher: Teacher) => void;
+  updateTeacher?: (id: string, teacher: Partial<Teacher>) => void;
+  deleteTeacher?: (id: string) => void;
+  updateNotificationTemplate?: (template: NotificationTemplate) => void;
+  deleteNotificationTemplate?: (id: string) => void;
+  sendTestNotification?: (templateId: string, recipient: string) => void;
+  addTeacherAvailability?: (teacherId: string, availability: AvailabilitySlot) => void;
+  removeTeacherAvailability?: (teacherId: string, dayIndex: number) => void;
+  connectZoomAccount?: (teacherId: string, email: string) => void;
+  disconnectZoomAccount?: (teacherId: string) => void;
+  bookings?: BookingData[];
 }
 
 export interface CreditPackage {
@@ -125,11 +165,24 @@ export interface CreditPackage {
 
 export interface CreditTransaction {
   id: string;
-  user_id: string;
+  user_id?: string;
   amount: number;
-  type: 'purchase' | 'usage' | 'refund' | 'adjustment';
-  created_at: string;
+  type: 'purchase' | 'usage' | 'refund' | 'adjustment' | 'admin' | 'gift';
+  created_at?: string;
   payment_id?: string;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  status?: 'pending' | 'completed' | 'failed' | 'refunded';
   metadata?: any;
+  description?: string;
+  date?: string;
+}
+
+export interface BookingData {
+  id: string;
+  teacherId: string;
+  userId: string;
+  sessionType: SessionType;
+  date: Date;
+  time: string;
+  status: 'confirmed' | 'cancelled' | 'completed' | 'pending';
+  credits: number;
 }
