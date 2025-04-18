@@ -327,14 +327,14 @@ const AdminTeachers = () => {
       
       {/* Add Teacher Dialog */}
       <Dialog open={isAddTeacherOpen} onOpenChange={setIsAddTeacherOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
+        <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>Add New Teacher</DialogTitle>
             <DialogDescription>
               Add a new yoga teacher to offer 1-on-1 sessions for students.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[65vh] overflow-y-auto pr-4">
+          <ScrollArea className="max-h-[65vh]">
             <TeacherForm 
               onComplete={handleTeacherAdded}
             />
@@ -344,7 +344,7 @@ const AdminTeachers = () => {
       
       {/* Edit Teacher Dialog */}
       <Dialog open={isEditTeacherOpen} onOpenChange={setIsEditTeacherOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
+        <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>Edit Teacher</DialogTitle>
             <DialogDescription>
@@ -352,7 +352,7 @@ const AdminTeachers = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedTeacher && (
-            <ScrollArea className="max-h-[65vh] overflow-y-auto pr-4">
+            <ScrollArea className="max-h-[65vh]">
               <TeacherForm 
                 teacher={selectedTeacher}
                 onComplete={handleTeacherUpdated}
