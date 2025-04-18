@@ -1,6 +1,4 @@
 
-// Fix the Dashboard component to handle the missing properties and check for currentUser correctly
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -43,11 +41,16 @@ const Dashboard = () => {
   // Show only the first 4 classes
   const featuredClasses = classes ? classes.slice(0, 4) : [];
 
+  // Get user's full name from profile
+  const userName = auth.user?.profile ? 
+    `${auth.user.profile.first_name || ''} ${auth.user.profile.last_name || ''}`.trim() : 
+    '';
+
   return (
     <Layout>
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-1">
-          Welcome{auth.user?.displayName ? `, ${auth.user.displayName}` : ''}
+          Welcome{userName ? `, ${userName}` : ''}
         </h1>
         <p className="text-gray-500">
           Here's an overview of your upcoming sessions and activities
@@ -71,37 +74,34 @@ const Dashboard = () => {
             
             {upcomingBookings.length > 0 ? (
               <div className="space-y-4">
-                {upcomingBookings.map((booking) => {
-                  const teacher = booking.teacherId;
-                  return (
-                    <Card key={booking.id}>
-                      <CardContent className="p-4">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between">
-                          <div className="flex items-start space-x-4 mb-3 md:mb-0">
-                            <div className="w-12 h-12 rounded-full bg-yoga-blue/10 flex items-center justify-center text-yoga-blue">
-                              <Users size={24} />
-                            </div>
-                            <div>
-                              <h3 className="font-medium">{booking.title || '1-on-1 Session'}</h3>
-                              <p className="text-sm text-gray-500">With {booking.teacherName}</p>
-                              <div className="flex items-center mt-1 text-sm text-gray-500">
-                                <Calendar size={14} className="mr-1" />
-                                {format(new Date(booking.date), 'MMMM d, yyyy')} • 
-                                <Clock size={14} className="ml-2 mr-1" />
-                                {booking.time}
-                              </div>
+                {upcomingBookings.map((booking) => (
+                  <Card key={booking.id}>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between">
+                        <div className="flex items-start space-x-4 mb-3 md:mb-0">
+                          <div className="w-12 h-12 rounded-full bg-yoga-blue/10 flex items-center justify-center text-yoga-blue">
+                            <Users size={24} />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">1-on-1 Session</h3>
+                            <p className="text-sm text-gray-500">With {booking.teacherId}</p>
+                            <div className="flex items-center mt-1 text-sm text-gray-500">
+                              <Calendar size={14} className="mr-1" />
+                              {format(new Date(booking.date), 'MMMM d, yyyy')} • 
+                              <Clock size={14} className="ml-2 mr-1" />
+                              {booking.time}
                             </div>
                           </div>
-                          <Link to={`/booking-confirmation/${booking.id}`}>
-                            <Button variant="outline" size="sm">
-                              View Details
-                            </Button>
-                          </Link>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        <Link to={`/booking-confirmation/${booking.id}`}>
+                          <Button variant="outline" size="sm">
+                            View Details
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : (
               <Card className="bg-gray-50 border-dashed">
@@ -158,7 +158,7 @@ const Dashboard = () => {
                           </div>
                           <div className="flex items-center">
                             <BookOpen size={14} className="mr-1" />
-                            <span>{yogaClass.level || "All Levels"}</span>
+                            <span>All Levels</span>
                           </div>
                         </div>
                       </div>
@@ -189,7 +189,7 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-500 mb-1">Credits Available</p>
                   <div className="flex items-center">
                     <span className="text-2xl font-bold">
-                      {auth.user?.credits || 0}
+                      0
                     </span>
                     <Link to="/pricing" className="ml-2 text-xs text-yoga-blue hover:underline">
                       Buy More
@@ -211,7 +211,7 @@ const Dashboard = () => {
                       ? Math.round(bookings.filter(b => 
                           b.userId === auth.user?.id && 
                           new Date(b.date) <= new Date()
-                        ).reduce((total, b) => total + (b.sessionType?.duration || 60)/60, 0)
+                        ).reduce((total, b) => total + ((b.sessionType?.duration || 60)/60), 0)
                       )
                       : 0}
                   </p>

@@ -19,9 +19,10 @@ import { format } from 'date-fns';
 const BookingConfirmation = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getTeacher, getBooking } = useTeachers();
+  const { getTeacher, bookings } = useTeachers();
   
-  const booking = getBooking(id);
+  // Find the booking by ID
+  const booking = bookings.find(b => b.id === id);
   const teacher = booking ? getTeacher(booking.teacherId) : null;
 
   useEffect(() => {

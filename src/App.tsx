@@ -29,47 +29,50 @@ import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import { TeacherProvider } from './contexts/TeacherContext';
 import { YogaClassProvider } from './contexts/YogaClassContext';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
-    <TeacherProvider>
-      <YogaClassProvider>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/classes" element={<Classes />} />
-          <Route path="/classes/:id" element={<ClassDetail />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/teachers" element={<TeachersList />} />
-          <Route path="/teachers/:id" element={<TeacherDetail />} />
-          <Route path="/teachers/:id/book" element={<TeacherBooking />} />
-          <Route path="/teachers/learn" element={<TeacherLearn />} />
-          <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
-          <Route path="/pricing" element={<Pricing />} />
-          
-          {/* Protected Routes */}
-          <Route element={<AuthGuard />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/my-bookings" element={<MyBookings />} />
-          </Route>
-          
-          {/* Admin Routes */}
-          <Route element={<AdminGuard />}>
-            <Route path="/admin/teachers" element={<AdminTeachers />} />
-            <Route path="/admin/classes" element={<AdminClasses />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/bookings" element={<AdminBookings />} />
-            <Route path="/admin/credits" element={<AdminCredits />} />
-            <Route path="/admin/notifications" element={<AdminNotifications />} />
-            <Route path="/admin/zoom" element={<AdminZoomSettings />} />
-          </Route>
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </YogaClassProvider>
-    </TeacherProvider>
+    <AuthProvider>
+      <TeacherProvider>
+        <YogaClassProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/classes" element={<Classes />} />
+            <Route path="/classes/:id" element={<ClassDetail />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/teachers" element={<TeachersList />} />
+            <Route path="/teachers/:id" element={<TeacherDetail />} />
+            <Route path="/teachers/:id/book" element={<TeacherBooking />} />
+            <Route path="/teachers/learn" element={<TeacherLearn />} />
+            <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
+            <Route path="/pricing" element={<Pricing />} />
+            
+            {/* Protected Routes */}
+            <Route element={<AuthGuard />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/my-bookings" element={<MyBookings />} />
+            </Route>
+            
+            {/* Admin Routes */}
+            <Route element={<AdminGuard />}>
+              <Route path="/admin/teachers" element={<AdminTeachers />} />
+              <Route path="/admin/classes" element={<AdminClasses />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/bookings" element={<AdminBookings />} />
+              <Route path="/admin/credits" element={<AdminCredits />} />
+              <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/admin/zoom" element={<AdminZoomSettings />} />
+            </Route>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </YogaClassProvider>
+      </TeacherProvider>
+    </AuthProvider>
   );
 }
 
