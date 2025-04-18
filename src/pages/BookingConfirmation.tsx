@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useYogaClass } from '@/contexts/YogaClassContext';
@@ -19,7 +20,7 @@ const BookingConfirmation = () => {
       // Call getBooking with the bookingId parameter
       getBooking(bookingId);
     }
-  }, [bookingId]);
+  }, [bookingId, getBooking]);
 
   useEffect(() => {
     if (booking || !bookingId) {

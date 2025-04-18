@@ -1,13 +1,13 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTeacher } from '@/contexts/TeacherContext';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Users2, MapPin, MessageSquare } from 'lucide-react';
+import { Clock, Users2, MapPin, MessageSquare, Calendar as CalendarIcon } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { YogaClass } from '@/types/yogaClass';
 import { Teacher } from '@/types/teacher';
-import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from 'date-fns';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,6 @@ const TeacherDetail = () => {
       <div className="flex items-center gap-4 mb-6">
         <Avatar className="w-24 h-24">
           <AvatarFallback>{teacher.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-          {/* You might want to add an actual image source here */}
         </Avatar>
         <div>
           <h1 className="text-2xl font-bold">{teacher.name}</h1>
@@ -100,7 +99,7 @@ const TeacherDetail = () => {
       <div className="mb-4">
         <h2 className="text-xl font-semibold mb-2">Availability</h2>
         <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-gray-500" />
+          <CalendarIcon className="h-5 w-5 text-gray-500" />
           <span>{teacher.availability || 'Not specified'}</span>
         </div>
       </div>
@@ -152,7 +151,7 @@ const TeacherDetail = () => {
                 onSelect={setDate}
                 numberOfMonths={2}
                 pagedNavigation
-                className="border-0 rounded-md"
+                className="border-0 rounded-md pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
