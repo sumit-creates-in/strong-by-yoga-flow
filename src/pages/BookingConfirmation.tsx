@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -45,7 +44,7 @@ const BookingConfirmation = () => {
     );
   }
   
-  const getSessionTypeIcon = (type: string | undefined) => {
+  const getSessionTypeIcon = (type: any) => {
     if (!type) return <Video className="mr-2" size={20} />;
     
     switch (type) {

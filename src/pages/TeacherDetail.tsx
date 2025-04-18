@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Calendar, 
@@ -164,7 +164,7 @@ const TeacherDetail = () => {
                       </div>
                     </div>
                     
-                    {teacher.reviews && teacher.reviews.length > 0 ? (
+                    {teacher.reviews && Array.isArray(teacher.reviews) ? (
                       teacher.reviews.map((review, index) => (
                         <div key={index} className="border-b border-gray-200 pb-4 mb-4 last:border-0">
                           <div className="flex justify-between mb-2">
@@ -218,7 +218,6 @@ const TeacherDetail = () => {
                             {session.type === 'video' && <Video className="mr-2 text-yoga-blue" size={18} />}
                             {session.type === 'call' && <Phone className="mr-2 text-yoga-blue" size={18} />}
                             {session.type === 'chat' && <MessageCircle className="mr-2 text-yoga-blue" size={18} />}
-                            {!session.type && <Video className="mr-2 text-yoga-blue" size={18} />}
                             <span className="font-medium">{session.name}</span>
                           </div>
                           <div className="flex items-center justify-between text-gray-500">
