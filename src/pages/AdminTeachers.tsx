@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -38,7 +37,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import Layout from '@/components/Layout';
-import { useTeachers } from '@/contexts/TeacherContext';
+import { useTeachers, Teacher } from '@/contexts/TeacherContext';
 import TeacherForm from '@/components/TeacherForm';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -53,11 +52,10 @@ const AdminTeachers = () => {
   const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
   const [isEditTeacherOpen, setIsEditTeacherOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
-  // Filter teachers based on search query
   const filteredTeachers = teachers.filter(teacher => {
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -66,7 +64,6 @@ const AdminTeachers = () => {
     );
   });
   
-  // Sort teachers based on selected column and direction
   const sortedTeachers = [...filteredTeachers].sort((a, b) => {
     if (!sortColumn) return 0;
     
@@ -107,12 +104,12 @@ const AdminTeachers = () => {
     }
   };
   
-  const handleEditTeacher = (teacher: any) => {
+  const handleEditTeacher = (teacher: Teacher) => {
     setSelectedTeacher(teacher);
     setIsEditTeacherOpen(true);
   };
   
-  const handleDeleteClick = (teacher: any) => {
+  const handleDeleteClick = (teacher: Teacher) => {
     setSelectedTeacher(teacher);
     setIsDeleteDialogOpen(true);
   };
@@ -128,7 +125,7 @@ const AdminTeachers = () => {
     }
   };
 
-  const handleTeacherAdded = () => {
+  const handleTeacherAdded = (newTeacher?: Teacher) => {
     setIsAddTeacherOpen(false);
     toast({
       title: "Teacher added",
@@ -136,8 +133,7 @@ const AdminTeachers = () => {
     });
   };
 
-  const handleTeacherUpdated = (updatedTeacher: any) => {
-    updateTeacher(updatedTeacher.id, updatedTeacher);
+  const handleTeacherUpdated = (updatedTeacher?: Teacher) => {
     setIsEditTeacherOpen(false);
     toast({
       title: "Teacher updated",
@@ -325,7 +321,6 @@ const AdminTeachers = () => {
         </div>
       </div>
       
-      {/* Add Teacher Dialog */}
       <Dialog open={isAddTeacherOpen} onOpenChange={setIsAddTeacherOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
@@ -342,7 +337,6 @@ const AdminTeachers = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Teacher Dialog */}
       <Dialog open={isEditTeacherOpen} onOpenChange={setIsEditTeacherOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
@@ -362,7 +356,6 @@ const AdminTeachers = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -159,7 +159,7 @@ interface TeacherContextProps {
   deleteCreditPackage: (id: string) => void;
   
   // Add booking methods
-  bookSession: (bookingData: any) => void;
+  bookSession: (bookingData: any) => BookingData;
   getBooking: () => BookingData | null;
 }
 
@@ -560,10 +560,12 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
 
   // Context methods
   const addTeacher = (teacher: Teacher) => {
+    console.log("Adding new teacher:", teacher);
     setTeachers(prevTeachers => [...prevTeachers, teacher]);
   };
 
   const updateTeacher = (id: string, updatedTeacherData: Partial<Teacher>) => {
+    console.log("Updating teacher with id:", id, "Data:", updatedTeacherData);
     setTeachers(prevTeachers =>
       prevTeachers.map(teacher =>
         teacher.id === id ? { ...teacher, ...updatedTeacherData } : teacher
@@ -724,7 +726,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   };
 
   // Booking methods
-  const bookSession = (bookingData: any) => {
+  const bookSession = (bookingData: any): BookingData => {
     // Create a new booking
     const newBooking: BookingData = {
       id: `booking-${Date.now()}`,
@@ -736,6 +738,8 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
       status: 'confirmed',
       credits: bookingData.sessionType.credits || bookingData.sessionType.price || 0
     };
+    
+    console.log("Creating new booking:", newBooking);
     
     // Add booking to bookings list
     setBookings(prevBookings => [...prevBookings, newBooking]);

@@ -64,7 +64,7 @@ const App = () => {
               <Route path="/teachers/:id/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               <Route path="/teachers/learn" element={<AuthGuard><TeacherLearn /></AuthGuard>} />
               
-              {/* Admin Routes - Updated to use AdminGuard */}
+              {/* Admin Routes */}
               <Route path="/admin/classes" element={<AdminGuard><AdminClasses /></AdminGuard>} />
               <Route path="/admin/bookings" element={<AdminGuard><AdminBookings /></AdminGuard>} />
               <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />

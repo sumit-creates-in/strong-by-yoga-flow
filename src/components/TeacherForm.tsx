@@ -71,7 +71,7 @@ const formSchema = z.object({
 
 interface TeacherFormProps {
   teacher?: Teacher;
-  onComplete: () => void;
+  onComplete: (updatedTeacher?: Teacher) => void;
 }
 
 const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
@@ -395,18 +395,53 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
   };
   
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const teacherData = {
-      ...values,
+    const teacherData: Teacher = {
       id: teacher?.id || `teacher-${Date.now()}`,
-      specialties,
-      expertise,
-      certifications,
-      sessionTypes: mapToContextSessionTypes(sessionTypes),
-      availability: mapToContextAvailability(availability),
-      zoomAccount: mapToContextZoomAccount(zoomAccount),
+      name: values.name,
+      title: teacher?.title || 'Yoga Teacher',
+      bio: values.fullBio,
+      avatarUrl: values.avatarUrl || '',
+      shortBio: values.shortBio,
+      fullBio: values.fullBio,
+      experience: values.experience,
       rating: teacher?.rating || 5.0,
       reviewCount: teacher?.reviewCount || 0,
       totalSessions: teacher?.totalSessions || 0,
+      specialties: specialties,
+      expertise: expertise,
+      certifications: certifications,
+      languages: values.languages,
+      teachingStyle: values.teachingStyle,
+      sessionTypes: mapToContextSessionTypes(sessionTypes),
+      availability: mapToContextAvailability(availability),
+      zoomAccount: mapToContextZoomAccount(zoomAccount) || {
+        email: '',
+        isConnected: false
+      },
+      notificationSettings: teacher?.notificationSettings || {
+        email: {
+          enabled: true,
+          templates: []
+        },
+        app: {
+          enabled: true,
+          templates: []
+        },
+        whatsapp: {
+          enabled: false,
+          phoneNumberId: '',
+          accessToken: '',
+          businessAccountId: '',
+          verifyToken: '',
+          autoReplyEnabled: false,
+          autoReplyMessage: '',
+          templates: []
+        },
+        sms: {
+          enabled: false,
+          templates: []
+        }
+      }
     };
     
     if (teacher) {
@@ -415,7 +450,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
       addTeacher(teacherData);
     }
     
-    onComplete();
+    onComplete(teacherData);
   };
 
   return (
