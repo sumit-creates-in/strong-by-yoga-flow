@@ -74,10 +74,12 @@ const PhoneSignUpForm: React.FC<PhoneSignUpFormProps> = ({
           Phone Number
         </label>
         <div className="flex gap-2">
-          <CountryCodeSelector
-            selectedCountry={country}
-            onSelect={setCountry}
-          />
+          {country && (
+            <CountryCodeSelector
+              selectedCountry={country}
+              onSelect={setCountry}
+            />
+          )}
           <Input
             id="phone"
             type="tel"

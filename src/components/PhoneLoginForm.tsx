@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import CountryCodeSelector, { useCountryDetection } from './CountryCodeSelector';
 
 interface PhoneLoginFormProps {
@@ -52,10 +51,12 @@ const PhoneLoginForm: React.FC<PhoneLoginFormProps> = ({ onSendOtp }) => {
           Phone Number
         </label>
         <div className="flex gap-2">
-          <CountryCodeSelector
-            selectedCountry={country}
-            onSelect={setCountry}
-          />
+          {country && (
+            <CountryCodeSelector
+              selectedCountry={country}
+              onSelect={setCountry}
+            />
+          )}
           <Input
             id="phone"
             type="tel"

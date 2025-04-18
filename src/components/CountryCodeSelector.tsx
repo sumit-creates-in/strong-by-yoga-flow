@@ -16,14 +16,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface Country {
+export interface Country {
   code: string;
   dialCode: string;
   name: string;
   flag: string;
 }
 
-const countries: Country[] = [
+export const countries: Country[] = [
   { code: "us", dialCode: "+1", name: "United States", flag: "🇺🇸" },
   { code: "ca", dialCode: "+1", name: "Canada", flag: "🇨🇦" },
   { code: "gb", dialCode: "+44", name: "United Kingdom", flag: "🇬🇧" },
@@ -68,7 +68,7 @@ export const CountryCodeSelector: React.FC<CountryCodeSelectorProps> = ({
           <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[200px] p-0" align="start">
         <Command>
           <CommandInput placeholder="Search country..." />
           <CommandEmpty>No country found.</CommandEmpty>
@@ -76,6 +76,7 @@ export const CountryCodeSelector: React.FC<CountryCodeSelectorProps> = ({
             {countries.map((country) => (
               <CommandItem
                 key={country.code}
+                value={country.code}
                 onSelect={() => {
                   onSelect(country);
                   setOpen(false);
@@ -101,7 +102,8 @@ export const CountryCodeSelector: React.FC<CountryCodeSelectorProps> = ({
 };
 
 export const useCountryDetection = () => {
-  const [country, setCountry] = useState<Country>(countries[0]); // Default to US
+  const defaultCountry = countries[0]; // Default to US
+  const [country, setCountry] = useState<Country>(defaultCountry);
 
   useEffect(() => {
     // Try to detect user's country
@@ -109,13 +111,17 @@ export const useCountryDetection = () => {
       try {
         const response = await fetch("https://ipapi.co/json/");
         const data = await response.json();
-        const countryCode = data.country_code.toLowerCase();
-        const detectedCountry = countries.find(c => c.code === countryCode);
-        if (detectedCountry) {
-          setCountry(detectedCountry);
+        const countryCode = data.country_code?.toLowerCase();
+        
+        if (countryCode) {
+          const detectedCountry = countries.find(c => c.code === countryCode);
+          if (detectedCountry) {
+            setCountry(detectedCountry);
+          }
         }
       } catch (error) {
         console.error("Error detecting country:", error);
+        // Silently fail and use the default country
       }
     };
 
