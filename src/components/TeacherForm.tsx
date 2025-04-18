@@ -120,6 +120,7 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
       price: session.price,
       credits: session.credits,
       isActive: session.isActive,
+      type: session.type,
       bookingRestrictions: {
         minTimeBeforeBooking: session.minTimeBeforeBooking,
         minTimeBeforeCancelling: session.minTimeBeforeCancel,
@@ -960,82 +961,3 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
                 >
                   <Plus size={16} className="mr-1" /> Add Time Slot
                 </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="zoom" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Zoom Integration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {zoomAccount ? (
-                  <div className="space-y-2">
-                    <div className="bg-gray-50 border rounded-md p-4">
-                      <p className="font-medium">{zoomAccount.accountName}</p>
-                      <p className="text-sm text-gray-500">{zoomAccount.email}</p>
-                      <div className="mt-2 flex items-center">
-                        <Badge className="bg-green-100 text-green-800 border-green-200">
-                          {zoomAccount.connected ? "Connected" : "Not Connected"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleDisconnectZoom} 
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      Disconnect Zoom Account
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <FormLabel>Zoom Email</FormLabel>
-                        <Input
-                          value={zoomEmail}
-                          onChange={(e) => setZoomEmail(e.target.value)}
-                          placeholder="your.email@example.com"
-                        />
-                      </div>
-                      <div>
-                        <FormLabel>Account Name</FormLabel>
-                        <Input
-                          value={zoomAccountName}
-                          onChange={(e) => setZoomAccountName(e.target.value)}
-                          placeholder="Display name for this account"
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={handleConnectZoom}
-                      className="w-full"
-                      disabled={!zoomEmail || !zoomAccountName}
-                    >
-                      Connect Zoom Account
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        
-        <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onComplete}>
-            Cancel
-          </Button>
-          <Button type="submit">
-            {teacher ? "Update Teacher" : "Add Teacher"}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-};
-
-export default TeacherForm;

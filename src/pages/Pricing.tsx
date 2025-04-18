@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -21,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { toast } from 'react-toastify';
 
 const Pricing = () => {
   const { membershipTiers, purchaseMembership, userMembership } = useYogaClasses();
@@ -329,9 +329,23 @@ const Pricing = () => {
                         pkg.mostValue ? 'bg-amber-500 hover:bg-amber-600' : ''
                       }`}
                       variant={pkg.popular || pkg.mostValue ? 'default' : 'outline'}
-                      onClick={() => handleSelectCreditPackage(pkg.id)}
+                      onClick={() => {
+                        if (purchaseCredits) {
+                          purchaseCredits(pkg.id);
+                          toast({
+                            title: "Credits Purchased",
+                            description: `You have successfully purchased ${pkg.credits} credits.`,
+                          });
+                        } else {
+                          toast({
+                            title: "Purchase Feature Not Available",
+                            description: "This feature is not available in the demo version.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
                     >
-                      Buy Credits
+                      Buy Now
                     </Button>
                   </CardFooter>
                 </Card>
@@ -339,7 +353,7 @@ const Pricing = () => {
             </div>
             
             <div className="mt-6 bg-gray-50 border rounded-lg p-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              <div className="flex flex-col md:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
                 <div>
                   <h3 className="text-lg font-medium mb-2">How do credits work?</h3>
                   <ul className="space-y-2">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTeachers } from '../contexts/TeacherContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +14,6 @@ const WhatsAppSettings = () => {
   const [testMessage, setTestMessage] = useState('');
   const [testPhone, setTestPhone] = useState('');
   
-  // Safe default for whatsApp settings if not available
   const whatsappSettings = notificationSettings?.whatsapp || {
     enabled: false,
     phoneNumberId: '',
@@ -27,7 +25,7 @@ const WhatsAppSettings = () => {
   };
   
   const handleWhatsAppSettingsChange = (field: string, value: any) => {
-    if (!notificationSettings) return;
+    if (!notificationSettings || !updateNotificationSettings) return;
     
     updateNotificationSettings({
       whatsapp: {
@@ -38,7 +36,7 @@ const WhatsAppSettings = () => {
   };
   
   const handleToggleWhatsApp = (enabled: boolean) => {
-    if (!notificationSettings) return;
+    if (!notificationSettings || !updateNotificationSettings) return;
     
     updateNotificationSettings({
       whatsapp: {
@@ -49,7 +47,7 @@ const WhatsAppSettings = () => {
   };
   
   const handleToggleAutoReply = (enabled: boolean) => {
-    if (!notificationSettings) return;
+    if (!notificationSettings || !updateNotificationSettings) return;
     
     updateNotificationSettings({
       whatsapp: {
@@ -60,7 +58,6 @@ const WhatsAppSettings = () => {
   };
   
   const verifyConnection = () => {
-    // This would actually verify the connection in a real app
     if (
       whatsappSettings.phoneNumberId && 
       whatsappSettings.accessToken && 
@@ -89,7 +86,6 @@ const WhatsAppSettings = () => {
       return;
     }
     
-    // This would actually send a message in a real app
     toast({
       title: "Test message sent",
       description: "Your test WhatsApp message has been sent.",
