@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -21,6 +20,8 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { createMembershipCheckoutSession, createCreditCheckoutSession } from '@/lib/stripe';
+import { toast } from "@/components/ui/use-toast"
 
 const Pricing = () => {
   const { membershipTiers, purchaseMembership, userMembership } = useYogaClasses();
@@ -50,17 +51,87 @@ const Pricing = () => {
     setIsPaymentDialogOpen(true);
   }
   
-  const handlePurchase = () => {
-    if (paymentType === 'membership' && selectedTier) {
-      purchaseMembership(selectedTier);
-      setIsPaymentDialogOpen(false);
-    } else if (paymentType === 'credits' && selectedCreditPackage) {
-      purchaseCredits(selectedCreditPackage);
-      setIsPaymentDialogOpen(false);
-    } else if (paymentType === 'custom') {
-      // Create a custom package ID
-      const customPackageId = `custom-${Date.now()}`;
-      purchaseCredits(customPackageId);
+  const handlePurchase = async () => {
+    try {
+      if (paymentType === 'membership' && selectedTier) {
+        // Get the selected tier info
+        const selectedTierInfo = membershipTiers.find(t => t.id === selectedTier);
+        if (!selectedTierInfo) {
+          throw new Error('Selected membership tier not found');
+        }
+        
+        // Define success and cancel URLs
+        const successUrl = `${window.location.origin}/membership-success?tier=${selectedTier}`;
+        const cancelUrl = `${window.location.origin}/pricing`;
+        
+        // Create a Stripe checkout session for membership
+        await createMembershipCheckoutSession(
+          selectedTier,
+          successUrl,
+          cancelUrl
+        );
+        
+        // The user will be redirected to Stripe checkout
+        // This code won't run until they return from checkout
+      } 
+      else if (paymentType === 'credits' && selectedCreditPackage) {
+        // Get the selected package info
+        const selectedPackageInfo = creditPackages.find(p => p.id === selectedCreditPackage);
+        if (!selectedPackageInfo) {
+          throw new Error('Selected credit package not found');
+        }
+        
+        // Define success and cancel URLs
+        const successUrl = `${window.location.origin}/credits-success?package=${selectedCreditPackage}`;
+        const cancelUrl = `${window.location.origin}/pricing`;
+        
+        // Create a Stripe checkout session for credit purchase
+        await createCreditCheckoutSession(
+          selectedCreditPackage,
+          selectedPackageInfo.credits,
+          selectedPackageInfo.price,
+          successUrl,
+          cancelUrl
+        );
+        
+        // The user will be redirected to Stripe checkout
+      } 
+      else if (paymentType === 'custom') {
+        // Create a custom package ID
+        const customPackageId = `custom-${Date.now()}`;
+        
+        // Define success and cancel URLs
+        const successUrl = `${window.location.origin}/credits-success?package=${customPackageId}&credits=${customCredits}`;
+        const cancelUrl = `${window.location.origin}/pricing`;
+        
+        // Calculate price based on the subscription mode
+        const price = paymentMethod === 'subscription' 
+          ? customCredits * 0.95 // 5% discount for subscription
+          : customCredits;
+        
+        // Create a Stripe checkout session for custom credit purchase
+        await createCreditCheckoutSession(
+          customPackageId,
+          customCredits,
+          price,
+          successUrl,
+          cancelUrl
+        );
+      }
+      
+      // No need to close dialog here as user will be redirected to Stripe
+      // The dialog will be automatically closed when user returns from Stripe checkout
+    } catch (error) {
+      console.error('Payment failed:', error);
+      
+      // Show error toast or message
+      toast({
+        variant: "destructive",
+        title: "Payment Failed",
+        description: error.message || "There was an error processing your payment",
+      });
+      
+      // Close the payment dialog on error
       setIsPaymentDialogOpen(false);
     }
   };

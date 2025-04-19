@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import AdminGuard from '@/components/AdminGuard';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Info } from 'lucide-react';
+import { AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import ZoomSetupCard from '@/components/ZoomSetupCard';
 import StripePaymentIntegration from '@/components/StripePaymentIntegration';
 
@@ -70,7 +69,60 @@ const AdminZoomSettings = () => {
             </TabsContent>
             
             <TabsContent value="payments" className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-600">Configuration Guide</AlertTitle>
+                <AlertDescription>
+                  You need both Secret and Publishable API keys from your Stripe Dashboard to set up payments. The Secret key starts with 'sk_' and the Publishable key starts with 'pk_'. Use test keys for testing payments.
+                </AlertDescription>
+              </Alert>
+
               <StripePaymentIntegration />
+              
+              <div className="mt-6 bg-white p-6 rounded-lg border">
+                <h3 className="font-semibold text-lg mb-4">How to Find Your Stripe API Keys</h3>
+                
+                <ol className="space-y-4 list-decimal pl-6">
+                  <li>
+                    <p className="mb-2">Go to <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Stripe Dashboard</a> and sign in</p>
+                  </li>
+                  <li>
+                    <p className="mb-2">Switch to Test mode (for testing) or Live mode (for production)</p>
+                    <p className="text-sm text-gray-500">Make sure you use test keys while testing to avoid processing real payments</p>
+                  </li>
+                  <li>
+                    <p className="mb-2">Find both your Secret and Publishable keys</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      <div className="bg-gray-50 p-3 rounded border">
+                        <p className="font-medium mb-1">Secret Key (sk)</p>
+                        <p className="text-sm text-gray-600 font-mono">sk_test_51ABCDEFGHIJKLMNO...</p>
+                        <p className="text-xs text-gray-500 mt-1">Starts with sk_test_ for test mode</p>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded border">
+                        <p className="font-medium mb-1">Publishable Key (pk)</p>
+                        <p className="text-sm text-gray-600 font-mono">pk_test_51ABCDEFGHIJKLMNO...</p>
+                        <p className="text-xs text-gray-500 mt-1">Starts with pk_test_ for test mode</p>
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <p className="mb-2">Enter both keys in the Stripe Payment Integration form above</p>
+                  </li>
+                </ol>
+                
+                <div className="mt-6 bg-yellow-50 p-4 rounded border border-yellow-200">
+                  <div className="flex">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-yellow-800">Security Warning</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Keep your Secret key confidential. Never expose it in your frontend code or to customers.
+                        The Publishable key is meant to be public and used in your frontend code.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </TabsContent>
             
             <TabsContent value="help" className="space-y-6">

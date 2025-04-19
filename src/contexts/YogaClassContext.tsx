@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { format, addDays, isToday, isTomorrow, isAfter, subMinutes, addMinutes } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -186,7 +185,7 @@ const initialClasses: YogaClass[] = [
 // Membership tiers
 const initialMembershipTiers: MembershipTier[] = [
   {
-    id: 'basic',
+    id: 'membership-basic',
     name: 'Basic',
     price: 19.99,
     duration: 1,
@@ -198,7 +197,7 @@ const initialMembershipTiers: MembershipTier[] = [
     ]
   },
   {
-    id: 'premium',
+    id: 'membership-premium',
     name: 'Premium',
     price: 49.99,
     duration: 1,
@@ -212,7 +211,7 @@ const initialMembershipTiers: MembershipTier[] = [
     ]
   },
   {
-    id: 'yearly',
+    id: 'membership-annual',
     name: 'Annual Plan',
     price: 399.99,
     duration: 12,

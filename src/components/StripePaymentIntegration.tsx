@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,19 +15,44 @@ interface StripePaymentIntegrationProps {
 const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({ 
   isActive = false 
 }) => {
-  const [apiKey, setApiKey] = useState('');
-  const [webhookSecret, setWebhookSecret] = useState('');
-  const [testApiKey, setTestApiKey] = useState('');
-  const [testWebhookSecret, setTestWebhookSecret] = useState('');
-  const [isLiveMode, setIsLiveMode] = useState(false);
-  const [enableCoupons, setEnableCoupons] = useState(true);
-  const [enableSubscriptions, setEnableSubscriptions] = useState(false);
-  const [activationStatus, setActivationStatus] = useState(isActive);
+  // Load saved settings from localStorage if they exist
+  const loadSavedSettings = () => {
+    try {
+      const savedSettings = localStorage.getItem('stripeSettings');
+      if (savedSettings) {
+        return JSON.parse(savedSettings);
+      }
+    } catch (error) {
+      console.error('Failed to load stripe settings:', error);
+    }
+    return null;
+  };
+
+  const savedSettings = loadSavedSettings();
+  
+  const [apiKey, setApiKey] = useState(savedSettings?.apiKey || '');
+  const [publishableKey, setPublishableKey] = useState(savedSettings?.publishableKey || '');
+  const [webhookSecret, setWebhookSecret] = useState(savedSettings?.webhookSecret || '');
+  const [testApiKey, setTestApiKey] = useState(savedSettings?.testApiKey || '');
+  const [testPublishableKey, setTestPublishableKey] = useState(savedSettings?.testPublishableKey || '');
+  const [testWebhookSecret, setTestWebhookSecret] = useState(savedSettings?.testWebhookSecret || '');
+  const [isLiveMode, setIsLiveMode] = useState(savedSettings?.isLiveMode || false);
+  const [enableCoupons, setEnableCoupons] = useState(savedSettings?.enableCoupons !== undefined ? savedSettings.enableCoupons : true);
+  const [enableSubscriptions, setEnableSubscriptions] = useState(savedSettings?.enableSubscriptions || false);
+  const [activationStatus, setActivationStatus] = useState(savedSettings?.activationStatus || isActive);
   const { toast } = useToast();
   
+  const saveSettings = (settings) => {
+    try {
+      localStorage.setItem('stripeSettings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save stripe settings:', error);
+    }
+  };
+  
   const handleSaveSettings = () => {
-    const requiredTest = [testApiKey];
-    const requiredLive = [apiKey];
+    const requiredTest = [testApiKey, testPublishableKey];
+    const requiredLive = [apiKey, publishableKey];
     
     const missing = isLiveMode 
       ? requiredLive.some(field => !field)
@@ -42,9 +66,50 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       });
       return;
     }
+
+    // Validate API key format
+    const apiKeyToValidate = isLiveMode ? apiKey : testApiKey;
+    const expectedSecretPrefix = isLiveMode ? 'sk_live_' : 'sk_test_';
+    
+    if (!apiKeyToValidate.startsWith(expectedSecretPrefix)) {
+      toast({
+        title: "Invalid Secret API key",
+        description: `Secret API key must start with '${expectedSecretPrefix}'`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate Publishable key format
+    const pubKeyToValidate = isLiveMode ? publishableKey : testPublishableKey;
+    const expectedPubPrefix = isLiveMode ? 'pk_live_' : 'pk_test_';
+    
+    if (!pubKeyToValidate.startsWith(expectedPubPrefix)) {
+      toast({
+        title: "Invalid Publishable API key",
+        description: `Publishable API key must start with '${expectedPubPrefix}'`,
+        variant: "destructive",
+      });
+      return;
+    }
     
     // In a real app, this would save the settings to the server
+    const newSettings = {
+      apiKey,
+      publishableKey,
+      webhookSecret,
+      testApiKey,
+      testPublishableKey,
+      testWebhookSecret,
+      isLiveMode,
+      enableCoupons,
+      enableSubscriptions,
+      activationStatus: true
+    };
+    
     setActivationStatus(true);
+    saveSettings(newSettings);
+    
     toast({
       title: "Settings saved",
       description: `Stripe integration ${isLiveMode ? 'LIVE' : 'TEST'} mode has been activated.`,
@@ -54,6 +119,22 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
   const handleDisconnect = () => {
     // In a real app, this would disconnect Stripe from the server
     setActivationStatus(false);
+    
+    const newSettings = {
+      apiKey,
+      publishableKey,
+      webhookSecret,
+      testApiKey,
+      testPublishableKey,
+      testWebhookSecret,
+      isLiveMode,
+      enableCoupons,
+      enableSubscriptions,
+      activationStatus: false
+    };
+    
+    saveSettings(newSettings);
+    
     toast({
       title: "Disconnected",
       description: "Stripe integration has been disabled.",
@@ -63,11 +144,20 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
   const [couponCode, setCouponCode] = useState('');
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountType, setDiscountType] = useState('percentage');
-  const [coupons, setCoupons] = useState([
+  const [coupons, setCoupons] = useState(savedSettings?.coupons || [
     { id: '1', code: 'WELCOME10', type: 'percentage', amount: '10', active: true },
     { id: '2', code: 'YOGA25', type: 'percentage', amount: '25', active: true },
     { id: '3', code: 'FLAT20', type: 'fixed', amount: '20', active: true },
   ]);
+  
+  useEffect(() => {
+    // Save coupons when they change
+    const settings = loadSavedSettings() || {};
+    saveSettings({
+      ...settings,
+      coupons
+    });
+  }, [coupons]);
   
   const handleAddCoupon = () => {
     if (!couponCode || !discountAmount) {
@@ -178,6 +268,18 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                           onChange={(e) => setApiKey(e.target.value)}
                           placeholder="sk_live_..."
                         />
+                        <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="publishableKey">Publishable API Key</Label>
+                        <Input
+                          id="publishableKey"
+                          value={publishableKey}
+                          onChange={(e) => setPublishableKey(e.target.value)}
+                          placeholder="pk_live_..."
+                        />
+                        <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                       </div>
                       
                       <div className="space-y-2">
@@ -194,7 +296,7 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="testApiKey">Test Secret API Key</Label>
+                        <Label htmlFor="testApiKey">Secret API Key</Label>
                         <Input
                           id="testApiKey"
                           type="password"
@@ -202,10 +304,22 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                           onChange={(e) => setTestApiKey(e.target.value)}
                           placeholder="sk_test_..."
                         />
+                        <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="testWebhookSecret">Test Webhook Secret (optional)</Label>
+                        <Label htmlFor="testPublishableKey">Publishable API Key</Label>
+                        <Input
+                          id="testPublishableKey"
+                          value={testPublishableKey}
+                          onChange={(e) => setTestPublishableKey(e.target.value)}
+                          placeholder="pk_test_..."
+                        />
+                        <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="testWebhookSecret">Webhook Secret (optional)</Label>
                         <Input
                           id="testWebhookSecret"
                           type="password"
@@ -302,63 +416,57 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                   </Button>
                 </div>
                 
-                <div className="space-y-4">
-                  <h3 className="font-medium">Active Coupon Codes</h3>
-                  
-                  {coupons.length === 0 ? (
-                    <p className="text-center py-4 text-gray-500">No coupon codes found</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Code
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Discount
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
+                {coupons.length > 0 ? (
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {coupons.map((coupon) => (
+                          <tr key={coupon.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{coupon.code}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {coupon.type === 'percentage' ? `${coupon.amount}%` : `$${coupon.amount}`}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${coupon.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {coupon.active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleCoupon(coupon.id)}
+                                className="text-indigo-600 hover:text-indigo-900 mr-3"
+                              >
+                                {coupon.active ? 'Disable' : 'Enable'}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteCoupon(coupon.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </Button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {coupons.map((coupon) => (
-                            <tr key={coupon.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{coupon.code}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-500">
-                                  {coupon.amount}{coupon.type === 'percentage' ? '%' : ' USD'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <Switch
-                                  checked={coupon.active}
-                                  onCheckedChange={() => handleToggleCoupon(coupon.id)}
-                                />
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <Button 
-                                  variant="ghost" 
-                                  onClick={() => handleDeleteCoupon(coupon.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  Delete
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No coupon codes created yet.
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -415,12 +523,24 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                         onChange={(e) => setApiKey(e.target.value)}
                         placeholder="sk_live_..."
                       />
+                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="publishableKey">Publishable API Key</Label>
+                      <Input
+                        id="publishableKey"
+                        value={publishableKey}
+                        onChange={(e) => setPublishableKey(e.target.value)}
+                        placeholder="pk_live_..."
+                      />
+                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="testApiKey">Test Secret API Key</Label>
+                      <Label htmlFor="testApiKey">Secret API Key</Label>
                       <Input
                         id="testApiKey"
                         type="password"
@@ -428,6 +548,18 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                         onChange={(e) => setTestApiKey(e.target.value)}
                         placeholder="sk_test_..."
                       />
+                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="testPublishableKey">Publishable API Key</Label>
+                      <Input
+                        id="testPublishableKey"
+                        value={testPublishableKey}
+                        onChange={(e) => setTestPublishableKey(e.target.value)}
+                        placeholder="pk_test_..."
+                      />
+                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                     </div>
                   </>
                 )}
