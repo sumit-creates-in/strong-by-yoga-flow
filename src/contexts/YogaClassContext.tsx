@@ -257,19 +257,25 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   const isClassLive = (yogaClass: YogaClass): boolean => {
     const classDate = new Date(yogaClass.date);
     const now = new Date();
+    const classEndTime = addMinutes(classDate, yogaClass.duration);
     
+    // Class is live if current time is after class start AND before class end
     return (
       isAfter(now, classDate) && 
-      isAfter(addMinutes(classDate, yogaClass.duration), now)
+      isAfter(classEndTime, now)
     );
   };
   
-  // Helper function for checking if a class should be visible (not 15+ minutes after start)
+  // Helper function for checking if a class should be visible 
+  // (not finished more than 15 minutes ago)
   const isClassVisible = (yogaClass: YogaClass): boolean => {
     const classDate = new Date(yogaClass.date);
     const now = new Date();
+    const classEndTime = addMinutes(classDate, yogaClass.duration);
+    const bufferTimeAfterEnd = addMinutes(classEndTime, 15);
     
-    return isAfter(addMinutes(classDate, 15), now);
+    // Class remains visible until 15 minutes after it ends
+    return isAfter(bufferTimeAfterEnd, now);
   };
 
   // Helper function for formatting class time in user's timezone

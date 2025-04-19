@@ -47,6 +47,19 @@ interface AppUser {
   joinedDate: string;
 }
 
+// Define Supabase profile structure
+interface SupabaseProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+  updated_at: string;
+  avatar_url: string;
+  // Fields that might not be in the original type definition but we need
+  email?: string;
+  phone?: string;
+}
+
 // User dialog props
 interface UserDialogProps {
   user: AppUser | null;
@@ -340,6 +353,184 @@ const AddMembershipDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
   );
 };
 
+// Add an AddCreditsDialog component to add credits to users
+const AddCreditsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: string}> = ({ isOpen, onClose, userId }) => {
+  const [creditAmount, setCreditAmount] = useState<number>(10);
+  const [reason, setReason] = useState<string>('Admin adjustment');
+  const { toast } = useToast();
+  const { userCredits, creditTransactions } = useTeachers();
+  
+  const handleAddCredits = async () => {
+    try {
+      // Add the credits to the user's account
+      // In a real app, you would update the credits in the database
+      const newTransaction = {
+        id: Date.now().toString(),
+        type: 'admin' as const,
+        amount: creditAmount,
+        description: reason,
+        date: new Date().toISOString(),
+        userId: userId // Store the user ID with the transaction
+      };
+      
+      // Since our context doesn't have a method to add credits to a specific user,
+      // we'll add this transaction to localStorage directly for now
+      const userSpecificKey = `creditTransactions_${userId}`;
+      const existingTransactions = localStorage.getItem(userSpecificKey);
+      const transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
+      transactions.push(newTransaction);
+      localStorage.setItem(userSpecificKey, JSON.stringify(transactions));
+      
+      // Update the user's credit balance
+      const userSpecificCreditsKey = `userCredits_${userId}`;
+      const existingCredits = localStorage.getItem(userSpecificCreditsKey);
+      const currentCredits = existingCredits ? parseInt(existingCredits) : 0;
+      const newCredits = currentCredits + creditAmount;
+      localStorage.setItem(userSpecificCreditsKey, newCredits.toString());
+      
+      toast({
+        title: "Credits Added",
+        description: `${creditAmount} credits have been added to the user's account.`
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error adding credits:', error);
+      toast({
+        variant: 'destructive',
+        title: "Error",
+        description: "Failed to add credits. Please try again."
+      });
+    }
+  };
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Credits</DialogTitle>
+          <DialogDescription>
+            Add credits to this user's account
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="creditAmount">Number of Credits</Label>
+            <Input
+              id="creditAmount"
+              type="number"
+              min="1"
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(parseInt(e.target.value))}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="reason">Reason</Label>
+            <Input
+              id="reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason for adding credits"
+            />
+          </div>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleAddCredits}>Add Credits</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Add a CreditTransactionsDialog component to view a user's credit transactions
+const CreditTransactionsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: string}> = ({ isOpen, onClose, userId }) => {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [userCreditBalance, setUserCreditBalance] = useState<number>(0);
+  
+  useEffect(() => {
+    // Load user-specific transactions from localStorage
+    const userSpecificKey = `creditTransactions_${userId}`;
+    const existingTransactions = localStorage.getItem(userSpecificKey);
+    const userTransactions = existingTransactions ? JSON.parse(existingTransactions) : [];
+    setTransactions(userTransactions);
+    
+    // Load user's credit balance
+    const userSpecificCreditsKey = `userCredits_${userId}`;
+    const existingCredits = localStorage.getItem(userSpecificCreditsKey);
+    const currentCredits = existingCredits ? parseInt(existingCredits) : 0;
+    setUserCreditBalance(currentCredits);
+  }, [userId]);
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Credit Transactions</DialogTitle>
+          <DialogDescription>
+            View credit history for this user
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4">
+          <div className="bg-gray-100 p-4 mb-4 rounded-md">
+            <p className="text-lg font-medium">Current Balance: <span className="text-yoga-blue">{userCreditBalance} credits</span></p>
+          </div>
+          
+          {transactions.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-gray-500">This user has no credit transactions.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-yoga-light-blue/30">
+                    <th className="px-4 py-2 text-left">Date</th>
+                    <th className="px-4 py-2 text-left">Type</th>
+                    <th className="px-4 py-2 text-left">Amount</th>
+                    <th className="px-4 py-2 text-left">Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id} className="border-t border-yoga-light-blue">
+                      <td className="px-4 py-2">{new Date(transaction.date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          transaction.type === 'purchase' ? 'bg-green-100 text-green-800' : 
+                          transaction.type === 'usage' ? 'bg-red-100 text-red-800' :
+                          transaction.type === 'refund' ? 'bg-blue-100 text-blue-800' :
+                          transaction.type === 'admin' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {transaction.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}>
+                          {transaction.amount > 0 ? '+' : ''}{transaction.amount}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">{transaction.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // Add a BookingsDialog component to show user bookings
 const BookingsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: string}> = ({ isOpen, onClose, userId }) => {
   const { getUserBookings, getTeacher } = useTeachers();
@@ -436,6 +627,8 @@ const AdminUsers = () => {
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [isAddMembershipOpen, setIsAddMembershipOpen] = useState(false);
   const [isViewBookingsOpen, setIsViewBookingsOpen] = useState(false);
+  const [isAddCreditsOpen, setIsAddCreditsOpen] = useState(false);
+  const [isViewCreditsOpen, setIsViewCreditsOpen] = useState(false);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -443,7 +636,7 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // First, get all profiles
+      // First, get all profiles from the profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
@@ -452,43 +645,40 @@ const AdminUsers = () => {
         throw profilesError;
       }
       
-      // We need auth users info too, so we need to use a server function 
-      // For now, we'll use the available profiles and try to get the auth user data
-      const mappedUsers: AppUser[] = [];
-      
-      // Process each profile in sequence to fetch related auth data
-      for (const profile of profiles) {
-        try {
-          // Try to get the auth user data - this is a workaround since we don't have admin API access
-          // Normally this would be done with a server function
-          const { data: authData, error: authError } = await supabase.auth.getUser(profile.id);
-          
-          let email = '';
-          let isAdmin = false;
-          
-          if (!authError && authData.user) {
-            email = authData.user.email || '';
-            // Check if user has admin role (email-based check)
-            isAdmin = email === 'admin@strongbyyoga.com' || email === 'sumit_204@yahoo.com';
-          }
-          
-          // Combine the full name
-          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-          
-          mappedUsers.push({
-            id: profile.id,
-            name: fullName || 'Unknown User',
-            email: email,
-            phone: null, // We may not have this in profiles
-            role: isAdmin ? 'admin' : 'user',
-            status: 'active', // Default status
-            joinedDate: profile.created_at || new Date().toISOString()
-          });
-        } catch (err) {
-          console.error('Error fetching auth data for profile:', profile.id, err);
-        }
+      if (!profiles || profiles.length === 0) {
+        setUsers([]);
+        setIsLoading(false);
+        return;
       }
-
+      
+      console.log(`Found ${profiles.length} profiles`, profiles);
+      
+      // Convert profiles to AppUser format
+      const mappedUsers: AppUser[] = profiles.map(profile => {
+        // Cast to our interface with optional fields
+        const p = profile as SupabaseProfile;
+        
+        // Create a display name from first and last name
+        const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+        
+        // Check if user is admin based on known admin emails
+        const email = p.email || '';
+        const isAdmin = 
+          email === 'admin@strongbyyoga.com' || 
+          email === 'sumit_204@yahoo.com';
+        
+        return {
+          id: p.id,
+          name: fullName || 'Unknown User',
+          email: email,
+          phone: p.phone || null,
+          role: isAdmin ? 'admin' : 'user',
+          status: 'active', // Default status
+          joinedDate: p.created_at || new Date().toISOString()
+        };
+      });
+      
+      console.log('Mapped users:', mappedUsers);
       setUsers(mappedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -650,6 +840,18 @@ const AdminUsers = () => {
     setIsViewBookingsOpen(true);
   };
 
+  // Handle add credits
+  const handleAddCredits = (user: AppUser) => {
+    setSelectedUser(user);
+    setIsAddCreditsOpen(true);
+  };
+  
+  // Handle view credit transactions
+  const handleViewCredits = (user: AppUser) => {
+    setSelectedUser(user);
+    setIsViewCreditsOpen(true);
+  };
+
   return (
     <AdminGuard>
       <Layout>
@@ -731,6 +933,8 @@ const AdminUsers = () => {
                                 <DropdownMenuItem onClick={() => handleViewProfile(user)}>View Profile</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEditUser(user)}>Edit User</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleAddMembership(user)}>Add Membership</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddCredits(user)}>Add Credits</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewCredits(user)}>View Credits</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleViewBookings(user)}>View Bookings</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleResetPassword(user)}>
                                   <Lock className="mr-2 h-4 w-4" />
@@ -809,6 +1013,18 @@ const AdminUsers = () => {
         <BookingsDialog
           isOpen={isViewBookingsOpen}
           onClose={() => setIsViewBookingsOpen(false)}
+          userId={selectedUser?.id || ''}
+        />
+        
+        <AddCreditsDialog
+          isOpen={isAddCreditsOpen}
+          onClose={() => setIsAddCreditsOpen(false)}
+          userId={selectedUser?.id || ''}
+        />
+        
+        <CreditTransactionsDialog
+          isOpen={isViewCreditsOpen}
+          onClose={() => setIsViewCreditsOpen(false)}
           userId={selectedUser?.id || ''}
         />
       </Layout>

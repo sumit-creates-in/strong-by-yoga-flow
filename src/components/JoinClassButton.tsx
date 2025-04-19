@@ -58,9 +58,11 @@ const JoinClassButton: React.FC<JoinClassButtonProps> = ({
       const now = new Date();
       const fiveMinutesBefore = new Date(classDate);
       fiveMinutesBefore.setMinutes(classDate.getMinutes() - 5);
+      const classEndTime = new Date(classDate);
+      classEndTime.setMinutes(classDate.getMinutes() + yogaClass.duration);
       
-      if (now >= fiveMinutesBefore) {
-        // Class is starting within 5 minutes or has already started - join directly
+      if (isLive || (now >= fiveMinutesBefore && now <= classEndTime)) {
+        // Class is live or starting within 5 minutes - join directly
         joinClass(yogaClass.id);
         window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
       } else {

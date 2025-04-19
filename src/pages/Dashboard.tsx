@@ -51,7 +51,11 @@ const Dashboard = () => {
     .filter((yogaClass) => {
       const classDate = new Date(yogaClass.date);
       const now = new Date();
-      return classDate >= now && isClassVisible(yogaClass);
+      const classEndTime = new Date(classDate);
+      classEndTime.setMinutes(classDate.getMinutes() + yogaClass.duration);
+      
+      // Include classes that haven't ended yet (either upcoming or currently live)
+      return (classEndTime >= now) && isClassVisible(yogaClass);
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 6);
@@ -61,14 +65,6 @@ const Dashboard = () => {
     const formattedDate = formatClassDate(yogaClass.date);
     const formattedTime = format(new Date(yogaClass.date), 'h:mm a');
     const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
-    
-    // Determine if we can show the join button - class is today or live
-    const classDate = new Date(yogaClass.date);
-    const now = new Date();
-    
-    // Class can be joined if it's today (or live)
-    const isToday = classDate.toDateString() === now.toDateString();
-    const canJoin = isToday || isLive;
     
     return (
       <Card className="h-full flex flex-col">
@@ -113,13 +109,11 @@ const Dashboard = () => {
             </div>
             
             <div className="mt-auto">
-              {canJoin && (
-                <JoinClassButton 
-                  yogaClass={yogaClass}
-                  className="w-full bg-yoga-blue text-white hover:bg-yoga-blue/90 flex items-center justify-center"
-                  buttonText={isLive ? 'Join Live Now' : 'Join Class'}
-                />
-              )}
+              <JoinClassButton 
+                yogaClass={yogaClass}
+                className="w-full bg-yoga-blue text-white hover:bg-yoga-blue/90 flex items-center justify-center"
+                buttonText={isLive ? 'Join Live Now' : 'Join Now'}
+              />
             </div>
           </div>
         </CardContent>
