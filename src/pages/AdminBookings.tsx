@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import AdminGuard from '@/components/AdminGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +13,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TabsContent, Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminBookings = () => {
   const { bookings = [], teachers = [], getTeacher } = useTeachers();
@@ -25,12 +25,34 @@ const AdminBookings = () => {
   const [selectedTime, setSelectedTime] = useState<string>("");
   const { toast } = useToast();
   
-  // Mock users data
-  const mockUsers = [
-    { id: 'user1', name: 'John Doe', email: 'john@example.com' },
-    { id: 'user2', name: 'Jane Smith', email: 'jane@example.com' },
-    { id: 'user3', name: 'Robert Johnson', email: 'robert@example.com' },
-  ];
+  // Replace mock data with users from database
+  const [users, setUsers] = useState<any[]>([]);
+  
+  // Fetch users from database on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*');
+        
+        if (error) throw error;
+        
+        if (data) {
+          setUsers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to load users. Please try again later.'
+        });
+      }
+    };
+    
+    fetchUsers();
+  }, [toast]);
   
   const handleBookForUser = () => {
     if (!selectedTeacherId || !selectedUserId || !selectedSessionType || !selectedDate || !selectedTime) {
@@ -132,7 +154,7 @@ const AdminBookings = () => {
                             return (
                               <TableRow key={booking.id}>
                                 <TableCell>
-                                  {mockUsers.find(user => user.id === booking.userId)?.name || 'Unknown User'}
+                                  {users.find(user => user.id === booking.userId)?.name || 'Unknown User'}
                                 </TableCell>
                                 <TableCell>{teacher?.name || 'Unknown Teacher'}</TableCell>
                                 <TableCell>{booking.sessionType.name}</TableCell>
@@ -210,9 +232,9 @@ const AdminBookings = () => {
                     onChange={(e) => setSelectedUserId(e.target.value)}
                   >
                     <option value="">Select a user</option>
-                    {mockUsers.map((user) => (
+                    {users.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.name} ({user.email})
+                        {user.first_name} {user.last_name} ({user.email})
                       </option>
                     ))}
                   </select>

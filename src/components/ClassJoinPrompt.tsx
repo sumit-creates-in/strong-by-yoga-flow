@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +29,7 @@ const ClassJoinPrompt: React.FC<ClassJoinPromptProps> = ({
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [canJoin, setCanJoin] = useState<boolean>(false);
   const classDateTime = new Date(classDate);
-  const joinTime = addMinutes(classDateTime, -3); // 3 minutes before class starts
+  const joinTime = addMinutes(classDateTime, -5); // 5 minutes before class starts
   const now = new Date();
   
   useEffect(() => {
@@ -38,7 +37,7 @@ const ClassJoinPrompt: React.FC<ClassJoinPromptProps> = ({
       const now = new Date();
       const diffInSeconds = differenceInSeconds(classDateTime, now);
       
-      // Can join 3 minutes before class starts
+      // Can join 5 minutes before class starts
       setCanJoin(now >= joinTime);
       
       if (diffInSeconds <= 0) {
@@ -95,7 +94,7 @@ const ClassJoinPrompt: React.FC<ClassJoinPromptProps> = ({
                 </span>
               </p>
               <p className="text-muted-foreground text-sm">
-                You'll be able to join 3 minutes before the class starts
+                You'll be able to join 5 minutes before the class starts
               </p>
             </>
           ) : (

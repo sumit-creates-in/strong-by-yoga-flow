@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, Clock, Repeat, ChevronRight, Zap, Search, Filter } from 'lucide-react';
@@ -18,11 +17,17 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import JoinClassButton from '@/components/JoinClassButton';
+import { useAuth } from '@/contexts/AuthContext';
+import AdminRoleDebugger from '@/components/AdminRoleDebugger';
 
 const Classes = () => {
-  const { 
-    filteredClasses, 
-    setFilters, 
+  const {
+    classes,
+    filteredClasses,
+    setFilters,
+    viewMode,
+    setViewMode,
     formatClassDateTime,
     formatClassDate,
     formatRecurringPattern,
@@ -30,6 +35,7 @@ const Classes = () => {
     userMembership,
     isClassLive
   } = useYogaClasses();
+  const { user } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState<YogaClass | null>(null);
@@ -83,15 +89,22 @@ const Classes = () => {
   };
   
   const handleJoinClass = (yogaClass: YogaClass) => {
-    if (userMembership.active) {
-      // Check if class is live or within 3 minutes of starting
+    // Force admin check for specific email addresses
+    const isAdminEmail = user?.email === 'sumit_204@yahoo.com' || user?.email === 'admin@strongbyyoga.com';
+    const isAdmin = user?.role === 'admin';
+    
+    // Check if user is admin or has membership
+    if (isAdminEmail || isAdmin || userMembership.active) {
+      console.log('Proceeding as admin or member', { isAdmin, isAdminEmail, hasMembership: userMembership.active });
+      
+      // Check if class is live or within 5 minutes of starting
       const classDate = new Date(yogaClass.date);
       const now = new Date();
-      const threeMinutesBefore = new Date(classDate);
-      threeMinutesBefore.setMinutes(classDate.getMinutes() - 3);
+      const fiveMinutesBefore = new Date(classDate);
+      fiveMinutesBefore.setMinutes(classDate.getMinutes() - 5);
       
-      if (now >= threeMinutesBefore) {
-        // Class is live or within 3 minutes of starting - join directly
+      if (now >= fiveMinutesBefore) {
+        // Class is live or within 5 minutes of starting - join directly
         joinClass(yogaClass.id);
         window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
       } else {
@@ -100,12 +113,16 @@ const Classes = () => {
         setIsJoinPromptOpen(true);
       }
     } else {
+      console.log('Showing membership dialog', { isAdmin, hasMembership: userMembership.active, email: user?.email });
+      // User doesn't have membership - show membership required dialog
       setIsMembershipDialogOpen(true);
     }
   };
 
   return (
     <Layout>
+      <AdminRoleDebugger />
+      
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <h1 className="text-3xl font-bold">Yoga Classes</h1>
@@ -234,13 +251,11 @@ const Classes = () => {
                     
                     <div className="mt-auto flex flex-col md:flex-row gap-2">
                       {canJoin && (
-                        <Button 
+                        <JoinClassButton 
+                          yogaClass={yogaClass}
                           className="yoga-button flex-1 flex items-center justify-center"
-                          onClick={() => handleJoinClass(yogaClass)}
-                        >
-                          {isLive ? 'Join Live Now' : 'Join Class'}
-                          <ChevronRight size={16} className="ml-1" />
-                        </Button>
+                          buttonText={isLive ? 'Join Live Now' : 'Join Class'}
+                        />
                       )}
                       
                       <Button

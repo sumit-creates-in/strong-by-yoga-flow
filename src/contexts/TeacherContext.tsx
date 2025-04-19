@@ -176,287 +176,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   // Load initial data from localStorage or use default data
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
     const savedTeachers = localStorage.getItem('teachers');
-    return savedTeachers ? JSON.parse(savedTeachers) : [
-      {
-        id: 'teacher-1',
-        name: 'Jennifer Williams',
-        title: 'Yoga Therapist & Meditation Coach',
-        bio: 'With over 15 years of experience in yoga therapy and meditation, I help students find balance, heal injuries, and develop a sustainable practice that supports their specific needs. My approach combines traditional yoga with modern therapeutic techniques.',
-        avatarUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-        rating: 4.9,
-        reviewCount: 124,
-        experience: 15,
-        totalSessions: 1240,
-        specialties: ['Yoga Therapy', 'Meditation', 'Stress Reduction'],
-        expertise: ['Injury Recovery', 'Anxiety Management', 'Prenatal Yoga'],
-        certifications: ['C-IAYT', 'E-RYT 500', 'RPYT'],
-        languages: ['English', 'Spanish'],
-        sessionTypes: [
-          {
-            id: 'session-1',
-            name: '1:1 Yoga Therapy Session',
-            description: 'Personalized session focused on your specific needs and goals, incorporating therapeutic yoga techniques.',
-            duration: 60,
-            price: 85,
-            isActive: true,
-            bookingRestrictions: {
-              minTimeBeforeBooking: 24, // 24 hours
-              maxAdvanceBookingPeriod: 30, // 30 days
-              minTimeBeforeCancelling: 24, // 24 hours
-              minTimeBeforeRescheduling: 24, // 24 hours
-            },
-          },
-          {
-            id: 'session-2',
-            name: 'Meditation Coaching',
-            description: 'Learn meditation techniques tailored to your lifestyle and goals with personalized guidance.',
-            duration: 45,
-            price: 65,
-            isActive: true,
-            bookingRestrictions: {
-              minTimeBeforeBooking: 12, // 12 hours
-              maxAdvanceBookingPeriod: 60, // 60 days
-              minTimeBeforeCancelling: 12, // 12 hours
-              minTimeBeforeRescheduling: 12, // 12 hours
-            },
-          }
-        ],
-        availability: [
-          {
-            day: "monday",
-            slots: [
-              { start: "09:00", end: "12:00" },
-              { start: "14:00", end: "18:00" }
-            ]
-          },
-          {
-            day: "wednesday",
-            slots: [
-              { start: "09:00", end: "12:00" },
-              { start: "14:00", end: "18:00" }
-            ]
-          },
-          {
-            day: 'Friday',
-            slots: [
-              { start: '09:00', end: '16:00' }
-            ]
-          }
-        ],
-        zoomAccount: {
-          email: 'jennifer@strongbyyoga.com',
-          isConnected: true
-        },
-        notificationSettings: {
-          email: {
-            enabled: true,
-            templates: [
-              {
-                id: 'email-1',
-                name: 'Session Reminder',
-                subject: 'Reminder: Your yoga session is coming up',
-                body: 'Hi {{name}}, this is a reminder that your {{sessionType}} with {{teacherName}} is scheduled for {{date}} at {{time}}. Please be ready 5 minutes before the start time. Looking forward to seeing you!',
-                timing: {
-                  type: 'before',
-                  minutes: 1440 // 24 hours
-                },
-                recipients: ['user', 'teacher']
-              },
-              {
-                id: 'email-2',
-                name: 'Session Feedback',
-                subject: 'How was your yoga session?',
-                body: 'Hi {{name}}, thank you for attending the {{sessionType}} with {{teacherName}}. We hope you enjoyed it! Please take a moment to provide feedback on your experience.',
-                timing: {
-                  type: 'after',
-                  minutes: 60 // 1 hour
-                },
-                recipients: ['user']
-              }
-            ]
-          },
-          app: {
-            enabled: true,
-            templates: [
-              {
-                id: 'app-1',
-                name: 'Session Reminder',
-                body: 'Your {{sessionType}} with {{teacherName}} is tomorrow at {{time}}.',
-                timing: {
-                  type: 'before',
-                  minutes: 1440 // 24 hours
-                },
-                recipients: ['user', 'teacher']
-              },
-              {
-                id: 'app-2',
-                name: 'Session Starting Soon',
-                body: 'Your {{sessionType}} with {{teacherName}} starts in 15 minutes.',
-                timing: {
-                  type: 'before',
-                  minutes: 15
-                },
-                recipients: ['user', 'teacher']
-              }
-            ]
-          },
-          whatsapp: {
-            enabled: false,
-            phoneNumberId: '',
-            accessToken: '',
-            businessAccountId: '',
-            verifyToken: 'strongbyyoga_verify_token',
-            autoReplyEnabled: true,
-            autoReplyMessage: 'Thank you for contacting Strong By Yoga. We will get back to you shortly.',
-            templates: [
-              {
-                id: 'whatsapp-1',
-                name: 'Session Reminder',
-                body: 'Hi {{name}}, your yoga session with {{teacherName}} is scheduled for tomorrow at {{time}}. Click the link to join: {{zoomLink}}',
-                timing: {
-                  type: 'before',
-                  minutes: 1440 // 24 hours
-                },
-                recipients: ['user']
-              }
-            ]
-          },
-          sms: {
-            enabled: false,
-            templates: [
-              {
-                id: 'sms-1',
-                name: 'Session Reminder',
-                body: 'Your yoga session with {{teacherName}} is scheduled for tomorrow at {{time}}. Reply YES to confirm.',
-                timing: {
-                  type: 'before',
-                  minutes: 1440 // 24 hours
-                },
-                recipients: ['user']
-              }
-            ]
-          }
-        }
-      },
-      {
-        id: 'teacher-2',
-        name: 'David Chen',
-        title: 'Vinyasa Flow & Mobility Specialist',
-        bio: 'I specialize in vinyasa flow yoga with a focus on mobility and functional movement. My classes are dynamic and accessible to all levels, helping students develop strength, flexibility and body awareness.',
-        avatarUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-        rating: 4.7,
-        reviewCount: 98,
-        experience: 8,
-        totalSessions: 780,
-        specialties: ['Vinyasa Flow', 'Mobility Training', 'Functional Movement'],
-        expertise: ['Athletic Performance', 'Flexibility', 'Core Strength'],
-        certifications: ['E-RYT 200', 'NASM-CPT', 'FRC Mobility Specialist'],
-        languages: ['English', 'Mandarin'],
-        sessionTypes: [
-          {
-            id: 'session-3',
-            name: 'Mobility Assessment & Training',
-            description: 'Comprehensive assessment of your movement patterns followed by a personalized mobility routine.',
-            duration: 75,
-            price: 95,
-            isActive: true,
-            bookingRestrictions: {
-              minTimeBeforeBooking: 48, // 48 hours
-              maxAdvanceBookingPeriod: 60, // 60 days
-              minTimeBeforeCancelling: 48, // 48 hours
-              minTimeBeforeRescheduling: 48, // 48 hours
-            },
-          },
-          {
-            id: 'session-4',
-            name: 'Vinyasa Flow Private Session',
-            description: 'Private vinyasa yoga session tailored to your level and goals, focusing on fluid movement and breath.',
-            duration: 60,
-            price: 80,
-            isActive: true,
-            bookingRestrictions: {
-              minTimeBeforeBooking: 24, // 24 hours
-              maxAdvanceBookingPeriod: 30, // 30 days
-              minTimeBeforeCancelling: 24, // 24 hours
-              minTimeBeforeRescheduling: 24, // 24 hours
-            },
-          }
-        ],
-        availability: [
-          {
-            day: 'Tuesday',
-            slots: [
-              { start: '07:00', end: '12:00' },
-              { start: '16:00', end: '20:00' }
-            ]
-          },
-          {
-            day: 'Thursday',
-            slots: [
-              { start: '07:00', end: '12:00' },
-              { start: '16:00', end: '20:00' }
-            ]
-          },
-          {
-            day: 'Saturday',
-            slots: [
-              { start: '09:00', end: '15:00' }
-            ]
-          }
-        ],
-        zoomAccount: {
-          email: 'david@strongbyyoga.com',
-          isConnected: true
-        },
-        notificationSettings: {
-          email: {
-            enabled: true,
-            templates: [
-              {
-                id: 'email-1',
-                name: 'Session Reminder',
-                subject: 'Reminder: Your yoga session is coming up',
-                body: 'Hi {{name}}, this is a reminder that your {{sessionType}} with {{teacherName}} is scheduled for {{date}} at {{time}}. Please be ready 5 minutes before the start time. Looking forward to seeing you!',
-                timing: {
-                  type: 'before',
-                  minutes: 1440 // 24 hours
-                },
-                recipients: ['user', 'teacher']
-              }
-            ]
-          },
-          app: {
-            enabled: true,
-            templates: [
-              {
-                id: 'app-1',
-                name: 'Session Reminder',
-                body: 'Your {{sessionType}} with {{teacherName}} is tomorrow at {{time}}.',
-                timing: {
-                  type: 'before',
-                  minutes: 1440 // 24 hours
-                },
-                recipients: ['user', 'teacher']
-              }
-            ]
-          },
-          whatsapp: {
-            enabled: false,
-            phoneNumberId: '',
-            accessToken: '',
-            businessAccountId: '',
-            verifyToken: 'strongbyyoga_verify_token',
-            autoReplyEnabled: true,
-            autoReplyMessage: 'Thank you for contacting Strong By Yoga. We will get back to you shortly.',
-            templates: []
-          },
-          sms: {
-            enabled: false,
-            templates: []
-          }
-        }
-      }
-    ];
+    return savedTeachers ? JSON.parse(savedTeachers) : [];
   });
 
   // Save to localStorage whenever teachers change
@@ -464,59 +184,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     localStorage.setItem('teachers', JSON.stringify(teachers));
   }, [teachers]);
 
-  // Mock bookings data with localStorage persistence
+  // Bookings data with localStorage persistence but no mock data
   const [bookings, setBookings] = useState<BookingData[]>(() => {
     const savedBookings = localStorage.getItem('bookings');
-    return savedBookings ? JSON.parse(savedBookings) : [
-      {
-        id: 'booking-1',
-        teacherId: 'teacher-1',
-        userId: 'user1',
-        sessionType: {
-          id: 'session-1',
-          name: '1:1 Yoga Therapy Session',
-          description: 'Personalized session focused on your specific needs and goals, incorporating therapeutic yoga techniques.',
-          duration: 60,
-          price: 85,
-          isActive: true,
-          bookingRestrictions: {
-            minTimeBeforeBooking: 24,
-            maxAdvanceBookingPeriod: 30,
-            minTimeBeforeCancelling: 24,
-            minTimeBeforeRescheduling: 24,
-          },
-          credits: 15
-        },
-        date: new Date('2025-04-25'),
-        time: '10:00',
-        status: 'confirmed',
-        credits: 15
-      },
-      {
-        id: 'booking-2',
-        teacherId: 'teacher-2',
-        userId: 'user2',
-        sessionType: {
-          id: 'session-4',
-          name: 'Vinyasa Flow Private Session',
-          description: 'Private vinyasa yoga session tailored to your level and goals, focusing on fluid movement and breath.',
-          duration: 60,
-          price: 80,
-          isActive: true,
-          bookingRestrictions: {
-            minTimeBeforeBooking: 24,
-            maxAdvanceBookingPeriod: 30,
-            minTimeBeforeCancelling: 24,
-            minTimeBeforeRescheduling: 24,
-          },
-          credits: 12
-        },
-        date: new Date('2025-04-28'),
-        time: '14:00',
-        status: 'confirmed',
-        credits: 12
-      }
-    ];
+    return savedBookings ? JSON.parse(savedBookings) : [];
   });
 
   useEffect(() => {
@@ -540,7 +211,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   // Add credit-related state with localStorage persistence
   const [userCredits, setUserCredits] = useState<number>(() => {
     const savedCredits = localStorage.getItem('userCredits');
-    return savedCredits ? parseInt(savedCredits) : 100;
+    return savedCredits ? parseInt(savedCredits) : 0;
   });
 
   // Get the current authenticated user from the AuthContext
@@ -556,7 +227,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
       } else {
         // If no user-specific credits are found, use the default or global value
         const savedCredits = localStorage.getItem('userCredits');
-        setUserCredits(savedCredits ? parseInt(savedCredits) : 100);
+        setUserCredits(savedCredits ? parseInt(savedCredits) : 0);
         
         // Store the credits for this specific user
         localStorage.setItem(`userCredits_${user.id}`, userCredits.toString());
@@ -586,29 +257,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     
     // Fall back to global transactions
     const savedTransactions = localStorage.getItem('creditTransactions');
-    return savedTransactions ? JSON.parse(savedTransactions) : [
-      {
-        id: 'transaction-1',
-        type: 'purchase',
-        amount: 100,
-        description: 'Initial credit purchase',
-        date: '2025-03-15T10:00:00Z'
-      },
-      {
-        id: 'transaction-2',
-        type: 'usage',
-        amount: -15,
-        description: 'Meditation session with David Chen',
-        date: '2025-03-20T14:30:00Z'
-      },
-      {
-        id: 'transaction-3',
-        type: 'refund',
-        amount: 15,
-        description: 'Refund for cancelled session',
-        date: '2025-03-22T09:15:00Z'
-      }
-    ];
+    return savedTransactions ? JSON.parse(savedTransactions) : [];
   });
 
   // Update localStorage whenever creditTransactions changes
@@ -623,28 +272,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
 
   const [creditPackages, setCreditPackages] = useState<CreditPackage[]>(() => {
     const savedPackages = localStorage.getItem('creditPackages');
-    return savedPackages ? JSON.parse(savedPackages) : [
-      {
-        id: 'package-1',
-        name: 'Starter Pack',
-        price: 29,
-        credits: 40,
-        popular: true,
-      },
-      {
-        id: 'package-2',
-        name: 'Standard Pack',
-        price: 49,
-        credits: 75,
-      },
-      {
-        id: 'package-3',
-        name: 'Premium Pack',
-        price: 99,
-        credits: 160,
-        mostValue: true,
-      }
-    ];
+    return savedPackages ? JSON.parse(savedPackages) : [];
   });
 
   useEffect(() => {

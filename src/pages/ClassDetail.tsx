@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -8,10 +7,11 @@ import { useYogaClasses } from '@/contexts/YogaClassContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import JoinClassButton from '@/components/JoinClassButton';
 
 const ClassDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getClass, joinClass, userMembership, formatRecurringPattern } = useYogaClasses();
+  const { getClass, formatRecurringPattern } = useYogaClasses();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -41,27 +41,6 @@ const ClassDetail = () => {
     'h:mm a'
   );
   const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
-  
-  const handleJoinClass = () => {
-    if (!isClassInFuture) {
-      toast({
-        variant: 'destructive',
-        title: 'Cannot join class',
-        description: 'This class has already ended.',
-      });
-      return;
-    }
-    
-    if (!userMembership.active) {
-      navigate('/pricing');
-      return;
-    }
-    
-    joinClass(yogaClass.id);
-    
-    // In a real app, this would open the video conferencing link
-    window.open(yogaClass.joinLink, '_blank');
-  };
   
   return (
     <Layout>
@@ -137,14 +116,11 @@ const ClassDetail = () => {
                 </div>
                 
                 {isClassInFuture && (
-                  <Button 
-                    onClick={handleJoinClass} 
+                  <JoinClassButton 
+                    yogaClass={yogaClass}
                     className="yoga-button w-full md:w-auto"
-                    disabled={!isClassInFuture}
-                  >
-                    <UserCheck size={20} className="mr-2" />
-                    Join Now
-                  </Button>
+                    buttonText="Join Now"
+                  />
                 )}
                 
                 {!isClassInFuture && (

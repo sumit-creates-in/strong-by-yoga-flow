@@ -26,13 +26,13 @@ import ClassJoinPrompt from '@/components/ClassJoinPrompt';
 import TeacherShowcase from '@/components/TeacherShowcase';
 import { useTeachers } from '@/contexts/TeacherContext';
 import CreditHistoryModal from '@/components/CreditHistoryModal';
+import JoinClassButton from '@/components/JoinClassButton';
+import AdminRoleDebugger from '@/components/AdminRoleDebugger';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { 
     filteredClasses, 
-    joinClass, 
-    userMembership, 
     formatClassDateTime,
     formatClassDate, 
     formatRecurringPattern,
@@ -41,7 +41,6 @@ const Dashboard = () => {
   } = useYogaClasses();
   const { userCredits } = useTeachers();
   const navigate = useNavigate();
-  const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<YogaClass | null>(null);
   const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
   const [isCreditHistoryOpen, setIsCreditHistoryOpen] = useState(false);
@@ -57,64 +56,35 @@ const Dashboard = () => {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 6);
 
-  const handleJoinClass = (yogaClass: YogaClass) => {
-    if (userMembership.active) {
-      // Check if class is live or within 3 minutes of starting
-      const classDate = new Date(yogaClass.date);
-      const now = new Date();
-      const threeMinutesBefore = new Date(classDate);
-      threeMinutesBefore.setMinutes(classDate.getMinutes() - 3);
-      
-      if (now >= threeMinutesBefore) {
-        // Class is live or within 3 minutes of starting - join directly
-        joinClass(yogaClass.id);
-        window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
-      } else {
-        // Show countdown dialog
-        setSelectedClass(yogaClass);
-        setIsJoinPromptOpen(true);
-      }
-    } else {
-      setIsMembershipDialogOpen(true);
-    }
-  };
-
   const ClassCard = ({ yogaClass }: { yogaClass: YogaClass }) => {
     const isLive = isClassLive(yogaClass);
-    const canJoin = new Date() <= new Date(yogaClass.date);
-    const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
     const formattedDate = formatClassDate(yogaClass.date);
     const formattedTime = format(new Date(yogaClass.date), 'h:mm a');
+    const recurringText = formatRecurringPattern(yogaClass.recurringPattern);
+    
+    // Determine if we can show the join button - class is today or live
+    const classDate = new Date(yogaClass.date);
+    const now = new Date();
+    
+    // Class can be joined if it's today (or live)
+    const isToday = classDate.toDateString() === now.toDateString();
+    const canJoin = isToday || isLive;
     
     return (
-      <Card className="yoga-card h-full flex flex-col shadow-md overflow-hidden">
-        {yogaClass.imageUrl && (
-          <div className="w-full h-40 relative overflow-hidden">
-            <img 
-              src={yogaClass.imageUrl} 
-              alt={yogaClass.name} 
-              className="w-full h-full object-cover"
-            />
-            {isLive && (
-              <div className="absolute top-2 left-2 bg-red-500 text-white py-1 px-2 rounded-md flex items-center shadow-lg animate-pulse">
-                <Zap size={14} className="mr-1.5" />
-                <span className="font-medium">LIVE</span>
-              </div>
-            )}
-            
-            {/* Tags overlay on image */}
-            <div className="absolute bottom-0 left-0 right-0 p-1 flex flex-wrap gap-1 bg-gradient-to-t from-black/70 to-transparent">
-              {yogaClass.tags.map((tag, idx) => (
-                <span 
-                  key={idx} 
-                  className="text-xs font-medium bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
+      <Card className="h-full flex flex-col">
+        <div className="h-40 overflow-hidden rounded-t-lg">
+          <img 
+            src={yogaClass.imageUrl || 'https://images.unsplash.com/photo-1599447292180-45fd84092ef4?q=80&w=580'} 
+            alt={yogaClass.name} 
+            className="w-full h-full object-cover transition-transform hover:scale-105"
+          />
+          {isLive && (
+            <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold animate-pulse">
+              LIVE NOW
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        
         <CardContent className="pt-6 flex flex-col h-full">
           <div className="flex flex-col flex-grow">
             <h3 className="text-xl font-semibold mb-2">{yogaClass.name}</h3>
@@ -144,13 +114,11 @@ const Dashboard = () => {
             
             <div className="mt-auto">
               {canJoin && (
-                <Button 
+                <JoinClassButton 
+                  yogaClass={yogaClass}
                   className="w-full bg-yoga-blue text-white hover:bg-yoga-blue/90 flex items-center justify-center"
-                  onClick={() => handleJoinClass(yogaClass)}
-                >
-                  {isLive ? 'Join Live Now' : 'Join Class'}
-                  <ChevronRight size={16} className="ml-1" />
-                </Button>
+                  buttonText={isLive ? 'Join Live Now' : 'Join Class'}
+                />
               )}
             </div>
           </div>
@@ -161,6 +129,8 @@ const Dashboard = () => {
   
   return (
     <Layout>
+      <AdminRoleDebugger />
+      
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
@@ -246,57 +216,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Membership Dialog */}
-        <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Membership Required</DialogTitle>
-              <DialogDescription>
-                You need an active membership to join yoga classes. Would you like to get a membership now?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm font-medium">
-                Benefits of membership:
-              </p>
-              <ul className="list-disc pl-5 text-sm pt-2">
-                <li>Access to all live yoga classes</li>
-                <li>Recordings of past sessions</li>
-                <li>Personal guidance from instructors</li>
-                <li>Monthly progress tracking</li>
-              </ul>
-            </div>
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsMembershipDialogOpen(false)}
-              >
-                Later
-              </Button>
-              <Button
-                className="bg-yoga-blue hover:bg-yoga-blue/90"
-                onClick={() => {
-                  setIsMembershipDialogOpen(false);
-                  navigate('/pricing');
-                }}
-              >
-                View Plans
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Class Join Prompt */}
-        {selectedClass && (
-          <ClassJoinPrompt
-            isOpen={isJoinPromptOpen}
-            onClose={() => setIsJoinPromptOpen(false)}
-            classDate={selectedClass.date}
-            className={selectedClass.name}
-            joinLink={selectedClass.joinLink}
-          />
-        )}
-        
         {/* Credit History Modal */}
         <CreditHistoryModal
           open={isCreditHistoryOpen}

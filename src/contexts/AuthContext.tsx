@@ -72,11 +72,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isAdmin = session.user.email === 'admin@strongbyyoga.com' || 
                       session.user.email === 'sumit_204@yahoo.com';
       
-      setUser({
-        ...session.user,
-        profile,
-        role: isAdmin ? 'admin' : 'user',
+      console.log('Auth Context - Updating user state:', {
+        email: session.user.email,
+        isAdmin: isAdmin,
+        profileData: profile
       });
+      
+      // Force admin role for specific accounts
+      if (session.user.email === 'sumit_204@yahoo.com' || session.user.email === 'admin@strongbyyoga.com') {
+        console.log('Auth Context - Setting admin role for:', session.user.email);
+        setUser({
+          ...session.user,
+          profile,
+          role: 'admin',
+        });
+      } else {
+        setUser({
+          ...session.user,
+          profile,
+          role: isAdmin ? 'admin' : 'user',
+        });
+      }
     } else {
       setUser(null);
     }
