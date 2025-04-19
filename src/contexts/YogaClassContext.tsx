@@ -185,42 +185,48 @@ const initialClasses: YogaClass[] = [
 // Membership tiers
 const initialMembershipTiers: MembershipTier[] = [
   {
-    id: 'membership-basic',
-    name: 'Basic',
-    price: 19.99,
+    id: 'membership-monthly',
+    name: 'Monthly Membership',
+    price: 39.99,
     duration: 1,
     features: [
-      'Access to live classes',
-      '5 classes per month',
-      'Basic support',
-      'Community forum access'
+      'Unlimited Group Classes',
+      'Share Family Members',
+      'Premium Workshops',
+      'Recordings of Yoga Classes',
+      'Body Weight Workout Series',
+      'Weight Tracker Full Access'
     ]
   },
   {
-    id: 'membership-premium',
-    name: 'Premium',
-    price: 49.99,
-    duration: 1,
-    popular: true,
+    id: 'membership-sixmonth',
+    name: '6 Months Membership',
+    price: 34.99,
+    duration: 6,
     features: [
-      'Unlimited live classes',
-      'Class recordings for 7 days',
-      'Priority support',
-      'Community forum access',
-      'Personal guidance from teachers'
+      'Save $30',
+      'Unlimited Group Classes',
+      'Share Family Members',
+      'Premium Workshops',
+      'Recordings of Yoga Classes',
+      'Body Weight Workout Series',
+      'Weight Tracker Full Access'
     ]
   },
   {
     id: 'membership-annual',
-    name: 'Annual Plan',
-    price: 399.99,
+    name: '1 Year Membership',
+    price: 29.99,
     duration: 12,
+    popular: true,
     features: [
-      'All Premium features',
-      '2 months free',
-      'Exclusive workshops',
-      'Personal progress tracking',
-      'Custom program development'
+      'Save $120',
+      'Unlimited Group Classes',
+      'Share Family Members',
+      'Premium Workshops',
+      'Recordings of Yoga Classes',
+      'Body Weight Workout Series',
+      'Weight Tracker Full Access'
     ]
   }
 ];

@@ -34,9 +34,9 @@ const getStripeSettings = () => {
 
 // Membership tiers map to Stripe price IDs
 const MEMBERSHIP_PRICE_MAP = {
-  'membership-basic': 'price_1RFVoQGdK2MEKTShaxcN8Kh9', // Basic membership price ID
-  'membership-premium': 'price_1RwGRKHDLcNJqASMjlUXz385', // Test price ID - $1.00 test price
-  'membership-annual': 'price_1RwGRKHDLcNJqASMjlUXz385' // Test price ID - $1.00 test price
+  'membership-monthly': 'price_1MODwUGyB07x246GMkPzLsx7', // Monthly membership price ID
+  'membership-sixmonth': 'price_1RwGRKHDLcNJqASMjlUXz385', // Six-month membership price ID (test price)
+  'membership-annual': 'price_1RwGRKHDLcNJqASMjlUXz385' // Annual membership price ID (test price)
 };
 
 // Credit packages map to Stripe price IDs

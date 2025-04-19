@@ -32,6 +32,7 @@ import TeacherBooking from "./pages/TeacherBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import TeacherLearn from "./pages/TeacherLearn";
 import UpcomingSessions from "./pages/UpcomingSessions";
+import MembershipSuccess from "./pages/MembershipSuccess";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => {
               <Route path="/pricing" element={<AuthGuard><Pricing /></AuthGuard>} />
               <Route path="/upcoming-sessions" element={<AuthGuard><UpcomingSessions /></AuthGuard>} />
               <Route path="/booking/confirmation" element={<AuthGuard><BookingConfirmation /></AuthGuard>} />
+              <Route path="/membership-success" element={<AuthGuard><MembershipSuccess /></AuthGuard>} />
               
               {/* Teacher Routes */}
               <Route path="/teachers" element={<AuthGuard><TeachersList /></AuthGuard>} />

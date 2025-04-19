@@ -37,19 +37,71 @@ const Pricing = () => {
   const handleSelectTier = (tierId: string) => {
     setSelectedTier(tierId);
     setPaymentType('membership');
-    setIsPaymentDialogOpen(true);
+    handleDirectCheckout(tierId, 'membership');
   };
 
   const handleSelectCreditPackage = (packageId: string) => {
     setSelectedCreditPackage(packageId);
     setPaymentType('credits');
-    setIsPaymentDialogOpen(true);
+    handleDirectCheckout(packageId, 'credits');
   };
 
   const handleCustomCreditPurchase = () => {
     setPaymentType('custom');
     setIsPaymentDialogOpen(true);
   }
+  
+  const handleDirectCheckout = async (id: string, type: 'membership' | 'credits') => {
+    try {
+      if (type === 'membership') {
+        // Get the selected tier info
+        const selectedTierInfo = membershipTiers.find(t => t.id === id);
+        if (!selectedTierInfo) {
+          throw new Error('Selected membership tier not found');
+        }
+        
+        // Define success and cancel URLs
+        const successUrl = `${window.location.origin}/membership-success?tier=${id}`;
+        const cancelUrl = `${window.location.origin}/pricing`;
+        
+        // Create a Stripe checkout session for membership
+        await createMembershipCheckoutSession(
+          id,
+          successUrl,
+          cancelUrl
+        );
+      } 
+      else if (type === 'credits') {
+        // Get the selected package info
+        const selectedPackageInfo = creditPackages.find(p => p.id === id);
+        if (!selectedPackageInfo) {
+          throw new Error('Selected credit package not found');
+        }
+        
+        // Define success and cancel URLs
+        const successUrl = `${window.location.origin}/credits-success?package=${id}`;
+        const cancelUrl = `${window.location.origin}/pricing`;
+        
+        // Create a Stripe checkout session for credit purchase
+        await createCreditCheckoutSession(
+          id,
+          selectedPackageInfo.credits,
+          selectedPackageInfo.price,
+          successUrl,
+          cancelUrl
+        );
+      }
+    } catch (error) {
+      console.error('Checkout failed:', error);
+      
+      // Show error toast or message
+      toast({
+        variant: "destructive",
+        title: "Checkout Failed",
+        description: error.message || "There was an error processing your request",
+      });
+    }
+  };
   
   const handlePurchase = async () => {
     try {
