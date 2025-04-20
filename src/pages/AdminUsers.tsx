@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, MoreVertical, Mail, Phone, Lock } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -35,6 +36,14 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useTeachers } from '@/contexts/TeacherContext';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
 
 // Define the User type based on Supabase structure
 interface AppUser {
@@ -68,8 +77,6 @@ interface UserDialogProps {
   mode: 'view' | 'edit';
   onSave?: (userData: Partial<AppUser>) => void;
 }
-
-// Mock users are no longer needed
 
 // User Dialog component
 const UserDialog: React.FC<UserDialogProps> = ({ user, isOpen, onClose, mode, onSave }) => {
@@ -640,44 +647,109 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // Get all profiles from the profiles table
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
+      // Get auth users from Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
       
-      if (profilesError) throw profilesError;
-      
-      if (!profiles || profiles.length === 0) {
-        console.log('No profiles found in the database');
-        setUsers([]);
-        setIsLoading(false);
-        return;
+      if (authError) {
+        // If admin API fails (most likely due to permissions), fall back to profiles table
+        console.warn("Failed to access admin API, falling back to profiles:", authError);
+        
+        // Get profiles from the profiles table
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*');
+        
+        if (profilesError) throw profilesError;
+        
+        if (!profiles || profiles.length === 0) {
+          console.log('No profiles found in the database');
+          setUsers([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log(`Found ${profiles.length} users in profiles table`);
+        
+        // For each profile, try to get the user's email from auth metadata
+        const usersWithEmails = await Promise.all(profiles.map(async (profile: SupabaseProfile) => {
+          // Try to get user email if possible
+          let email = "";
+          try {
+            const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
+            email = userData?.user?.email || "";
+          } catch (e) {
+            console.log("Couldn't get email for user", profile.id);
+          }
+          
+          return {
+            ...profile,
+            email: email
+          };
+        }));
+        
+        // Convert to AppUser format
+        const mappedUsers: AppUser[] = usersWithEmails.map((profile: SupabaseProfile & {email?: string}) => {
+          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+          const email = profile.email || '';
+          
+          const isAdmin = 
+            email === 'admin@strongbyyoga.com' || 
+            email === 'sumit_204@yahoo.com';
+          
+          return {
+            id: profile.id,
+            name: fullName || email.split('@')[0] || 'Unknown User',
+            email: email,
+            phone: profile.phone || null,
+            role: isAdmin ? 'admin' : 'user',
+            status: 'active',
+            joinedDate: profile.created_at || new Date().toISOString()
+          };
+        });
+        
+        setUsers(mappedUsers);
+      } else {
+        // We have access to the auth admin API
+        console.log(`Found ${authData.users.length} users in auth.users`);
+        
+        // Now get profiles to supplement the data
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*');
+        
+        // Create a map of profiles by id for easier lookup
+        const profilesMap = new Map();
+        if (profiles) {
+          profiles.forEach((profile: SupabaseProfile) => {
+            profilesMap.set(profile.id, profile);
+          });
+        }
+        
+        // Combine auth data with profiles
+        const mappedUsers: AppUser[] = authData.users.map(authUser => {
+          const profile = profilesMap.get(authUser.id);
+          const firstName = profile?.first_name || authUser.user_metadata?.first_name || '';
+          const lastName = profile?.last_name || authUser.user_metadata?.last_name || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          
+          const isAdmin = 
+            authUser.email === 'admin@strongbyyoga.com' || 
+            authUser.email === 'sumit_204@yahoo.com' ||
+            authUser.user_metadata?.role === 'admin';
+          
+          return {
+            id: authUser.id,
+            name: fullName || authUser.email?.split('@')[0] || 'Unknown User',
+            email: authUser.email || '',
+            phone: profile?.phone || authUser.phone || null,
+            role: isAdmin ? 'admin' : 'user',
+            status: authUser.banned ? 'inactive' : 'active',
+            joinedDate: authUser.created_at
+          };
+        });
+        
+        setUsers(mappedUsers);
       }
-      
-      console.log(`Found ${profiles.length} users in profiles table`);
-      
-      // Convert to AppUser format
-      const mappedUsers: AppUser[] = profiles.map((profile: any) => {
-        const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-        const email = profile.email || '';
-        
-        const isAdmin = 
-          email === 'admin@strongbyyoga.com' || 
-          email === 'sumit_204@yahoo.com';
-        
-        return {
-          id: profile.id,
-          name: fullName || email.split('@')[0] || 'Unknown User',
-          email: email,
-          phone: profile.phone || null,
-          role: isAdmin ? 'admin' : 'user' as 'admin' | 'user',
-          status: profile.is_active !== false ? 'active' : 'inactive' as 'active' | 'inactive',
-          joinedDate: profile.created_at || new Date().toISOString()
-        };
-      });
-      
-      console.log('Final mapped users for display:', mappedUsers);
-      setUsers(mappedUsers);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
@@ -728,9 +800,6 @@ const AdminUsers = () => {
 
       if (profileError) throw profileError;
 
-      // Update user role if needed (in a real app, you'd need backend functions for this)
-      // For now we'll just update the UI
-
       toast({
         title: "User updated",
         description: "User information has been successfully updated."
@@ -758,14 +827,21 @@ const AdminUsers = () => {
   const confirmDeleteUser = async () => {
     if (selectedUser) {
       try {
-        // In a real app, you would call a secure server endpoint to delete a user
-        // Here we'll just delete the profile since we can't directly delete auth users
-        const { error } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', selectedUser.id);
+        // Try to delete the user using the auth API
+        const { error: authError } = await supabase.auth.admin.deleteUser(
+          selectedUser.id
+        );
+        
+        if (authError) {
+          console.error('Error deleting user auth account:', authError);
+          // Fall back to just deleting the profile
+          const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', selectedUser.id);
 
-        if (error) throw error;
+          if (error) throw error;
+        }
 
         toast({
           title: "User deleted",
@@ -789,8 +865,23 @@ const AdminUsers = () => {
   // Handle status change for a user (activate/deactivate)
   const handleStatusChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     try {
-      // Since is_active is not in the profiles table schema, we'll update the UI state only
-      // In a real application, you would store the status in the database
+      if (newStatus === 'inactive') {
+        // Ban user
+        const { error } = await supabase.auth.admin.updateUserById(
+          userId,
+          { banned: true }
+        );
+        
+        if (error) throw error;
+      } else {
+        // Unban user
+        const { error } = await supabase.auth.admin.updateUserById(
+          userId,
+          { banned: false }
+        );
+        
+        if (error) throw error;
+      }
       
       // Update local state
       setUsers(prev => 
@@ -869,62 +960,62 @@ const AdminUsers = () => {
                 <div className="p-10 text-center">Loading users...</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-yoga-light-blue/30">
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Name</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Email</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Phone</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Role</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Status</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Joined</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {users.map((user) => (
-                        <tr 
+                        <TableRow 
                           key={user.id} 
-                          className="border-t border-yoga-light-blue hover:bg-yoga-light-yellow/20"
+                          className="hover:bg-yoga-light-yellow/20"
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <TableCell>
                             <div className="flex items-center">
                               <div className="w-8 h-8 rounded-full bg-yoga-light-blue flex items-center justify-center text-yoga-blue font-medium mr-3">
-                                {user.name ? user.name[0] : 'U'}
+                                {user.name ? user.name[0].toUpperCase() : 'U'}
                               </div>
                               <span>{user.name || 'Unknown User'}</span>
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center">
                               <Mail size={16} className="mr-2 text-gray-600" />
                               {user.email}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center">
                               <Phone size={16} className="mr-2 text-gray-600" />
                               {user.phone || 'Not provided'}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </TableCell>
+                          <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               user.role === 'admin' ? 'bg-yoga-yellow text-gray-800' : 'bg-gray-100'
                             }`}>
                               {user.role}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </TableCell>
+                          <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
                               {user.status}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </TableCell>
+                          <TableCell>
                             {new Date(user.joinedDate).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          </TableCell>
+                          <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -957,11 +1048,11 @@ const AdminUsers = () => {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>

@@ -16,3 +16,26 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
   }
 });
+
+// Helper function to get all users from auth.users (requires admin privileges)
+export const fetchAllUsers = async () => {
+  try {
+    // Using the Supabase REST API with admin token since 
+    // regular API doesn't allow direct access to auth.users
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=*`, {
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const profilesData = await response.json();
+    
+    console.log('Fetched profiles:', profilesData);
+    return profilesData;
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    throw error;
+  }
+};
