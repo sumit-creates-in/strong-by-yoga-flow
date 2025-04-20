@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,6 +23,7 @@ export interface SessionType {
   duration: number;
   price: number;
   isActive: boolean;
+  type?: 'video' | 'call' | 'chat'; // Add type property
   bookingRestrictions: {
     minTimeBeforeBooking: number; // hours
     maxAdvanceBookingPeriod: number; // days
@@ -100,9 +102,11 @@ export interface Teacher {
   sessionTypes: SessionType[];
   availability: AvailabilitySlot[];
   zoomAccount: ZoomAccount;
-  shortBio?: string; // Added missing fields
+  shortBio?: string;
   fullBio?: string;
   teachingStyle?: string;
+  reviews?: any[]; // Add reviews property
+  lastReviewDate?: string; // Add lastReviewDate property
   notificationSettings: {
     email: {
       enabled: boolean;
@@ -142,6 +146,8 @@ export interface TeacherContextProps {
   updateNotificationTemplate: (template: NotificationTemplate) => void;
   deleteNotificationTemplate: (id: string) => void;
   sendTestNotification: (templateId: string, recipient: string) => void;
+  notificationSettings?: any; // Add this property
+  updateNotificationSettings: (settings: any) => void; // Add this method
   
   // Add teacher availability methods
   addTeacherAvailability: (teacherId: string, availability: AvailabilitySlot) => void;
@@ -158,6 +164,7 @@ export interface TeacherContextProps {
   addCreditPackage: (pkg: Omit<CreditPackage, 'id'>) => void;
   updateCreditPackage: (pkg: CreditPackage) => void;
   deleteCreditPackage: (id: string) => void;
+  purchaseCredits?: (packageId: string) => void; // Add this method
   
   // Add booking methods
   bookSession: (bookingData: any) => BookingData;
@@ -249,6 +256,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     }
   }, [userCredits, user?.id]);
 
+  // Credit transactions with localStorage persistence
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>(() => {
     // If we have a user, try to get user-specific transactions
     if (user) {
@@ -265,6 +273,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
 
   // Update localStorage whenever creditTransactions changes
   useEffect(() => {
+    // Save global transactions (legacy)
     localStorage.setItem('creditTransactions', JSON.stringify(creditTransactions));
     
     // If we have a user, save user-specific transactions
@@ -273,327 +282,481 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     }
   }, [creditTransactions, user?.id]);
 
+  // Credit packages for purchase
   const [creditPackages, setCreditPackages] = useState<CreditPackage[]>(() => {
     const savedPackages = localStorage.getItem('creditPackages');
-    return savedPackages ? JSON.parse(savedPackages) : [];
+    
+    if (savedPackages) {
+      return JSON.parse(savedPackages);
+    } else {
+      // Default credit packages
+      return [
+        {
+          id: 'basic',
+          name: 'Basic',
+          credits: 10,
+          price: 100,
+          popular: false,
+          mostValue: false
+        },
+        {
+          id: 'standard',
+          name: 'Standard',
+          credits: 25,
+          price: 225,
+          popular: true,
+          mostValue: false
+        },
+        {
+          id: 'premium',
+          name: 'Premium',
+          credits: 50,
+          price: 400,
+          popular: false,
+          mostValue: true
+        }
+      ];
+    }
   });
 
+  // Update localStorage whenever creditPackages changes
   useEffect(() => {
     localStorage.setItem('creditPackages', JSON.stringify(creditPackages));
   }, [creditPackages]);
 
-  // Context methods
-  const addTeacher = (teacher: Teacher) => {
-    console.log("Adding new teacher:", teacher);
-    setTeachers(prevTeachers => [...prevTeachers, teacher]);
+  // Notification settings from teacher 0 (temporary implementation)
+  const [notificationSettings, setNotificationSettings] = useState<any>(() => {
+    // Try to load notification settings from localStorage
+    const savedSettings = localStorage.getItem('notificationSettings');
+    
+    if (savedSettings) {
+      return JSON.parse(savedSettings);
+    } else if (teachers.length > 0 && teachers[0].notificationSettings) {
+      // Get from first teacher if available
+      return teachers[0].notificationSettings;
+    } else {
+      // Default notification settings
+      return {
+        email: {
+          enabled: true,
+          templates: [
+            {
+              id: "email-booking-confirmed",
+              name: "Booking Confirmation",
+              type: "email",
+              subject: "Your session has been confirmed",
+              body: "Dear %student_name%,\n\nYour session with %teacher_name% on %session_date% at %session_time% has been confirmed.\n\nThank you for using our platform!",
+              enabled: true,
+              recipientType: "student",
+              triggerType: "action",
+              triggerAction: "booking_confirmed",
+              timing: { type: "before", minutes: 0 },
+              recipients: ["user", "teacher"]
+            },
+            {
+              id: "email-booking-reminder",
+              name: "Session Reminder",
+              type: "email",
+              subject: "Reminder: Your upcoming session",
+              body: "Dear %student_name%,\n\nThis is a friendly reminder that you have a session with %teacher_name% scheduled for tomorrow at %session_time%.\n\nThank you for using our platform!",
+              enabled: true,
+              recipientType: "both",
+              triggerType: "scheduled",
+              scheduledTime: { when: "before", time: 24 },
+              timing: { type: "before", minutes: 1440 }
+            }
+          ]
+        },
+        app: {
+          enabled: true,
+          templates: [
+            {
+              id: "app-booking-confirmed",
+              name: "Booking Confirmation",
+              type: "in-app",
+              body: "Your session with %teacher_name% on %session_date% at %session_time% has been confirmed.",
+              enabled: true,
+              recipientType: "student",
+              triggerType: "action",
+              triggerAction: "booking_confirmed",
+              timing: { type: "before", minutes: 0 },
+              recipients: ["user", "teacher"]
+            },
+            {
+              id: "app-session-reminder",
+              name: "Session Reminder",
+              type: "in-app",
+              body: "You have a session with %teacher_name% starting in 30 minutes.",
+              enabled: true,
+              recipientType: "both",
+              triggerType: "scheduled",
+              scheduledTime: { when: "before", time: 0.5 },
+              timing: { type: "before", minutes: 30 },
+              recipients: ["user", "teacher"]
+            }
+          ]
+        },
+        whatsapp: {
+          enabled: false,
+          phoneNumberId: "",
+          accessToken: "",
+          businessAccountId: "",
+          verifyToken: "strongbyyoga_verify_token",
+          autoReplyEnabled: false,
+          autoReplyMessage: "",
+          templates: [
+            {
+              id: "whatsapp-booking-confirmed",
+              name: "Booking Confirmation",
+              type: "whatsapp",
+              body: "Your session with %teacher_name% on %session_date% at %session_time% has been confirmed.",
+              enabled: true,
+              recipientType: "student",
+              triggerType: "action",
+              triggerAction: "booking_confirmed",
+              timing: { type: "before", minutes: 0 },
+              recipients: ["user"]
+            },
+            {
+              id: "whatsapp-session-reminder",
+              name: "Session Reminder",
+              type: "whatsapp",
+              body: "You have a session with %teacher_name% starting in 2 hours.",
+              enabled: true,
+              recipientType: "student",
+              triggerType: "scheduled",
+              scheduledTime: { when: "before", time: 2 },
+              timing: { type: "before", minutes: 120 },
+              recipients: ["user"]
+            }
+          ]
+        },
+        sms: {
+          enabled: false,
+          templates: [
+            {
+              id: "sms-booking-confirmed",
+              name: "Booking Confirmation",
+              type: "sms",
+              body: "Your session with %teacher_name% on %session_date% at %session_time% has been confirmed.",
+              enabled: true,
+              recipientType: "student",
+              triggerType: "action",
+              triggerAction: "booking_confirmed",
+              timing: { type: "before", minutes: 0 },
+              recipients: ["user", "teacher"]
+            },
+            {
+              id: "sms-session-reminder",
+              name: "Session Reminder",
+              type: "sms",
+              body: "You have a session with %teacher_name% starting in 1 hour.",
+              enabled: true,
+              recipientType: "student",
+              triggerType: "scheduled",
+              scheduledTime: { when: "before", time: 1 },
+              timing: { type: "before", minutes: 60 },
+              recipients: ["user", "teacher"]
+            }
+          ]
+        }
+      };
+    }
+  });
+
+  // Save notification settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+  }, [notificationSettings]);
+
+  // Function to update notification settings
+  const updateNotificationSettings = (settings: any) => {
+    if (!settings) return;
+    
+    setNotificationSettings((prevSettings: any) => {
+      const updatedSettings = { ...prevSettings };
+      
+      // Update email settings
+      if (settings.email) {
+        updatedSettings.email = {
+          ...updatedSettings.email,
+          ...settings.email
+        };
+      }
+      
+      // Update app notification settings
+      if (settings.app) {
+        updatedSettings.app = {
+          ...updatedSettings.app,
+          ...settings.app
+        };
+      }
+      
+      // Update WhatsApp settings
+      if (settings.whatsapp) {
+        updatedSettings.whatsapp = {
+          ...updatedSettings.whatsapp,
+          ...settings.whatsapp
+        };
+      }
+      
+      // Update SMS settings
+      if (settings.sms) {
+        updatedSettings.sms = {
+          ...updatedSettings.sms,
+          ...settings.sms
+        };
+      }
+      
+      return updatedSettings;
+    });
   };
 
-  const updateTeacher = (id: string, updatedTeacherData: Partial<Teacher>) => {
-    console.log("Updating teacher with id:", id, "Data:", updatedTeacherData);
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher =>
-        teacher.id === id ? { ...teacher, ...updatedTeacherData } : teacher
+  // Add the ability to purchase credit packages
+  const purchaseCredits = (packageId: string) => {
+    // Find the selected package
+    const selectedPackage = creditPackages.find(pkg => pkg.id === packageId);
+    
+    if (!selectedPackage) {
+      console.error(`Credit package with id ${packageId} not found`);
+      return;
+    }
+    
+    // In a real app, this would trigger a payment flow
+    // For now, we'll just add the credits directly
+    setUserCredits(prevCredits => prevCredits + selectedPackage.credits);
+    
+    // Add a transaction record
+    const newTransaction: CreditTransaction = {
+      id: `tr-${Date.now()}`,
+      type: 'purchase',
+      amount: selectedPackage.credits,
+      description: `Purchased ${selectedPackage.name} credit package`,
+      date: new Date().toISOString()
+    };
+    
+    setCreditTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
+  };
+
+  // CRUD operations for teachers
+  const addTeacher = (teacher: Teacher) => {
+    setTeachers([...teachers, teacher]);
+  };
+  
+  const updateTeacher = (id: string, updatedTeacher: Partial<Teacher>) => {
+    setTeachers(
+      teachers.map(teacher => 
+        teacher.id === id ? { ...teacher, ...updatedTeacher } : teacher
       )
     );
   };
-
+  
   const deleteTeacher = (id: string) => {
-    setTeachers(prevTeachers => prevTeachers.filter(teacher => teacher.id !== id));
+    setTeachers(teachers.filter(teacher => teacher.id !== id));
   };
-
-  // Add the getTeacher function that was missing
-  const getTeacher = (id: string): Teacher | undefined => {
+  
+  const getTeacher = (id: string) => {
     return teachers.find(teacher => teacher.id === id);
   };
 
-  // Add notification-related methods
+  // Notification template management
   const updateNotificationTemplate = (template: NotificationTemplate) => {
-    // Implementation will update a notification template in the teacher's settings
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher => {
-        const notificationSettings = { ...teacher.notificationSettings };
-        
-        // Find which channel this template belongs to
-        for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
-          const index = notificationSettings[channel].templates.findIndex(t => t.id === template.id);
-          if (index >= 0) {
-            const updatedTemplates = [...notificationSettings[channel].templates];
-            updatedTemplates[index] = template;
-            notificationSettings[channel] = {
-              ...notificationSettings[channel],
-              templates: updatedTemplates
-            };
-            break;
-          }
-        }
-        
-        return { ...teacher, notificationSettings };
-      })
-    );
+    // Update notification templates logic would go here
+    console.log('Updating notification template:', template);
   };
   
   const deleteNotificationTemplate = (id: string) => {
-    // Implementation will remove a notification template from the teacher's settings
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher => {
-        const notificationSettings = { ...teacher.notificationSettings };
-        
-        // Find which channel this template belongs to
-        for (const channel of ['email', 'app', 'whatsapp', 'sms'] as const) {
-          const updatedTemplates = notificationSettings[channel].templates.filter(t => t.id !== id);
-          if (updatedTemplates.length !== notificationSettings[channel].templates.length) {
-            notificationSettings[channel] = {
-              ...notificationSettings[channel],
-              templates: updatedTemplates
-            };
-            break;
-          }
-        }
-        
-        return { ...teacher, notificationSettings };
-      })
-    );
+    // Delete notification template logic would go here
+    console.log('Deleting notification template:', id);
   };
   
   const sendTestNotification = (templateId: string, recipient: string) => {
-    // Mock implementation that would send a test notification
-    console.log(`Sending test notification for template ${templateId} to ${recipient}`);
-    // In a real implementation, this would make an API call to send the notification
+    // Logic to send a test notification would go here
+    console.log('Sending test notification:', templateId, 'to', recipient);
   };
-  
-  // Add teacher availability methods
+
+  // Teacher availability management
   const addTeacherAvailability = (teacherId: string, availability: AvailabilitySlot) => {
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher => {
-        if (teacher.id === teacherId) {
-          // Check if day already exists
-          const existingDayIndex = teacher.availability.findIndex(a => a.day === availability.day);
-          const updatedAvailability = [...teacher.availability];
-          
-          if (existingDayIndex >= 0) {
-            // Update existing day
-            updatedAvailability[existingDayIndex] = {
-              ...updatedAvailability[existingDayIndex],
-              slots: [...updatedAvailability[existingDayIndex].slots, ...availability.slots]
-            };
-          } else {
-            // Add new day
-            updatedAvailability.push(availability);
-          }
-          
-          return { ...teacher, availability: updatedAvailability };
-        }
-        return teacher;
-      })
-    );
+    updateTeacher(teacherId, {
+      availability: [...(getTeacher(teacherId)?.availability || []), availability]
+    });
   };
   
   const removeTeacherAvailability = (teacherId: string, dayIndex: number) => {
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher => {
-        if (teacher.id === teacherId) {
-          const updatedAvailability = [...teacher.availability];
-          updatedAvailability.splice(dayIndex, 1);
-          return { ...teacher, availability: updatedAvailability };
-        }
-        return teacher;
-      })
-    );
+    const teacher = getTeacher(teacherId);
+    if (!teacher) return;
+    
+    const newAvailability = [...teacher.availability];
+    newAvailability.splice(dayIndex, 1);
+    
+    updateTeacher(teacherId, { availability: newAvailability });
   };
-  
-  // Add zoom account methods
+
+  // Zoom account management
   const connectZoomAccount = (teacherId: string, email: string) => {
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher => {
-        if (teacher.id === teacherId) {
-          return {
-            ...teacher,
-            zoomAccount: { email, isConnected: true }
-          };
-        }
-        return teacher;
-      })
-    );
+    updateTeacher(teacherId, {
+      zoomAccount: { email, isConnected: true }
+    });
   };
   
   const disconnectZoomAccount = (teacherId: string) => {
-    setTeachers(prevTeachers =>
-      prevTeachers.map(teacher => {
-        if (teacher.id === teacherId) {
-          return {
-            ...teacher,
-            zoomAccount: { ...teacher.zoomAccount, isConnected: false }
-          };
-        }
-        return teacher;
-      })
-    );
+    updateTeacher(teacherId, {
+      zoomAccount: { email: '', isConnected: false }
+    });
   };
 
-  // Credit package methods
+  // Credit package management
   const addCreditPackage = (pkg: Omit<CreditPackage, 'id'>) => {
-    const newPackage = {
-      ...pkg,
-      id: `package-${Date.now()}`
+    const newPackage: CreditPackage = {
+      id: `pkg-${Date.now()}`,
+      ...pkg
     };
-    setCreditPackages(prevPackages => [...prevPackages, newPackage]);
+    
+    setCreditPackages([...creditPackages, newPackage]);
   };
-
+  
   const updateCreditPackage = (pkg: CreditPackage) => {
-    setCreditPackages(prevPackages =>
-      prevPackages.map(p => (p.id === pkg.id ? pkg : p))
+    setCreditPackages(
+      creditPackages.map(p => p.id === pkg.id ? pkg : p)
     );
   };
-
+  
   const deleteCreditPackage = (id: string) => {
-    setCreditPackages(prevPackages => prevPackages.filter(p => p.id !== id));
+    setCreditPackages(creditPackages.filter(p => p.id !== id));
   };
 
-  // Booking methods
-  const bookSession = (bookingData: any): BookingData => {
-    // Create a new booking with the current user's ID
+  // Booking management
+  const bookSession = (bookingData: any) => {
+    // Create a new booking
     const newBooking: BookingData = {
       id: `booking-${Date.now()}`,
       teacherId: bookingData.teacherId,
-      userId: user?.id || 'guest-user', // Use the authenticated user's ID
+      userId: bookingData.userId || user?.id || 'guest-user',
       sessionType: bookingData.sessionType,
       date: bookingData.date,
       time: bookingData.time,
       status: 'confirmed',
-      credits: bookingData.sessionType.credits || bookingData.sessionType.price || 0
+      credits: bookingData.sessionType.credits || bookingData.sessionType.price
     };
     
-    console.log("Creating new booking:", newBooking);
+    // Add to bookings
+    setBookings([...bookings, newBooking]);
     
-    // Add booking to bookings list
-    setBookings(prevBookings => [...prevBookings, newBooking]);
-    
-    // Update latest booking for confirmation page
+    // Set as latest booking for confirmation page
     setLatestBooking(newBooking);
     
     // Deduct credits
-    setUserCredits(prev => prev - (newBooking.credits || 0));
+    setUserCredits(prevCredits => 
+      prevCredits - (bookingData.sessionType.credits || bookingData.sessionType.price)
+    );
     
-    // Add credit transaction
-    const transaction: CreditTransaction = {
-      id: `transaction-${Date.now()}`,
+    // Add transaction
+    const newTransaction: CreditTransaction = {
+      id: `tr-${Date.now()}`,
       type: 'usage',
-      amount: -(newBooking.credits || 0),
-      description: `${newBooking.sessionType.name} with ${getTeacher(newBooking.teacherId)?.name}`,
+      amount: -(bookingData.sessionType.credits || bookingData.sessionType.price),
+      description: `Booked ${bookingData.sessionType.name} with ${bookingData.teacherName || 'a teacher'}`,
       date: new Date().toISOString()
     };
     
-    setCreditTransactions(prev => [...prev, transaction]);
+    setCreditTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
     
     return newBooking;
   };
-
-  const getBooking = (): BookingData | null => {
+  
+  const getBooking = () => {
     return latestBooking;
   };
-
-  // New method to get user-specific bookings
-  const getUserBookings = (userId: string): BookingData[] => {
+  
+  const getUserBookings = (userId: string) => {
     return bookings.filter(booking => booking.userId === userId);
   };
-
-  // Cancel booking method
+  
   const cancelBooking = (bookingId: string) => {
-    setBookings(prevBookings =>
-      prevBookings.map(booking => {
-        if (booking.id === bookingId) {
-          return {
-            ...booking,
-            status: 'cancelled'
-          };
-        }
-        return booking;
-      })
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+    
+    // Update booking status
+    setBookings(
+      bookings.map(b => 
+        b.id === bookingId 
+          ? { ...b, status: 'cancelled' } 
+          : b
+      )
     );
     
-    // Add a transaction to refund credits
-    const booking = bookings.find(b => b.id === bookingId);
-    if (booking) {
-      const transaction: CreditTransaction = {
-        id: `transaction-${Date.now()}`,
-        type: 'refund',
-        amount: booking.credits,
-        description: `Refund for cancelled ${booking.sessionType.name}`,
-        date: new Date().toISOString()
-      };
-      
-      setCreditTransactions(prev => [...prev, transaction]);
-      setUserCredits(prev => prev + booking.credits);
-    }
+    // Refund credits
+    setUserCredits(prevCredits => prevCredits + booking.credits);
+    
+    // Add transaction
+    const newTransaction: CreditTransaction = {
+      id: `tr-${Date.now()}`,
+      type: 'refund',
+      amount: booking.credits,
+      description: `Refund for cancelled booking`,
+      date: new Date().toISOString()
+    };
+    
+    setCreditTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
   };
   
-  // Reschedule booking method
   const rescheduleBooking = (bookingId: string, newDate: Date, newTime: string) => {
-    setBookings(prevBookings =>
-      prevBookings.map(booking => {
-        if (booking.id === bookingId) {
-          return {
-            ...booking,
-            date: newDate,
-            time: newTime
-          };
-        }
-        return booking;
-      })
+    setBookings(
+      bookings.map(b => 
+        b.id === bookingId 
+          ? { ...b, date: newDate, time: newTime } 
+          : b
+      )
     );
   };
   
-  // Join session method
-  const joinSession = (bookingId: string): string => {
-    // Get the booking and teacher
-    const booking = bookings.find(b => b.id === bookingId);
-    if (!booking) return '';
-    
-    const teacher = getTeacher(booking.teacherId);
-    if (!teacher) return '';
-    
-    // Generate a Zoom meeting URL (in a real app, this would come from your backend)
-    const meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9000000) + 1000000}`;
-    
-    return meetingUrl;
+  const joinSession = (bookingId: string) => {
+    // In a real app, this would generate or return a meeting join URL
+    return `https://zoom.us/j/123456789?booking=${bookingId}`;
   };
 
   return (
-    <TeacherContext.Provider 
-      value={{ 
-        teachers, 
-        bookings,
-        addTeacher, 
-        updateTeacher, 
-        deleteTeacher,
-        getTeacher,
-        updateNotificationTemplate,
-        deleteNotificationTemplate,
-        sendTestNotification,
-        addTeacherAvailability,
-        removeTeacherAvailability,
-        connectZoomAccount,
-        disconnectZoomAccount,
-        userCredits,
-        creditTransactions,
-        creditPackages,
-        addCreditPackage,
-        updateCreditPackage,
-        deleteCreditPackage,
-        bookSession,
-        getBooking,
-        getUserBookings,
-        cancelBooking,
-        rescheduleBooking,
-        joinSession
-      }}
-    >
+    <TeacherContext.Provider value={{
+      teachers,
+      addTeacher,
+      updateTeacher,
+      deleteTeacher,
+      getTeacher,
+      
+      updateNotificationTemplate,
+      deleteNotificationTemplate,
+      sendTestNotification,
+      notificationSettings,
+      updateNotificationSettings,
+      
+      addTeacherAvailability,
+      removeTeacherAvailability,
+      
+      connectZoomAccount,
+      disconnectZoomAccount,
+      
+      userCredits,
+      creditTransactions,
+      creditPackages,
+      addCreditPackage,
+      updateCreditPackage,
+      deleteCreditPackage,
+      purchaseCredits,
+      
+      bookings,
+      bookSession,
+      getBooking,
+      getUserBookings,
+      cancelBooking,
+      rescheduleBooking,
+      joinSession
+    }}>
       {children}
     </TeacherContext.Provider>
   );
 };
 
-// Create hook
+// Custom hook for using the context
 export const useTeachers = () => {
   const context = useContext(TeacherContext);
   if (context === undefined) {

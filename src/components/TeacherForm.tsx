@@ -1026,7 +1026,14 @@ const TeacherForm = ({ teacher, onComplete }: TeacherFormProps) => {
         </Tabs>
         
         <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onComplete}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={(e) => {
+              e.preventDefault();
+              onComplete();
+            }}
+          >
             Cancel
           </Button>
           <Button type="submit">

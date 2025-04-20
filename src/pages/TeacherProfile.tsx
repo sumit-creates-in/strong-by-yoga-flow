@@ -1,4 +1,6 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTeachers } from '@/contexts/TeacherContext';
 
 const TeacherProfile = () => {
   const navigate = useNavigate();
@@ -15,5 +17,12 @@ const TeacherProfile = () => {
     }
   };
 
-  // ... rest of the component code ...
-}; 
+  return (
+    <div>
+      <h1>Teacher Profile</h1>
+      {/* Component content would go here */}
+    </div>
+  );
+};
+
+export default TeacherProfile;

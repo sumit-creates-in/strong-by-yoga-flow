@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, MoreVertical, Mail, Phone, Lock } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -45,7 +44,6 @@ import {
   TableRow
 } from '@/components/ui/table';
 
-// Define the User type based on Supabase structure
 interface AppUser {
   id: string;
   name: string;
@@ -56,7 +54,6 @@ interface AppUser {
   joinedDate: string;
 }
 
-// Define Supabase profile structure
 interface SupabaseProfile {
   id: string;
   first_name: string | null;
@@ -69,7 +66,6 @@ interface SupabaseProfile {
   initial_credits?: number;
 }
 
-// User dialog props
 interface UserDialogProps {
   user: AppUser | null;
   isOpen: boolean;
@@ -78,7 +74,6 @@ interface UserDialogProps {
   onSave?: (userData: Partial<AppUser>) => void;
 }
 
-// User Dialog component
 const UserDialog: React.FC<UserDialogProps> = ({ user, isOpen, onClose, mode, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -197,10 +192,6 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
     }
 
     try {
-      // In a production app, you would use a secure server endpoint to reset passwords
-      // For now, we'll use the passwordResetForEmail function as a workaround
-      
-      // First, we need to find the user's email from the profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -213,9 +204,6 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
         throw new Error('User does not have an email address');
       }
       
-      // Send a password reset email using Supabase
-      // Note: This will actually send a reset link rather than setting the password directly
-      // In a real admin panel, you'd have a dedicated server endpoint for this
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         profile.email,
         {
@@ -279,12 +267,10 @@ const AddMembershipDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
   
   const handleAddMembership = async () => {
     try {
-      // Calculate expiry date based on the duration (in months)
       const startDate = new Date();
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + parseInt(duration, 10));
       
-      // Add membership to Supabase
       const { error } = await supabase
         .from('memberships')
         .insert({
@@ -364,7 +350,6 @@ const AddMembershipDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
   );
 };
 
-// Add an AddCreditsDialog component to add credits to users
 const AddCreditsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: string}> = ({ isOpen, onClose, userId }) => {
   const [creditAmount, setCreditAmount] = useState<number>(10);
   const [reason, setReason] = useState<string>('Admin adjustment');
@@ -373,26 +358,21 @@ const AddCreditsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: 
   
   const handleAddCredits = async () => {
     try {
-      // Add the credits to the user's account
-      // In a real app, you would update the credits in the database
       const newTransaction = {
         id: Date.now().toString(),
         type: 'admin' as const,
         amount: creditAmount,
         description: reason,
         date: new Date().toISOString(),
-        userId: userId // Store the user ID with the transaction
+        userId: userId
       };
       
-      // Since our context doesn't have a method to add credits to a specific user,
-      // we'll add this transaction to localStorage directly for now
       const userSpecificKey = `creditTransactions_${userId}`;
       const existingTransactions = localStorage.getItem(userSpecificKey);
       const transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
       transactions.push(newTransaction);
       localStorage.setItem(userSpecificKey, JSON.stringify(transactions));
       
-      // Update the user's credit balance
       const userSpecificCreditsKey = `userCredits_${userId}`;
       const existingCredits = localStorage.getItem(userSpecificCreditsKey);
       const currentCredits = existingCredits ? parseInt(existingCredits) : 0;
@@ -456,19 +436,16 @@ const AddCreditsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: 
   );
 };
 
-// Add a CreditTransactionsDialog component to view a user's credit transactions
 const CreditTransactionsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: string}> = ({ isOpen, onClose, userId }) => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [userCreditBalance, setUserCreditBalance] = useState<number>(0);
   
   useEffect(() => {
-    // Load user-specific transactions from localStorage
     const userSpecificKey = `creditTransactions_${userId}`;
     const existingTransactions = localStorage.getItem(userSpecificKey);
     const userTransactions = existingTransactions ? JSON.parse(existingTransactions) : [];
     setTransactions(userTransactions);
     
-    // Load user's credit balance
     const userSpecificCreditsKey = `userCredits_${userId}`;
     const existingCredits = localStorage.getItem(userSpecificCreditsKey);
     const currentCredits = existingCredits ? parseInt(existingCredits) : 0;
@@ -542,7 +519,6 @@ const CreditTransactionsDialog: React.FC<{isOpen: boolean; onClose: () => void; 
   );
 };
 
-// Add a BookingsDialog component to show user bookings
 const BookingsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: string}> = ({ isOpen, onClose, userId }) => {
   const { getUserBookings, getTeacher } = useTeachers();
   const userBookings = getUserBookings(userId);
@@ -604,7 +580,6 @@ const BookingsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: st
                             size="sm" 
                             className="text-red-600"
                             onClick={() => {
-                              // In a real app, this would cancel the booking
                               alert("Booking cancellation would be implemented here");
                             }}
                           >
@@ -643,113 +618,94 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
-  // Fetch all users from Supabase
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // Get auth users from Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        // If admin API fails (most likely due to permissions), fall back to profiles table
-        console.warn("Failed to access admin API, falling back to profiles:", authError);
+      try {
+        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
         
-        // Get profiles from the profiles table
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*');
-        
-        if (profilesError) throw profilesError;
-        
-        if (!profiles || profiles.length === 0) {
-          console.log('No profiles found in the database');
-          setUsers([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log(`Found ${profiles.length} users in profiles table`);
-        
-        // For each profile, try to get the user's email from auth metadata
-        const usersWithEmails = await Promise.all(profiles.map(async (profile: SupabaseProfile) => {
-          // Try to get user email if possible
-          let email = "";
-          try {
-            const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
-            email = userData?.user?.email || "";
-          } catch (e) {
-            console.log("Couldn't get email for user", profile.id);
+        if (!authError && authData?.users) {
+          console.log(`Found ${authData.users.length} users in auth.users`);
+          
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('*');
+          
+          const profilesMap = new Map();
+          if (profiles) {
+            profiles.forEach((profile: any) => {
+              profilesMap.set(profile.id, profile);
+            });
           }
           
-          return {
-            ...profile,
-            email: email
-          };
-        }));
-        
-        // Convert to AppUser format
-        const mappedUsers: AppUser[] = usersWithEmails.map((profile: SupabaseProfile & {email?: string}) => {
-          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-          const email = profile.email || '';
-          
-          const isAdmin = 
-            email === 'admin@strongbyyoga.com' || 
-            email === 'sumit_204@yahoo.com';
-          
-          return {
-            id: profile.id,
-            name: fullName || email.split('@')[0] || 'Unknown User',
-            email: email,
-            phone: profile.phone || null,
-            role: isAdmin ? 'admin' : 'user',
-            status: 'active',
-            joinedDate: profile.created_at || new Date().toISOString()
-          };
-        });
-        
-        setUsers(mappedUsers);
-      } else {
-        // We have access to the auth admin API
-        console.log(`Found ${authData.users.length} users in auth.users`);
-        
-        // Now get profiles to supplement the data
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*');
-        
-        // Create a map of profiles by id for easier lookup
-        const profilesMap = new Map();
-        if (profiles) {
-          profiles.forEach((profile: SupabaseProfile) => {
-            profilesMap.set(profile.id, profile);
+          const mappedUsers: AppUser[] = authData.users.map(authUser => {
+            const profile = profilesMap.get(authUser.id);
+            const firstName = profile?.first_name || authUser.user_metadata?.first_name || '';
+            const lastName = profile?.last_name || authUser.user_metadata?.last_name || '';
+            const fullName = `${firstName} ${lastName}`.trim();
+            
+            const userRole = authUser.email === 'admin@strongbyyoga.com' || 
+              authUser.email === 'sumit_204@yahoo.com' ||
+              authUser.user_metadata?.role === 'admin'
+              ? 'admin' as const
+              : 'user' as const;
+            
+            return {
+              id: authUser.id,
+              name: fullName || authUser.email?.split('@')[0] || 'Unknown User',
+              email: authUser.email || '',
+              phone: profile?.phone || authUser.phone || null,
+              role: userRole,
+              status: authUser.banned ? 'inactive' : 'active',
+              joinedDate: authUser.created_at
+            };
           });
+          
+          setUsers(mappedUsers);
+          return;
         }
-        
-        // Combine auth data with profiles
-        const mappedUsers: AppUser[] = authData.users.map(authUser => {
-          const profile = profilesMap.get(authUser.id);
-          const firstName = profile?.first_name || authUser.user_metadata?.first_name || '';
-          const lastName = profile?.last_name || authUser.user_metadata?.last_name || '';
-          const fullName = `${firstName} ${lastName}`.trim();
-          
-          const isAdmin = 
-            authUser.email === 'admin@strongbyyoga.com' || 
-            authUser.email === 'sumit_204@yahoo.com' ||
-            authUser.user_metadata?.role === 'admin';
-          
-          return {
-            id: authUser.id,
-            name: fullName || authUser.email?.split('@')[0] || 'Unknown User',
-            email: authUser.email || '',
-            phone: profile?.phone || authUser.phone || null,
-            role: isAdmin ? 'admin' : 'user',
-            status: authUser.banned ? 'inactive' : 'active',
-            joinedDate: authUser.created_at
-          };
-        });
-        
-        setUsers(mappedUsers);
+      } catch (err) {
+        console.log('Admin API access failed, falling back to profiles');
       }
+      
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (profilesError) throw profilesError;
+      
+      if (!profiles || profiles.length === 0) {
+        console.log('No profiles found in the database');
+        setUsers([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log(`Found ${profiles.length} users in profiles table`);
+      
+      const mappedUsers: AppUser[] = profiles.map((profile: any) => {
+        const emailKey = `user_email_${profile.id}`;
+        const storedEmail = localStorage.getItem(emailKey) || '';
+        
+        const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+        const email = storedEmail || '';
+        
+        const isAdmin = 
+          email === 'admin@strongbyyoga.com' || 
+          email === 'sumit_204@yahoo.com';
+        
+        return {
+          id: profile.id,
+          name: fullName || email.split('@')[0] || 'Unknown User',
+          email: email,
+          phone: profile.phone || null,
+          role: isAdmin ? 'admin' as const : 'user' as const,
+          status: 'active' as const,
+          joinedDate: profile.created_at || new Date().toISOString()
+        };
+      });
+      
+      setUsers(mappedUsers);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
@@ -762,34 +718,28 @@ const AdminUsers = () => {
     }
   };
 
-  // Load users on component mount
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Handle view profile action
   const handleViewProfile = (user: AppUser) => {
     setSelectedUser(user);
     setIsViewProfileOpen(true);
   };
 
-  // Handle edit user action
   const handleEditUser = (user: AppUser) => {
     setSelectedUser(user);
     setIsEditUserOpen(true);
   };
 
-  // Handle user update
   const handleUpdateUser = async (userData: Partial<AppUser>) => {
     try {
       if (!userData.id) return;
 
-      // Split name into first and last
       const nameParts = userData.name?.split(' ') || [];
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      // Update profile in Supabase
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -805,7 +755,6 @@ const AdminUsers = () => {
         description: "User information has been successfully updated."
       });
 
-      // Refresh the user list
       fetchUsers();
     } catch (error: any) {
       console.error('Error updating user:', error);
@@ -817,24 +766,20 @@ const AdminUsers = () => {
     }
   };
 
-  // Handle delete user action
   const handleDeleteUser = (user: AppUser) => {
     setSelectedUser(user);
     setIsDeleteDialogOpen(true);
   };
 
-  // Handle confirm delete
   const confirmDeleteUser = async () => {
     if (selectedUser) {
       try {
-        // Try to delete the user using the auth API
         const { error: authError } = await supabase.auth.admin.deleteUser(
           selectedUser.id
         );
         
         if (authError) {
           console.error('Error deleting user auth account:', authError);
-          // Fall back to just deleting the profile
           const { error } = await supabase
             .from('profiles')
             .delete()
@@ -848,7 +793,6 @@ const AdminUsers = () => {
           description: "User profile has been deleted."
         });
 
-        // Refresh the user list
         fetchUsers();
       } catch (error: any) {
         console.error('Error deleting user:', error);
@@ -861,29 +805,25 @@ const AdminUsers = () => {
       setIsDeleteDialogOpen(false);
     }
   };
-  
-  // Handle status change for a user (activate/deactivate)
+
   const handleStatusChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     try {
       if (newStatus === 'inactive') {
-        // Ban user
         const { error } = await supabase.auth.admin.updateUserById(
           userId,
-          { banned: true }
+          { user_metadata: { banned: true } }
         );
         
         if (error) throw error;
       } else {
-        // Unban user
         const { error } = await supabase.auth.admin.updateUserById(
           userId,
-          { banned: false }
+          { user_metadata: { banned: false } }
         );
         
         if (error) throw error;
       }
       
-      // Update local state
       setUsers(prev => 
         prev.map(user => 
           user.id === userId 
@@ -905,41 +845,34 @@ const AdminUsers = () => {
       });
     }
   };
-  
-  // Handle reset password
+
   const handleResetPassword = (user: AppUser) => {
     setSelectedUser(user);
     setIsResetPasswordOpen(true);
   };
-  
-  // Handle add membership
+
   const handleAddMembership = (user: AppUser) => {
     setSelectedUser(user);
     setIsAddMembershipOpen(true);
   };
-  
-  // Handle add user
+
   const handleAddUser = () => {
-    // In a production app, you would implement a form to add a new user
     toast({
       title: "Add user",
       description: "This would open a form to add a new user."
     });
   };
 
-  // Handle view bookings
   const handleViewBookings = (user: AppUser) => {
     setSelectedUser(user);
     setIsViewBookingsOpen(true);
   };
 
-  // Handle add credits
   const handleAddCredits = (user: AppUser) => {
     setSelectedUser(user);
     setIsAddCreditsOpen(true);
   };
-  
-  // Handle view credit transactions
+
   const handleViewCredits = (user: AppUser) => {
     setSelectedUser(user);
     setIsViewCreditsOpen(true);
@@ -1059,7 +992,6 @@ const AdminUsers = () => {
           </Card>
         </div>
         
-        {/* User Dialogs */}
         <UserDialog 
           user={selectedUser}
           isOpen={isViewProfileOpen}
