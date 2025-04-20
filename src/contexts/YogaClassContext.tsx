@@ -236,7 +236,11 @@ const YogaClassContext = createContext<YogaClassContextType | undefined>(undefin
 
 // Provider component
 export function YogaClassProvider({ children }: { children: React.ReactNode }) {
-  const [baseClasses, setBaseClasses] = useState<YogaClass[]>([]);
+  const [baseClasses, setBaseClasses] = useState<YogaClass[]>(() => {
+    // Load classes from localStorage if available
+    const savedClasses = localStorage.getItem('yogaClasses');
+    return savedClasses ? JSON.parse(savedClasses) : initialClasses;
+  });
   const [expandedClasses, setExpandedClasses] = useState<YogaClass[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
     tags: [],
@@ -252,6 +256,19 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const classesLoaded = useRef(false);
+
+  // Save baseClasses to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('yogaClasses', JSON.stringify(baseClasses));
+  }, [baseClasses]);
+
+  // Load initial classes only if none exist in localStorage
+  useEffect(() => {
+    if (!classesLoaded.current && baseClasses.length === 0) {
+      setBaseClasses(initialClasses);
+      classesLoaded.current = true;
+    }
+  }, [baseClasses.length]);
 
   // Helper function for checking if a class is currently live
   const isClassLive = (yogaClass: YogaClass): boolean => {
@@ -326,14 +343,6 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
     const lastDay = dayNames.pop();
     return `Every ${dayNames.join(', ')} & ${lastDay}`;
   };
-
-  // Load initial classes
-  useEffect(() => {
-    if (!classesLoaded.current) {
-      setBaseClasses(initialClasses);
-      classesLoaded.current = true;
-    }
-  }, []);
 
   // Generate expanded class instances for recurring classes
   useEffect(() => {
@@ -459,7 +468,6 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       return dateA.getTime() - dateB.getTime();
     });
 
-  // Implement the missing functions
   // Add class function
   const addClass = (classData: Omit<YogaClass, 'id'>) => {
     const newClass: YogaClass = {
@@ -467,7 +475,11 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       id: `${Date.now()}`, // Generate a unique ID
     };
     
-    setBaseClasses(prevClasses => [...prevClasses, newClass]);
+    setBaseClasses(prevClasses => {
+      const updatedClasses = [...prevClasses, newClass];
+      // No need to save to localStorage here as the useEffect will handle it
+      return updatedClasses;
+    });
     
     toast({
       title: "Class added",
@@ -477,11 +489,13 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
 
   // Edit class function
   const editClass = (id: string, classData: Partial<YogaClass>) => {
-    setBaseClasses(prevClasses => 
-      prevClasses.map(yogaClass => 
+    setBaseClasses(prevClasses => {
+      const updatedClasses = prevClasses.map(yogaClass => 
         yogaClass.id === id ? { ...yogaClass, ...classData } : yogaClass
-      )
-    );
+      );
+      // No need to save to localStorage here as the useEffect will handle it
+      return updatedClasses;
+    });
     
     toast({
       title: "Class updated",
@@ -491,9 +505,11 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
 
   // Delete class function
   const deleteClass = (id: string) => {
-    setBaseClasses(prevClasses => 
-      prevClasses.filter(yogaClass => yogaClass.id !== id)
-    );
+    setBaseClasses(prevClasses => {
+      const updatedClasses = prevClasses.filter(yogaClass => yogaClass.id !== id);
+      // No need to save to localStorage here as the useEffect will handle it
+      return updatedClasses;
+    });
     
     toast({
       title: "Class deleted",

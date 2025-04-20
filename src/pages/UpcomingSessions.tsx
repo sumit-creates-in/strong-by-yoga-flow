@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +8,41 @@ import { Calendar, Clock, Video, AlertCircle } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useTeachers } from '@/contexts/TeacherContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const UpcomingSessions = () => {
   const navigate = useNavigate();
-  const { bookings, getTeacher, getUserBookings } = useTeachers();
+  const { bookings, getTeacher, getUserBookings, cancelBooking, rescheduleBooking, joinSession } = useTeachers();
   const { user } = useAuth();
+  const { toast } = useToast();
+  
+  // State for reschedule dialog
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [newDate, setNewDate] = useState<string>('');
+  const [newTime, setNewTime] = useState<string>('');
+  
+  // State for cancel confirmation dialog
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
 
   // Filter for current user's upcoming sessions (not cancelled and date is in the future)
   const userBookings = user ? getUserBookings(user.id) : [];
@@ -22,6 +52,87 @@ const UpcomingSessions = () => {
     const now = new Date();
     return bookingDate > now && booking.status !== 'cancelled';
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Handle joining a session
+  const handleJoinSession = (bookingId: string) => {
+    const meetingUrl = joinSession(bookingId);
+    if (meetingUrl) {
+      // Open the meeting URL in a new window
+      window.open(meetingUrl, '_blank');
+      
+      toast({
+        title: 'Joining session',
+        description: 'Opening Zoom meeting in a new window',
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Could not join session',
+        description: 'There was an error joining the session. Please try again.',
+      });
+    }
+  };
+
+  // Handle opening the reschedule dialog
+  const handleOpenReschedule = (bookingId: string) => {
+    setSelectedBookingId(bookingId);
+    
+    // Get the booking's current date to prefill the form
+    const booking = userBookings.find(b => b.id === bookingId);
+    if (booking) {
+      const bookingDate = new Date(booking.date);
+      setNewDate(bookingDate.toISOString().split('T')[0]);
+      setNewTime(booking.time);
+    }
+    
+    setIsRescheduleDialogOpen(true);
+  };
+
+  // Handle submitting the reschedule
+  const handleReschedule = () => {
+    if (!selectedBookingId || !newDate || !newTime) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing information',
+        description: 'Please select a new date and time.',
+      });
+      return;
+    }
+    
+    // Parse the new date and time
+    const rescheduledDate = new Date(newDate);
+    
+    // Call the reschedule function
+    rescheduleBooking(selectedBookingId, rescheduledDate, newTime);
+    
+    // Close the dialog and show success message
+    setIsRescheduleDialogOpen(false);
+    setSelectedBookingId(null);
+    
+    toast({
+      title: 'Session rescheduled',
+      description: 'Your session has been successfully rescheduled.',
+    });
+  };
+
+  // Handle opening the cancel confirmation dialog
+  const handleOpenCancelDialog = (bookingId: string) => {
+    setBookingToCancel(bookingId);
+    setIsCancelDialogOpen(true);
+  };
+
+  // Handle confirming the cancellation
+  const handleConfirmCancel = () => {
+    if (bookingToCancel) {
+      cancelBooking(bookingToCancel);
+      setIsCancelDialogOpen(false);
+      
+      toast({
+        title: 'Session cancelled',
+        description: 'Your session has been cancelled and your credits have been refunded.',
+      });
+    }
+  };
 
   return (
     <Layout>
@@ -112,13 +223,26 @@ const UpcomingSessions = () => {
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleJoinSession(booking.id)}
+                        >
                           Join Session
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleOpenReschedule(booking.id)}
+                        >
                           Reschedule
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => handleOpenCancelDialog(booking.id)}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -130,6 +254,69 @@ const UpcomingSessions = () => {
           </div>
         )}
       </div>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Session</DialogTitle>
+            <DialogDescription>
+              Select a new date and time for your session.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="date" className="text-sm font-medium">New Date</label>
+              <input
+                id="date"
+                type="date"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="time" className="text-sm font-medium">New Time</label>
+              <input
+                id="time"
+                type="time"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRescheduleDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleReschedule}>Reschedule</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Session</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this session? Your credits will be refunded.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, Keep Session</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmCancel}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Yes, Cancel Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

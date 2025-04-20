@@ -163,6 +163,9 @@ export interface TeacherContextProps {
   bookSession: (bookingData: any) => BookingData;
   getBooking: () => BookingData | null;
   getUserBookings: (userId: string) => BookingData[];
+  cancelBooking: (bookingId: string) => void;
+  rescheduleBooking: (bookingId: string, newDate: Date, newTime: string) => void;
+  joinSession: (bookingId: string) => string;
 }
 
 const TeacherContext = createContext<TeacherContextProps | undefined>(undefined);
@@ -494,6 +497,67 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     return bookings.filter(booking => booking.userId === userId);
   };
 
+  // Cancel booking method
+  const cancelBooking = (bookingId: string) => {
+    setBookings(prevBookings =>
+      prevBookings.map(booking => {
+        if (booking.id === bookingId) {
+          return {
+            ...booking,
+            status: 'cancelled'
+          };
+        }
+        return booking;
+      })
+    );
+    
+    // Add a transaction to refund credits
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking) {
+      const transaction: CreditTransaction = {
+        id: `transaction-${Date.now()}`,
+        type: 'refund',
+        amount: booking.credits,
+        description: `Refund for cancelled ${booking.sessionType.name}`,
+        date: new Date().toISOString()
+      };
+      
+      setCreditTransactions(prev => [...prev, transaction]);
+      setUserCredits(prev => prev + booking.credits);
+    }
+  };
+  
+  // Reschedule booking method
+  const rescheduleBooking = (bookingId: string, newDate: Date, newTime: string) => {
+    setBookings(prevBookings =>
+      prevBookings.map(booking => {
+        if (booking.id === bookingId) {
+          return {
+            ...booking,
+            date: newDate,
+            time: newTime
+          };
+        }
+        return booking;
+      })
+    );
+  };
+  
+  // Join session method
+  const joinSession = (bookingId: string): string => {
+    // Get the booking and teacher
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return '';
+    
+    const teacher = getTeacher(booking.teacherId);
+    if (!teacher) return '';
+    
+    // Generate a Zoom meeting URL (in a real app, this would come from your backend)
+    const meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9000000) + 1000000}`;
+    
+    return meetingUrl;
+  };
+
   return (
     <TeacherContext.Provider 
       value={{ 
@@ -518,7 +582,10 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         deleteCreditPackage,
         bookSession,
         getBooking,
-        getUserBookings
+        getUserBookings,
+        cancelBooking,
+        rescheduleBooking,
+        joinSession
       }}
     >
       {children}

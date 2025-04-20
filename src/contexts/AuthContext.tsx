@@ -42,6 +42,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Helper function to sync user information to profiles table
+  const syncUserToProfiles = async (userData: User) => {
+    try {
+      console.log('Syncing user to profiles table:', userData);
+      // Get user metadata
+      const metadata = userData.user_metadata || {};
+      
+      // Create profile data object
+      const profileData = {
+        id: userData.id,
+        first_name: metadata.first_name || '',
+        last_name: metadata.last_name || '',
+        email: userData.email || '',
+        phone: metadata.phone || null,
+        avatar_url: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      console.log('Syncing profile data:', profileData);
+      
+      // Upsert the profile data
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' });
+        
+      if (error) {
+        console.error('Error syncing user profile:', error);
+      } else {
+        console.log('User profile synced successfully');
+      }
+    } catch (error) {
+      console.error('Error in syncUserToProfiles:', error);
+    }
+  };
+
   // Fetch user profile
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -63,39 +99,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Update user state with profile data
+  // Update user state
   const updateUserState = async (session: Session | null) => {
     if (session?.user) {
+      // First, make sure the user is synced to profiles
+      await syncUserToProfiles(session.user);
+      
+      // Now fetch the profile
       const profile = await fetchUserProfile(session.user.id);
       
-      // Check if user is admin - either of these two email addresses are admin
-      const isAdmin = session.user.email === 'admin@strongbyyoga.com' || 
-                      session.user.email === 'sumit_204@yahoo.com';
+      // Determine if user is admin
+      const isAdmin = 
+        session.user.email === 'admin@strongbyyoga.com' || 
+        session.user.email === 'sumit_204@yahoo.com';
       
-      console.log('Auth Context - Updating user state:', {
-        email: session.user.email,
-        isAdmin: isAdmin,
-        profileData: profile
+      setUser({
+        ...session.user,
+        profile,
+        role: isAdmin ? 'admin' : 'user'
       });
-      
-      // Force admin role for specific accounts
-      if (session.user.email === 'sumit_204@yahoo.com' || session.user.email === 'admin@strongbyyoga.com') {
-        console.log('Auth Context - Setting admin role for:', session.user.email);
-        setUser({
-          ...session.user,
-          profile,
-          role: 'admin',
-        });
-      } else {
-        setUser({
-          ...session.user,
-          profile,
-          role: isAdmin ? 'admin' : 'user',
-        });
-      }
     } else {
       setUser(null);
     }
+    
+    setSession(session);
+    setIsLoading(false);
   };
 
   // Initialize auth state
@@ -136,40 +164,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Special handling for demo admin accounts
-      const isAdminEmail = email === 'admin@strongbyyoga.com' || email === 'sumit_204@yahoo.com';
-      
-      let signInResult;
-      
-      if (email === 'sumit_204@yahoo.com') {
-        // For this specific admin account, use the set password
-        signInResult = await supabase.auth.signInWithPassword({
-          email,
-          password: 'admin123', // Use the password set in the SQL migration
-        });
-      } else if (isAdminEmail) {
-        // For other admin emails, any password works
-        signInResult = await supabase.auth.signInWithPassword({
-          email,
-          password: password || 'any-password',
-        });
-      } else {
-        // Regular login
-        signInResult = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-      }
-      
-      const { data, error } = signInResult;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
       if (error) {
         throw error;
       }
       
+      // Ensure the user profile is synced
+      if (data.user) {
+        await syncUserToProfiles(data.user);
+      }
+      
       toast({
-        title: 'Login successful',
-        description: `Welcome back!`,
+        title: 'Logged in',
+        description: 'You have been logged in successfully.',
       });
       
       navigate('/dashboard');
@@ -260,6 +271,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
+      console.log('User signup data:', data);
+      
       // Create the initial credit transaction for the new user
       // In a real app, this would be done on the server side or with a secure edge function
       const userCredits = 100;
@@ -281,23 +294,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const existingTransactions = JSON.parse(localStorage.getItem('creditTransactions') || '[]');
         localStorage.setItem('creditTransactions', JSON.stringify([...existingTransactions, transaction]));
         
-        // Wait for profile to be created after signup
-        const profileData = {
+        // Create extended profile data with custom fields
+        const extendedProfileData = {
           id: data.user.id,
           first_name: firstName,
           last_name: lastName,
+          avatar_url: null,  // Match the required schema
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          // Custom metadata fields (not in the default schema)
           email: email,
           phone: phone,
           initial_credits: userCredits
         };
         
-        // Insert the profile data
-        const { error: profileError } = await supabase
+        console.log('Creating profile with data:', extendedProfileData);
+        
+        // Insert the profile data - use upsert to handle if profile already exists
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .upsert(profileData);
+          .upsert(extendedProfileData)
+          .select();
           
         if (profileError) {
           console.error('Error creating user profile:', profileError);
+        } else {
+          console.log('Profile created successfully:', profileData);
         }
       }
       
@@ -308,6 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         variant: 'destructive',
         title: 'Registration failed',

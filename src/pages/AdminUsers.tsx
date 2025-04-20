@@ -50,14 +50,14 @@ interface AppUser {
 // Define Supabase profile structure
 interface SupabaseProfile {
   id: string;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  email?: string;
+  phone?: string | null;
   created_at: string;
   updated_at: string;
-  avatar_url: string;
-  // Fields that might not be in the original type definition but we need
-  email?: string;
-  phone?: string;
+  avatar_url: string | null;
+  initial_credits?: number;
 }
 
 // User dialog props
@@ -202,11 +202,15 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
       
       if (profileError) throw profileError;
       
+      if (!profile.email) {
+        throw new Error('User does not have an email address');
+      }
+      
       // Send a password reset email using Supabase
       // Note: This will actually send a reset link rather than setting the password directly
       // In a real admin panel, you'd have a dedicated server endpoint for this
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        'user@example.com', // We don't actually have the email in profiles
+        profile.email,
         {
           redirectTo: `${window.location.origin}/reset-password`,
         }
@@ -220,7 +224,7 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
       });
       
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resetting password:', error);
       toast({
         variant: 'destructive',
@@ -293,7 +297,7 @@ const AddMembershipDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
         description: `${membershipType} membership has been added to the user.`
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding membership:', error);
       toast({
         variant: 'destructive',
@@ -393,7 +397,7 @@ const AddCreditsDialog: React.FC<{isOpen: boolean; onClose: () => void; userId: 
         description: `${creditAmount} credits have been added to the user's account.`
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding credits:', error);
       toast({
         variant: 'destructive',
@@ -636,51 +640,45 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // First, get all profiles from the profiles table
+      // Get all profiles from the profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
       
-      if (profilesError) {
-        throw profilesError;
-      }
+      if (profilesError) throw profilesError;
       
       if (!profiles || profiles.length === 0) {
+        console.log('No profiles found in the database');
         setUsers([]);
         setIsLoading(false);
         return;
       }
       
-      console.log(`Found ${profiles.length} profiles`, profiles);
+      console.log(`Found ${profiles.length} users in profiles table`);
       
-      // Convert profiles to AppUser format
-      const mappedUsers: AppUser[] = profiles.map(profile => {
-        // Cast to our interface with optional fields
-        const p = profile as SupabaseProfile;
+      // Convert to AppUser format
+      const mappedUsers: AppUser[] = profiles.map((profile: any) => {
+        const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+        const email = profile.email || '';
         
-        // Create a display name from first and last name
-        const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
-        
-        // Check if user is admin based on known admin emails
-        const email = p.email || '';
         const isAdmin = 
           email === 'admin@strongbyyoga.com' || 
           email === 'sumit_204@yahoo.com';
         
         return {
-          id: p.id,
-          name: fullName || 'Unknown User',
+          id: profile.id,
+          name: fullName || email.split('@')[0] || 'Unknown User',
           email: email,
-          phone: p.phone || null,
-          role: isAdmin ? 'admin' : 'user',
-          status: 'active', // Default status
-          joinedDate: p.created_at || new Date().toISOString()
+          phone: profile.phone || null,
+          role: isAdmin ? 'admin' : 'user' as 'admin' | 'user',
+          status: profile.is_active !== false ? 'active' : 'inactive' as 'active' | 'inactive',
+          joinedDate: profile.created_at || new Date().toISOString()
         };
       });
       
-      console.log('Mapped users:', mappedUsers);
+      console.log('Final mapped users for display:', mappedUsers);
       setUsers(mappedUsers);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
         variant: 'destructive',
@@ -740,7 +738,7 @@ const AdminUsers = () => {
 
       // Refresh the user list
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user:', error);
       toast({
         variant: 'destructive',
@@ -776,7 +774,7 @@ const AdminUsers = () => {
 
         // Refresh the user list
         fetchUsers();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting user:', error);
         toast({
           variant: 'destructive',
@@ -788,27 +786,31 @@ const AdminUsers = () => {
     }
   };
   
-  // Handle toggle user status
-  const handleToggleStatus = async (user: AppUser) => {
+  // Handle status change for a user (activate/deactivate)
+  const handleStatusChange = async (userId: string, newStatus: 'active' | 'inactive') => {
     try {
-      const newStatus = user.status === 'active' ? 'inactive' : 'active';
+      // Since is_active is not in the profiles table schema, we'll update the UI state only
+      // In a real application, you would store the status in the database
       
-      // In a real app, you would call a secure server endpoint to update user status
-      // For this example, we'll just update the local state
-      setUsers(prevUsers => 
-        prevUsers.map(u => u.id === user.id ? {...u, status: newStatus} : u)
+      // Update local state
+      setUsers(prev => 
+        prev.map(user => 
+          user.id === userId 
+            ? { ...user, status: newStatus } 
+            : user
+        )
       );
       
       toast({
-        title: `User ${newStatus === 'active' ? 'activated' : 'suspended'}`,
-        description: `The user account has been ${newStatus === 'active' ? 'activated' : 'suspended'}.`
+        title: 'Success',
+        description: `User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`,
       });
-    } catch (error) {
-      console.error('Error toggling user status:', error);
+    } catch (error: any) {
+      console.error('Error updating user status:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to update user status. Please try again.'
+        description: 'Failed to update user status',
       });
     }
   };
@@ -941,11 +943,11 @@ const AdminUsers = () => {
                                   Reset Password
                                 </DropdownMenuItem>
                                 {user.status === 'active' ? (
-                                  <DropdownMenuItem onClick={() => handleToggleStatus(user)} className="text-yellow-600">
+                                  <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'inactive')} className="text-yellow-600">
                                     Suspend User
                                   </DropdownMenuItem>
                                 ) : (
-                                  <DropdownMenuItem onClick={() => handleToggleStatus(user)} className="text-green-600">
+                                  <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'active')} className="text-green-600">
                                     Activate User
                                   </DropdownMenuItem>
                                 )}
