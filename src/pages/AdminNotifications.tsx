@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import AdminGuard from '@/components/AdminGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,10 +30,21 @@ const AdminNotifications = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('email');
   
-  // Get the first teacher for demo purposes - in a real app, you would manage notifications globally
   const teacher = teachers && teachers.length > 0 ? teachers[0] : null;
   
-  // States for dialogs
+  const templates = useMemo(() => {
+    if (!notificationSettings) return [];
+    
+    const allTemplates = [
+      ...(notificationSettings.email?.templates || []),
+      ...(notificationSettings.app?.templates || []),
+      ...(notificationSettings.whatsapp?.templates || []),
+      ...(notificationSettings.sms?.templates || [])
+    ];
+    
+    return allTemplates;
+  }, [notificationSettings]);
+  
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [isEditTemplateOpen, setIsEditTemplateOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
@@ -76,7 +86,6 @@ const AdminNotifications = () => {
       const templateType = currentType as keyof typeof notificationSettings;
       
       if (selectedTemplate) {
-        // Editing an existing template
         const updatedTemplates = notificationSettings[templateType].templates.map(t => 
           t.id === selectedTemplate.id ? { ...template, id: selectedTemplate.id } : t
         );
@@ -89,7 +98,6 @@ const AdminNotifications = () => {
         handleSaveSettings(currentType, updatedSettings);
         setIsEditTemplateOpen(false);
       } else {
-        // Adding a new template
         const newTemplate = {
           ...template,
           id: `template-${Date.now()}`
@@ -111,7 +119,6 @@ const AdminNotifications = () => {
     }
   };
   
-  // Handle the case when there's no teacher data yet
   if (!teacher) {
     return (
       <AdminGuard>
@@ -331,7 +338,6 @@ const AdminNotifications = () => {
         </div>
       </Layout>
       
-      {/* Add Template Dialog */}
       <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -347,7 +353,6 @@ const AdminNotifications = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Template Dialog */}
       <Dialog open={isEditTemplateOpen} onOpenChange={setIsEditTemplateOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
