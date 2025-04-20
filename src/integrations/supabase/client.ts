@@ -19,28 +19,41 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Helper function to get all users from auth.users (requires admin privileges)
 export const fetchAllUsers = async () => {
   try {
+    console.log('Fetching all users...');
+    
     // First try to get auth users via admin API
     try {
       const { data: adminAuthData, error: adminAuthError } = await supabase.auth.admin.listUsers();
       
       if (!adminAuthError && adminAuthData?.users?.length > 0) {
+        console.log('Successfully fetched users from admin API:', adminAuthData.users.length);
         return adminAuthData.users.map(user => ({
           ...user,
           email: user.email || '',
           role: user.user_metadata?.role || 'user'
         }));
+      } else if (adminAuthError) {
+        console.error('Admin API error:', adminAuthError);
       }
     } catch (err) {
       console.log('Admin API not available, falling back to profiles table');
     }
     
     // Use profiles table as fallback if admin API fails
-    const response = await supabase
+    console.log('Fetching from profiles table...');
+    const { data: profiles, error } = await supabase
       .from('profiles')
       .select('*');
       
+    if (error) {
+      console.error('Error fetching profiles:', error);
+      throw error;
+    }
+    
+    console.log('Profiles fetched:', profiles?.length || 0);
+    
     // Add email info from localStorage if possible
-    const profilesWithEmails = (response.data || []).map((profile: any) => {
+    const profilesWithEmails = (profiles || []).map((profile: any) => {
       // Try to find email from other sources
       const emailKey = `user_email_${profile.id}`;
       const storedEmail = localStorage.getItem(emailKey) || '';
@@ -48,7 +61,8 @@ export const fetchAllUsers = async () => {
       return {
         ...profile,
         email: storedEmail,
-        role: 'user' // Default role
+        role: profile.is_admin ? 'admin' : 'user',
+        status: 'active' as 'active' | 'inactive'
       };
     });
     

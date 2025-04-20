@@ -33,7 +33,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, fetchAllUsers } from '@/integrations/supabase/client';
 import { useTeachers } from '@/contexts/TeacherContext';
 import {
   Table,
@@ -52,18 +52,6 @@ interface AppUser {
   role: 'admin' | 'user';
   status: 'active' | 'inactive';
   joinedDate: string;
-}
-
-interface SupabaseProfile {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email?: string;
-  phone?: string | null;
-  created_at: string;
-  updated_at: string;
-  avatar_url: string | null;
-  initial_credits?: number;
 }
 
 interface UserDialogProps {
@@ -621,6 +609,7 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
+      console.log('Starting to fetch users...');
       try {
         const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
         
@@ -656,23 +645,28 @@ const AdminUsers = () => {
               email: authUser.email || '',
               phone: profile?.phone || authUser.phone || null,
               role: userRole,
-              status: authUser.banned ? 'inactive' : 'active',
+              status: authUser.banned ? 'inactive' as const : 'active' as const,
               joinedDate: authUser.created_at
             };
           });
           
+          console.log('Setting users from auth API:', mappedUsers.length);
           setUsers(mappedUsers);
+          setIsLoading(false);
           return;
         }
       } catch (err) {
-        console.log('Admin API access failed, falling back to profiles');
+        console.log('Admin API access failed, falling back to profiles:', err);
       }
       
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
       
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
       
       if (!profiles || profiles.length === 0) {
         console.log('No profiles found in the database');
@@ -688,7 +682,7 @@ const AdminUsers = () => {
         const storedEmail = localStorage.getItem(emailKey) || '';
         
         const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-        const email = storedEmail || '';
+        const email = storedEmail || profile.email || '';
         
         const isAdmin = 
           email === 'admin@strongbyyoga.com' || 
@@ -705,6 +699,7 @@ const AdminUsers = () => {
         };
       });
       
+      console.log('Setting users from profiles:', mappedUsers.length);
       setUsers(mappedUsers);
     } catch (error: any) {
       console.error('Error fetching users:', error);
@@ -719,6 +714,7 @@ const AdminUsers = () => {
   };
 
   useEffect(() => {
+    console.log('AdminUsers component mounted, fetching users...');
     fetchUsers();
   }, []);
 
@@ -906,84 +902,92 @@ const AdminUsers = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((user) => (
-                        <TableRow 
-                          key={user.id} 
-                          className="hover:bg-yoga-light-yellow/20"
-                        >
-                          <TableCell>
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 rounded-full bg-yoga-light-blue flex items-center justify-center text-yoga-blue font-medium mr-3">
-                                {user.name ? user.name[0].toUpperCase() : 'U'}
-                              </div>
-                              <span>{user.name || 'Unknown User'}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Mail size={16} className="mr-2 text-gray-600" />
-                              {user.email}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Phone size={16} className="mr-2 text-gray-600" />
-                              {user.phone || 'Not provided'}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              user.role === 'admin' ? 'bg-yoga-yellow text-gray-800' : 'bg-gray-100'
-                            }`}>
-                              {user.role}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {user.status}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(user.joinedDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical size={18} />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewProfile(user)}>View Profile</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditUser(user)}>Edit User</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAddMembership(user)}>Add Membership</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAddCredits(user)}>Add Credits</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleViewCredits(user)}>View Credits</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleViewBookings(user)}>View Bookings</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleResetPassword(user)}>
-                                  <Lock className="mr-2 h-4 w-4" />
-                                  Reset Password
-                                </DropdownMenuItem>
-                                {user.status === 'active' ? (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'inactive')} className="text-yellow-600">
-                                    Suspend User
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'active')} className="text-green-600">
-                                    Activate User
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleDeleteUser(user)} className="text-red-600">
-                                  Delete User
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                      {users.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center">
+                            No users found
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        users.map((user) => (
+                          <TableRow 
+                            key={user.id} 
+                            className="hover:bg-yoga-light-yellow/20"
+                          >
+                            <TableCell>
+                              <div className="flex items-center">
+                                <div className="w-8 h-8 rounded-full bg-yoga-light-blue flex items-center justify-center text-yoga-blue font-medium mr-3">
+                                  {user.name ? user.name[0].toUpperCase() : 'U'}
+                                </div>
+                                <span>{user.name || 'Unknown User'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Mail size={16} className="mr-2 text-gray-600" />
+                                {user.email || 'No email'}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Phone size={16} className="mr-2 text-gray-600" />
+                                {user.phone || 'Not provided'}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                user.role === 'admin' ? 'bg-yoga-yellow text-gray-800' : 'bg-gray-100'
+                              }`}>
+                                {user.role}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {user.status}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(user.joinedDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical size={18} />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleViewProfile(user)}>View Profile</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleEditUser(user)}>Edit User</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAddMembership(user)}>Add Membership</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleAddCredits(user)}>Add Credits</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleViewCredits(user)}>View Credits</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleViewBookings(user)}>View Bookings</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleResetPassword(user)}>
+                                    <Lock className="mr-2 h-4 w-4" />
+                                    Reset Password
+                                  </DropdownMenuItem>
+                                  {user.status === 'active' ? (
+                                    <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'inactive')} className="text-yellow-600">
+                                      Suspend User
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'active')} className="text-green-600">
+                                      Activate User
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleDeleteUser(user)} className="text-red-600">
+                                    Delete User
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
