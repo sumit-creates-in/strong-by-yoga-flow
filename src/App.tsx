@@ -12,6 +12,7 @@ import AdminGuard from "./components/AdminGuard";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Classes from "./pages/Classes";
 import ClassDetail from "./pages/ClassDetail";
@@ -49,6 +50,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/login/reset-password/*" element={<ResetPassword />} />
               
               {/* Protected Routes */}
               <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />

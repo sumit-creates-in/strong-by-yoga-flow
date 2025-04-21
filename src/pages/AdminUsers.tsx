@@ -180,39 +180,27 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
     }
 
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Use the correct admin API endpoint with service role key
+      const { error: updateError } = await supabase.rpc('admin_update_user_password', {
+        user_id: userId,
+        new_password: newPassword
+      });
       
-      if (profileError) throw profileError;
-      
-      if (!profile.email) {
-        throw new Error('User does not have an email address');
-      }
-      
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        profile.email,
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
-        }
-      );
-      
-      if (resetError) throw resetError;
+      if (updateError) throw updateError;
       
       toast({
-        title: "Password reset link sent",
-        description: "A password reset link has been sent to the user's email."
+        title: "Password updated",
+        description: "The user's password has been successfully updated."
       });
       
       onClose();
+      setNewPassword(''); // Clear the password field
     } catch (error: any) {
       console.error('Error resetting password:', error);
       toast({
         variant: 'destructive',
         title: "Error",
-        description: "Failed to reset password. Please try again."
+        description: error.message || "Failed to reset password. Please try again."
       });
     }
   };
@@ -235,12 +223,18 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
             />
           </div>
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={() => {
+            onClose();
+            setNewPassword(''); // Clear password on cancel
+          }}>
+            Cancel
+          </Button>
           <Button onClick={handleResetPassword}>Reset Password</Button>
         </DialogFooter>
       </DialogContent>

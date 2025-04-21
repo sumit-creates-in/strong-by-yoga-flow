@@ -257,6 +257,28 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const classesLoaded = useRef(false);
 
+  // Add useEffect for checking membership status
+  useEffect(() => {
+    if (user) {
+      checkMembershipStatus();
+    } else {
+      setUserMembership({ active: false });
+    }
+  }, [user]);
+
+  // Add interval to periodically check membership status
+  useEffect(() => {
+    if (user) {
+      // Check immediately
+      checkMembershipStatus();
+      
+      // Then check every minute
+      const interval = setInterval(checkMembershipStatus, 60000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   // Save baseClasses to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('yogaClasses', JSON.stringify(baseClasses));
@@ -392,9 +414,14 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
 
   // Check user's membership status
   const checkMembershipStatus = async () => {
-    if (!user) return;
+    if (!user) {
+      setUserMembership({ active: false });
+      return;
+    }
     
     try {
+      console.log('Checking membership status for user:', user.id);
+      
       const { data, error } = await supabase
         .from('memberships')
         .select('*')
@@ -404,20 +431,66 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         .limit(1)
         .single();
         
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No membership found - this is not an error
+          console.log('No active membership found for user:', user.id);
+          setUserMembership({ active: false });
+          return;
+        }
+        
         console.error('Error fetching membership:', error);
+        toast({
+          title: "Error checking membership",
+          description: "There was an error checking your membership status. Please try again later.",
+          variant: "destructive"
+        });
         return;
       }
       
       if (data) {
-        setUserMembership({
+        console.log('Found active membership:', data);
+        const expiryDate = new Date(data.expiry_date);
+        const now = new Date();
+        
+        if (now > expiryDate) {
+          console.log('Membership expired:', { expiryDate, now });
+          // Membership has expired, update it in the database
+          const { error: updateError } = await supabase
+            .from('memberships')
+            .update({
+              is_active: false,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', data.id);
+            
+          if (updateError) {
+            console.error('Error updating expired membership:', updateError);
+          }
+          
+          setUserMembership({ active: false });
+          return;
+        }
+        
+        const membershipData = {
           active: true,
-          expiryDate: new Date(data.expiry_date),
+          expiryDate,
           type: data.tier
-        });
+        };
+        
+        setUserMembership(membershipData);
+        console.log('Membership status updated:', membershipData);
+      } else {
+        console.log('No active membership found');
+        setUserMembership({ active: false });
       }
     } catch (error) {
-      console.error('Error checking membership status:', error);
+      console.error('Error in checkMembershipStatus:', error);
+      toast({
+        title: "Error checking membership",
+        description: "There was an error checking your membership status. Please try again later.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -575,7 +648,7 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       toast({
         variant: 'destructive',
         title: "Authentication required",
-        description: "Please log in to purchase a membership.",
+        description: "Please log in to purchase a membership."
       });
       return;
     }
@@ -588,7 +661,7 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         toast({
           variant: 'destructive',
           title: "Invalid membership tier",
-          description: "The selected membership tier doesn't exist.",
+          description: "The selected membership tier doesn't exist."
         });
         return;
       }
@@ -597,16 +670,17 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + tier.duration);
       
-      // In a real app, this would create a membership record in the database and handle payment
+      // Create membership record in the database
       const { error } = await supabase
         .from('memberships')
         .insert({
           user_id: user.id,
           tier: tier.id,
-          price: tier.price,
           is_active: true,
           start_date: new Date().toISOString(),
           expiry_date: expiryDate.toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
       
       if (error) {
@@ -614,7 +688,7 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
         toast({
           variant: 'destructive',
           title: "Failed to purchase membership",
-          description: error.message,
+          description: error.message
         });
         return;
       }
@@ -628,10 +702,15 @@ export function YogaClassProvider({ children }: { children: React.ReactNode }) {
       
       toast({
         title: "Membership activated",
-        description: `Your ${tier.name} membership has been activated successfully.`,
+        description: `Your ${tier.name} membership has been activated successfully.`
       });
     } catch (error) {
       console.error('Error purchasing membership:', error);
+      toast({
+        variant: 'destructive',
+        title: "Failed to purchase membership",
+        description: "An unexpected error occurred. Please try again later."
+      });
     }
   };
 

@@ -364,23 +364,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/login',
+        redirectTo: `${window.location.origin}/login/reset-password`
       });
       
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
       
       toast({
-        title: 'Password reset email sent',
-        description: 'Check your inbox for instructions to reset your password.',
+        title: 'Reset link sent',
+        description: 'Check your email for the password reset link.',
       });
       
       navigate('/login');
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Password reset failed',
+        title: 'Reset failed',
         description: error.message || 'Something went wrong',
       });
     } finally {

@@ -122,7 +122,7 @@ export const createClassCheckoutSession = async (classId: string, price: number,
 /**
  * Create a checkout session for membership purchase
  */
-export const createMembershipCheckoutSession = async (membershipId: string, successUrl: string, cancelUrl: string) => {
+export const createMembershipCheckoutSession = async (membershipId: string, userId: string, successUrl: string, cancelUrl: string) => {
   const stripe = await getStripe();
   if (!stripe) {
     throw new Error('Stripe failed to initialize');
@@ -145,6 +145,7 @@ export const createMembershipCheckoutSession = async (membershipId: string, succ
       ],
       successUrl,
       cancelUrl,
+      clientReferenceId: userId, // Add the user ID to the session
     });
     
     if (error) {

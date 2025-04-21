@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Repeat, ChevronRight, Zap, Search, Filter } from 'lucide-react';
+import { Calendar, Clock, Repeat, ChevronRight, Zap, Search, Filter, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import {
 import JoinClassButton from '@/components/JoinClassButton';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminRoleDebugger from '@/components/AdminRoleDebugger';
+import { Select } from '@/components/ui/select';
 
 const Classes = () => {
   const {
@@ -43,6 +44,8 @@ const Classes = () => {
   const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [showMembershipDialog, setShowMembershipDialog] = useState(false);
+  const [isCheckingMembership, setIsCheckingMembership] = useState(true);
   const navigate = useNavigate();
 
   // Extract unique tags from all classes
@@ -88,36 +91,40 @@ const Classes = () => {
     );
   };
   
+  useEffect(() => {
+    // Set a short timeout to avoid flickering for quick responses
+    const timer = setTimeout(() => {
+      setIsCheckingMembership(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleJoinClass = (yogaClass: YogaClass) => {
-    // Force admin check for specific email addresses
-    const isAdminEmail = user?.email === 'sumit_204@yahoo.com' || user?.email === 'admin@strongbyyoga.com';
-    const isAdmin = user?.role === 'admin';
-    
-    // Check if user is admin or has membership
-    if (isAdminEmail || isAdmin || userMembership.active) {
-      console.log('Proceeding as admin or member', { isAdmin, isAdminEmail, hasMembership: userMembership.active });
-      
-      // Check if class is live or within 5 minutes of starting
-      const classDate = new Date(yogaClass.date);
-      const now = new Date();
-      const fiveMinutesBefore = new Date(classDate);
-      fiveMinutesBefore.setMinutes(classDate.getMinutes() - 5);
-      
-      if (now >= fiveMinutesBefore) {
-        // Class is live or within 5 minutes of starting - join directly
-        joinClass(yogaClass.id);
-        window.open(yogaClass.joinLink, '_blank', 'noopener,noreferrer');
-      } else {
-        // Show countdown dialog
-        setSelectedClass(yogaClass);
-        setIsJoinPromptOpen(true);
-      }
-    } else {
-      console.log('Showing membership dialog', { isAdmin, hasMembership: userMembership.active, email: user?.email });
-      // User doesn't have membership - show membership required dialog
-      setIsMembershipDialogOpen(true);
+    if (!user) {
+      navigate('/login');
+      return;
     }
+
+    if (!userMembership.active) {
+      setShowMembershipDialog(true);
+      return;
+    }
+
+    // If user has active membership, allow joining the class
+    navigate(`/class/${yogaClass.id}`);
   };
+
+  if (isCheckingMembership) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-yoga-blue" />
+          <span className="ml-2">Checking membership status...</span>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -292,7 +299,7 @@ const Classes = () => {
         )}
         
         {/* Membership Dialog */}
-        <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
+        <Dialog open={showMembershipDialog} onOpenChange={setShowMembershipDialog}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Membership Required</DialogTitle>
@@ -314,14 +321,14 @@ const Classes = () => {
             <DialogFooter>
               <Button 
                 variant="outline" 
-                onClick={() => setIsMembershipDialogOpen(false)}
+                onClick={() => setShowMembershipDialog(false)}
               >
                 Later
               </Button>
               <Button
                 className="bg-yoga-blue hover:bg-yoga-blue/90"
                 onClick={() => {
-                  setIsMembershipDialogOpen(false);
+                  setShowMembershipDialog(false);
                   navigate('/pricing');
                 }}
               >

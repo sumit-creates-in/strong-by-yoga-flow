@@ -808,11 +808,11 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
       }
 
       // Update local state
-      setTeachers(
-        teachers.map(teacher =>
-          teacher.id === id ? { ...teacher, ...updatedTeacher } : teacher
-        )
-      );
+    setTeachers(
+      teachers.map(teacher => 
+        teacher.id === id ? { ...teacher, ...updatedTeacher } : teacher
+      )
+    );
     } catch (error) {
       console.error('Error in updateTeacher:', error);
     }
@@ -830,7 +830,7 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         return;
       }
 
-      setTeachers(teachers.filter(teacher => teacher.id !== id));
+    setTeachers(teachers.filter(teacher => teacher.id !== id));
     } catch (error) {
       console.error('Error in deleteTeacher:', error);
     }
