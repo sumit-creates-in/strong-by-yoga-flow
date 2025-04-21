@@ -190,44 +190,106 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch teachers
+        const { data: teachersData, error: teachersError } = await supabase
           .from('teachers')
           .select('*');
 
-        if (error) {
-          console.error('Error fetching teachers:', error);
+        if (teachersError) {
+          console.error('Error fetching teachers:', teachersError);
+          return;
+        }
+
+        // Fetch session types for all teachers
+        const { data: sessionTypesData, error: sessionTypesError } = await supabase
+          .from('teacher_session_types')
+          .select('*');
+
+        if (sessionTypesError) {
+          console.error('Error fetching session types:', sessionTypesError);
+          return;
+        }
+
+        // Fetch availability for all teachers
+        const { data: availabilityData, error: availabilityError } = await supabase
+          .from('teacher_availability')
+          .select('*');
+
+        if (availabilityError) {
+          console.error('Error fetching availability:', availabilityError);
           return;
         }
 
         // Transform the data to match our Teacher interface
-        const transformedTeachers = data.map(teacher => ({
-          ...teacher,
-          specialties: teacher.specialties || [],
-          expertise: teacher.expertise || [],
-          certifications: teacher.certifications || [],
-          languages: teacher.languages || ['English'],
-          sessionTypes: [],  // These will need to be handled separately
-          availability: [],  // These will need to be handled separately
-          zoomAccount: {
-            email: '',
-            isConnected: false
-          },
-          notificationSettings: {
-            email: { enabled: true, templates: [] },
-            app: { enabled: true, templates: [] },
-            whatsapp: {
-              enabled: false,
-              phoneNumberId: '',
-              accessToken: '',
-              businessAccountId: '',
-              verifyToken: '',
-              autoReplyEnabled: false,
-              autoReplyMessage: '',
-              templates: []
+        const transformedTeachers = teachersData.map(teacher => {
+          // Get session types for this teacher
+          const teacherSessionTypes = sessionTypesData
+            .filter(st => st.teacher_id === teacher.id)
+            .map(st => ({
+              id: st.id,
+              name: st.name,
+              description: st.description || '',
+              duration: st.duration,
+              price: st.price,
+              credits: st.credits || st.price,
+              isActive: st.is_active,
+              type: st.type || 'video',
+              bookingRestrictions: {
+                minTimeBeforeBooking: st.min_time_before_booking,
+                maxAdvanceBookingPeriod: st.max_advance_booking_period,
+                minTimeBeforeCancelling: st.min_time_before_cancelling,
+                minTimeBeforeRescheduling: st.min_time_before_rescheduling
+              }
+            }));
+
+          // Get availability for this teacher
+          const teacherAvailability = availabilityData
+            .filter(av => av.teacher_id === teacher.id)
+            .map(av => ({
+              day: av.day,
+              slots: av.slots
+            }));
+
+          return {
+            id: teacher.id,
+            name: teacher.name,
+            title: teacher.title,
+            bio: teacher.bio,
+            avatarUrl: teacher.avatar_url,
+            shortBio: teacher.short_bio,
+            fullBio: teacher.full_bio,
+            experience: teacher.experience,
+            rating: teacher.rating,
+            reviewCount: teacher.review_count,
+            totalSessions: teacher.total_sessions,
+            specialties: teacher.specialties || [],
+            expertise: teacher.expertise || [],
+            certifications: teacher.certifications || [],
+            languages: teacher.languages || ['English'],
+            teachingStyle: teacher.teaching_style,
+            sessionTypes: teacherSessionTypes,
+            availability: teacherAvailability,
+            zoomAccount: {
+              email: '',
+              isConnected: false
             },
-            sms: { enabled: false, templates: [] }
-          }
-        }));
+            notificationSettings: {
+              email: { enabled: true, templates: [] },
+              app: { enabled: true, templates: [] },
+              whatsapp: {
+                enabled: false,
+                phoneNumberId: '',
+                accessToken: '',
+                businessAccountId: '',
+                verifyToken: '',
+                autoReplyEnabled: false,
+                autoReplyMessage: '',
+                templates: []
+              },
+              sms: { enabled: false, templates: [] }
+            }
+          };
+        });
 
         setTeachers(transformedTeachers);
       } catch (error) {
@@ -582,7 +644,8 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   // CRUD operations for teachers
   const addTeacher = async (teacher: Teacher) => {
     try {
-      const { data, error } = await supabase
+      // Insert teacher basic info
+      const { data: teacherData, error: teacherError } = await supabase
         .from('teachers')
         .insert([{
           name: teacher.name,
@@ -601,17 +664,58 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         .select()
         .single();
 
-      if (error) {
-        console.error('Error adding teacher:', error);
+      if (teacherError) {
+        console.error('Error adding teacher:', teacherError);
         return;
       }
 
-      // Transform the returned data to match our Teacher interface
+      // Insert session types
+      if (teacher.sessionTypes.length > 0) {
+        const { error: sessionTypesError } = await supabase
+          .from('teacher_session_types')
+          .insert(
+            teacher.sessionTypes.map(st => ({
+              teacher_id: teacherData.id,
+              name: st.name,
+              description: st.description,
+              duration: st.duration,
+              price: st.price,
+              credits: st.credits,
+              is_active: st.isActive,
+              type: st.type,
+              min_time_before_booking: st.bookingRestrictions.minTimeBeforeBooking,
+              max_advance_booking_period: st.bookingRestrictions.maxAdvanceBookingPeriod,
+              min_time_before_cancelling: st.bookingRestrictions.minTimeBeforeCancelling,
+              min_time_before_rescheduling: st.bookingRestrictions.minTimeBeforeRescheduling
+            }))
+          );
+
+        if (sessionTypesError) {
+          console.error('Error adding session types:', sessionTypesError);
+        }
+      }
+
+      // Insert availability
+      if (teacher.availability.length > 0) {
+        const { error: availabilityError } = await supabase
+          .from('teacher_availability')
+          .insert(
+            teacher.availability.map(av => ({
+              teacher_id: teacherData.id,
+              day: av.day,
+              slots: av.slots
+            }))
+          );
+
+        if (availabilityError) {
+          console.error('Error adding availability:', availabilityError);
+        }
+      }
+
+      // Add to local state
       const newTeacher = {
         ...teacher,
-        id: data.id,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        id: teacherData.id
       };
 
       setTeachers([...teachers, newTeacher]);
@@ -622,7 +726,8 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   
   const updateTeacher = async (id: string, updatedTeacher: Partial<Teacher>) => {
     try {
-      const { error } = await supabase
+      // Update teacher basic info
+      const { error: teacherError } = await supabase
         .from('teachers')
         .update({
           name: updatedTeacher.name,
@@ -640,11 +745,69 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
         })
         .eq('id', id);
 
-      if (error) {
-        console.error('Error updating teacher:', error);
+      if (teacherError) {
+        console.error('Error updating teacher:', teacherError);
         return;
       }
 
+      // Update session types if provided
+      if (updatedTeacher.sessionTypes) {
+        // Delete existing session types
+        await supabase
+          .from('teacher_session_types')
+          .delete()
+          .eq('teacher_id', id);
+
+        // Insert new session types
+        const { error: sessionTypesError } = await supabase
+          .from('teacher_session_types')
+          .insert(
+            updatedTeacher.sessionTypes.map(st => ({
+              teacher_id: id,
+              name: st.name,
+              description: st.description,
+              duration: st.duration,
+              price: st.price,
+              credits: st.credits,
+              is_active: st.isActive,
+              type: st.type,
+              min_time_before_booking: st.bookingRestrictions.minTimeBeforeBooking,
+              max_advance_booking_period: st.bookingRestrictions.maxAdvanceBookingPeriod,
+              min_time_before_cancelling: st.bookingRestrictions.minTimeBeforeCancelling,
+              min_time_before_rescheduling: st.bookingRestrictions.minTimeBeforeRescheduling
+            }))
+          );
+
+        if (sessionTypesError) {
+          console.error('Error updating session types:', sessionTypesError);
+        }
+      }
+
+      // Update availability if provided
+      if (updatedTeacher.availability) {
+        // Delete existing availability
+        await supabase
+          .from('teacher_availability')
+          .delete()
+          .eq('teacher_id', id);
+
+        // Insert new availability
+        const { error: availabilityError } = await supabase
+          .from('teacher_availability')
+          .insert(
+            updatedTeacher.availability.map(av => ({
+              teacher_id: id,
+              day: av.day,
+              slots: av.slots
+            }))
+          );
+
+        if (availabilityError) {
+          console.error('Error updating availability:', availabilityError);
+        }
+      }
+
+      // Update local state
       setTeachers(
         teachers.map(teacher =>
           teacher.id === id ? { ...teacher, ...updatedTeacher } : teacher
