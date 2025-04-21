@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 
 // Define types
 export interface AvailabilitySlot {
@@ -183,16 +183,60 @@ interface TeacherProviderProps {
 }
 
 export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) => {
-  // Load initial data from localStorage or use default data
-  const [teachers, setTeachers] = useState<Teacher[]>(() => {
-    const savedTeachers = localStorage.getItem('teachers');
-    return savedTeachers ? JSON.parse(savedTeachers) : [];
-  });
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const { user } = useAuth();
 
-  // Save to localStorage whenever teachers change
+  // Load teachers from Supabase on mount
   useEffect(() => {
-    localStorage.setItem('teachers', JSON.stringify(teachers));
-  }, [teachers]);
+    const fetchTeachers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teachers')
+          .select('*');
+
+        if (error) {
+          console.error('Error fetching teachers:', error);
+          return;
+        }
+
+        // Transform the data to match our Teacher interface
+        const transformedTeachers = data.map(teacher => ({
+          ...teacher,
+          specialties: teacher.specialties || [],
+          expertise: teacher.expertise || [],
+          certifications: teacher.certifications || [],
+          languages: teacher.languages || ['English'],
+          sessionTypes: [],  // These will need to be handled separately
+          availability: [],  // These will need to be handled separately
+          zoomAccount: {
+            email: '',
+            isConnected: false
+          },
+          notificationSettings: {
+            email: { enabled: true, templates: [] },
+            app: { enabled: true, templates: [] },
+            whatsapp: {
+              enabled: false,
+              phoneNumberId: '',
+              accessToken: '',
+              businessAccountId: '',
+              verifyToken: '',
+              autoReplyEnabled: false,
+              autoReplyMessage: '',
+              templates: []
+            },
+            sms: { enabled: false, templates: [] }
+          }
+        }));
+
+        setTeachers(transformedTeachers);
+      } catch (error) {
+        console.error('Error in fetchTeachers:', error);
+      }
+    };
+
+    fetchTeachers();
+  }, []);
 
   // Bookings data with localStorage persistence but no mock data
   const [bookings, setBookings] = useState<BookingData[]>(() => {
@@ -223,9 +267,6 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
     const savedCredits = localStorage.getItem('userCredits');
     return savedCredits ? parseInt(savedCredits) : 0;
   });
-
-  // Get the current authenticated user from the AuthContext
-  const { user } = useAuth();
 
   // Update the userCredits whenever the user changes
   useEffect(() => {
@@ -539,20 +580,97 @@ export const TeacherProvider: React.FC<TeacherProviderProps> = ({ children }) =>
   };
 
   // CRUD operations for teachers
-  const addTeacher = (teacher: Teacher) => {
-    setTeachers([...teachers, teacher]);
+  const addTeacher = async (teacher: Teacher) => {
+    try {
+      const { data, error } = await supabase
+        .from('teachers')
+        .insert([{
+          name: teacher.name,
+          title: teacher.title,
+          bio: teacher.bio,
+          avatar_url: teacher.avatarUrl,
+          short_bio: teacher.shortBio,
+          full_bio: teacher.fullBio,
+          experience: teacher.experience,
+          specialties: teacher.specialties,
+          expertise: teacher.expertise,
+          certifications: teacher.certifications,
+          languages: teacher.languages,
+          teaching_style: teacher.teachingStyle
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding teacher:', error);
+        return;
+      }
+
+      // Transform the returned data to match our Teacher interface
+      const newTeacher = {
+        ...teacher,
+        id: data.id,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+
+      setTeachers([...teachers, newTeacher]);
+    } catch (error) {
+      console.error('Error in addTeacher:', error);
+    }
   };
   
-  const updateTeacher = (id: string, updatedTeacher: Partial<Teacher>) => {
-    setTeachers(
-      teachers.map(teacher => 
-        teacher.id === id ? { ...teacher, ...updatedTeacher } : teacher
-      )
-    );
+  const updateTeacher = async (id: string, updatedTeacher: Partial<Teacher>) => {
+    try {
+      const { error } = await supabase
+        .from('teachers')
+        .update({
+          name: updatedTeacher.name,
+          title: updatedTeacher.title,
+          bio: updatedTeacher.bio,
+          avatar_url: updatedTeacher.avatarUrl,
+          short_bio: updatedTeacher.shortBio,
+          full_bio: updatedTeacher.fullBio,
+          experience: updatedTeacher.experience,
+          specialties: updatedTeacher.specialties,
+          expertise: updatedTeacher.expertise,
+          certifications: updatedTeacher.certifications,
+          languages: updatedTeacher.languages,
+          teaching_style: updatedTeacher.teachingStyle
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating teacher:', error);
+        return;
+      }
+
+      setTeachers(
+        teachers.map(teacher =>
+          teacher.id === id ? { ...teacher, ...updatedTeacher } : teacher
+        )
+      );
+    } catch (error) {
+      console.error('Error in updateTeacher:', error);
+    }
   };
   
-  const deleteTeacher = (id: string) => {
-    setTeachers(teachers.filter(teacher => teacher.id !== id));
+  const deleteTeacher = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('teachers')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting teacher:', error);
+        return;
+      }
+
+      setTeachers(teachers.filter(teacher => teacher.id !== id));
+    } catch (error) {
+      console.error('Error in deleteTeacher:', error);
+    }
   };
   
   const getTeacher = (id: string) => {
