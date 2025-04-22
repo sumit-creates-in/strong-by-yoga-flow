@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertTriangle, CreditCard } from 'lucide-react';
+import { settingsService } from '@/services/settingsService';
 
 interface StripePaymentIntegrationProps {
   isActive?: boolean;
@@ -15,38 +16,91 @@ interface StripePaymentIntegrationProps {
 const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({ 
   isActive = false 
 }) => {
-  // Load saved settings from localStorage if they exist
-  const loadSavedSettings = () => {
-    try {
-      const savedSettings = localStorage.getItem('stripeSettings');
-      if (savedSettings) {
-        return JSON.parse(savedSettings);
-      }
-    } catch (error) {
-      console.error('Failed to load stripe settings:', error);
-    }
-    return null;
-  };
-
-  const savedSettings = loadSavedSettings();
-  
-  const [apiKey, setApiKey] = useState(savedSettings?.apiKey || '');
-  const [publishableKey, setPublishableKey] = useState(savedSettings?.publishableKey || '');
-  const [webhookSecret, setWebhookSecret] = useState(savedSettings?.webhookSecret || '');
-  const [testApiKey, setTestApiKey] = useState(savedSettings?.testApiKey || '');
-  const [testPublishableKey, setTestPublishableKey] = useState(savedSettings?.testPublishableKey || '');
-  const [testWebhookSecret, setTestWebhookSecret] = useState(savedSettings?.testWebhookSecret || '');
-  const [isLiveMode, setIsLiveMode] = useState(savedSettings?.isLiveMode || false);
-  const [enableCoupons, setEnableCoupons] = useState(savedSettings?.enableCoupons !== undefined ? savedSettings.enableCoupons : true);
-  const [enableSubscriptions, setEnableSubscriptions] = useState(savedSettings?.enableSubscriptions || false);
-  const [activationStatus, setActivationStatus] = useState(savedSettings?.activationStatus || isActive);
+  // Load saved settings from the database if they exist
+  const [loading, setLoading] = useState(true);
+  const [savedSettings, setSavedSettings] = useState<any>(null);
   const { toast } = useToast();
   
-  const saveSettings = (settings) => {
+  // Load initial settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        // Fetch stripe settings from the database
+        const settings = await settingsService.getSetting('stripeSettings');
+        setSavedSettings(settings);
+      } catch (error) {
+        console.error('Failed to load stripe settings:', error);
+        toast({
+          variant: "destructive",
+          title: "Error loading settings",
+          description: "Could not load saved settings from the database.",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSettings();
+  }, [toast]);
+  
+  const [apiKey, setApiKey] = useState('');
+  const [publishableKey, setPublishableKey] = useState('');
+  const [webhookSecret, setWebhookSecret] = useState('');
+  const [testApiKey, setTestApiKey] = useState('');
+  const [testPublishableKey, setTestPublishableKey] = useState('');
+  const [testWebhookSecret, setTestWebhookSecret] = useState('');
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [enableCoupons, setEnableCoupons] = useState(true);
+  const [enableSubscriptions, setEnableSubscriptions] = useState(false);
+  const [activationStatus, setActivationStatus] = useState(isActive);
+  const [coupons, setCoupons] = useState<any[]>([
+    { id: '1', code: 'WELCOME10', type: 'percentage', amount: '10', active: true },
+    { id: '2', code: 'YOGA25', type: 'percentage', amount: '25', active: true },
+    { id: '3', code: 'FLAT20', type: 'fixed', amount: '20', active: true },
+  ]);
+  
+  // Update state with saved settings when they load
+  useEffect(() => {
+    if (savedSettings) {
+      setApiKey(savedSettings.apiKey || '');
+      setPublishableKey(savedSettings.publishableKey || '');
+      setWebhookSecret(savedSettings.webhookSecret || '');
+      setTestApiKey(savedSettings.testApiKey || '');
+      setTestPublishableKey(savedSettings.testPublishableKey || '');
+      setTestWebhookSecret(savedSettings.testWebhookSecret || '');
+      setIsLiveMode(savedSettings.isLiveMode || false);
+      setEnableCoupons(savedSettings.enableCoupons !== undefined ? savedSettings.enableCoupons : true);
+      setEnableSubscriptions(savedSettings.enableSubscriptions || false);
+      setActivationStatus(savedSettings.activationStatus || isActive);
+      setCoupons(savedSettings.coupons || [
+        { id: '1', code: 'WELCOME10', type: 'percentage', amount: '10', active: true },
+        { id: '2', code: 'YOGA25', type: 'percentage', amount: '25', active: true },
+        { id: '3', code: 'FLAT20', type: 'fixed', amount: '20', active: true },
+      ]);
+    }
+  }, [savedSettings, isActive]);
+  
+  // Save settings to the database
+  const saveSettings = async (settings: any) => {
     try {
-      localStorage.setItem('stripeSettings', JSON.stringify(settings));
+      const success = await settingsService.saveSetting('stripeSettings', settings);
+      if (!success) {
+        toast({
+          variant: "destructive",
+          title: "Error saving settings",
+          description: "Failed to save settings to the database.",
+        });
+      }
+      // Update local state with the new settings
+      setSavedSettings(settings);
     } catch (error) {
       console.error('Failed to save stripe settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Error saving settings",
+        description: "Failed to save settings to the database.",
+      });
     }
   };
   
@@ -93,7 +147,7 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       return;
     }
     
-    // In a real app, this would save the settings to the server
+    // Save settings to the database
     const newSettings = {
       apiKey,
       publishableKey,
@@ -104,7 +158,8 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       isLiveMode,
       enableCoupons,
       enableSubscriptions,
-      activationStatus: true
+      activationStatus: true,
+      coupons
     };
     
     setActivationStatus(true);
@@ -117,9 +172,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
   };
   
   const handleDisconnect = () => {
-    // In a real app, this would disconnect Stripe from the server
-    setActivationStatus(false);
-    
     const newSettings = {
       apiKey,
       publishableKey,
@@ -130,9 +182,11 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       isLiveMode,
       enableCoupons,
       enableSubscriptions,
-      activationStatus: false
+      activationStatus: false,
+      coupons
     };
     
+    setActivationStatus(false);
     saveSettings(newSettings);
     
     toast({
@@ -144,20 +198,17 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
   const [couponCode, setCouponCode] = useState('');
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountType, setDiscountType] = useState('percentage');
-  const [coupons, setCoupons] = useState(savedSettings?.coupons || [
-    { id: '1', code: 'WELCOME10', type: 'percentage', amount: '10', active: true },
-    { id: '2', code: 'YOGA25', type: 'percentage', amount: '25', active: true },
-    { id: '3', code: 'FLAT20', type: 'fixed', amount: '20', active: true },
-  ]);
   
+  // Save coupons when they change
   useEffect(() => {
-    // Save coupons when they change
-    const settings = loadSavedSettings() || {};
-    saveSettings({
-      ...settings,
-      coupons
-    });
-  }, [coupons]);
+    if (savedSettings && !loading) {
+      const updatedSettings = {
+        ...savedSettings,
+        coupons
+      };
+      saveSettings(updatedSettings);
+    }
+  }, [coupons, savedSettings, loading]);
   
   const handleAddCoupon = () => {
     if (!couponCode || !discountAmount) {
@@ -201,6 +252,22 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
       description: "The coupon has been deleted.",
     });
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Stripe Payment Integration</CardTitle>
+          <CardDescription>Loading settings...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -291,6 +358,7 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                           onChange={(e) => setWebhookSecret(e.target.value)}
                           placeholder="whsec_..."
                         />
+                        <p className="text-xs text-gray-500">You'll need this to verify Stripe webhook events</p>
                       </div>
                     </>
                   ) : (
@@ -327,20 +395,19 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                           onChange={(e) => setTestWebhookSecret(e.target.value)}
                           placeholder="whsec_..."
                         />
+                        <p className="text-xs text-gray-500">You'll need this to verify Stripe webhook events</p>
                       </div>
                     </>
                   )}
                 </div>
                 
                 <div className="space-y-4">
-                  <h3 className="font-medium">Payment Features</h3>
+                  <h3 className="font-medium">Settings</h3>
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b pb-2">
                     <div>
-                      <p className="font-medium">Enable coupon codes</p>
-                      <p className="text-sm text-gray-500">
-                        Allow users to apply discount codes at checkout
-                      </p>
+                      <p className="font-medium">Enable Coupon Codes</p>
+                      <p className="text-sm text-gray-500">Allow customers to use discount codes at checkout</p>
                     </div>
                     <Switch
                       checked={enableCoupons}
@@ -348,12 +415,10 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                     />
                   </div>
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b pb-2">
                     <div>
-                      <p className="font-medium">Enable subscriptions</p>
-                      <p className="text-sm text-gray-500">
-                        Allow recurring payments for memberships
-                      </p>
+                      <p className="font-medium">Enable Subscriptions</p>
+                      <p className="text-sm text-gray-500">Allow recurring billing for memberships</p>
                     </div>
                     <Switch
                       checked={enableSubscriptions}
@@ -362,9 +427,9 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                   </div>
                 </div>
                 
-                <div className="flex justify-between">
+                <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={handleDisconnect}>
-                    Disconnect Stripe
+                    Disconnect
                   </Button>
                   <Button onClick={handleSaveSettings}>
                     Save Settings
@@ -375,138 +440,122 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
             
             <TabsContent value="coupons">
               <div className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium">Create Coupon Code</h3>
+                <div>
+                  <h3 className="font-medium mb-4">Add Coupon Code</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
+                    <div>
                       <Label htmlFor="couponCode">Coupon Code</Label>
                       <Input
                         id="couponCode"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        placeholder="e.g., WELCOME10"
+                        placeholder="WELCOME10"
+                        className="mt-1"
                       />
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="discountAmount">Discount Amount</Label>
-                      <Input
-                        id="discountAmount"
-                        value={discountAmount}
-                        onChange={(e) => setDiscountAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                        placeholder="e.g., 10"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
+                    <div>
                       <Label htmlFor="discountType">Discount Type</Label>
                       <select
                         id="discountType"
-                        className="w-full p-2 border border-gray-300 rounded"
                         value={discountType}
                         onChange={(e) => setDiscountType(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 mt-1"
                       >
                         <option value="percentage">Percentage (%)</option>
                         <option value="fixed">Fixed Amount ($)</option>
                       </select>
                     </div>
+                    <div>
+                      <Label htmlFor="discountAmount">Amount</Label>
+                      <Input
+                        id="discountAmount"
+                        value={discountAmount}
+                        onChange={(e) => setDiscountAmount(e.target.value)}
+                        placeholder={discountType === 'percentage' ? '10' : '20'}
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                  <Button onClick={handleAddCoupon} className="w-full">
+                  <Button className="mt-4" onClick={handleAddCoupon}>
                     Add Coupon
                   </Button>
                 </div>
                 
-                {coupons.length > 0 ? (
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                <div>
+                  <h3 className="font-medium mb-4">Active Coupons</h3>
+                  <div className="border rounded-md">
+                    <div className="grid grid-cols-5 gap-4 p-4 font-medium border-b">
+                      <div>Code</div>
+                      <div>Type</div>
+                      <div>Amount</div>
+                      <div>Status</div>
+                      <div>Actions</div>
+                    </div>
+                    
+                    {coupons.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        No coupons added yet
+                      </div>
+                    ) : (
+                      <>
                         {coupons.map((coupon) => (
-                          <tr key={coupon.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{coupon.code}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {coupon.type === 'percentage' ? `${coupon.amount}%` : `$${coupon.amount}`}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${coupon.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          <div key={coupon.id} className="grid grid-cols-5 gap-4 p-4 border-b last:border-0">
+                            <div className="font-medium">{coupon.code}</div>
+                            <div>{coupon.type === 'percentage' ? 'Percentage' : 'Fixed'}</div>
+                            <div>{coupon.type === 'percentage' ? `${coupon.amount}%` : `$${coupon.amount}`}</div>
+                            <div>
+                              <span className={`px-2 py-1 rounded-full text-xs ${coupon.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                 {coupon.active ? 'Active' : 'Inactive'}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                            </div>
+                            <div className="flex gap-2">
+                              <button
                                 onClick={() => handleToggleCoupon(coupon.id)}
-                                className="text-indigo-600 hover:text-indigo-900 mr-3"
+                                className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"
                               >
                                 {coupon.active ? 'Disable' : 'Enable'}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
+                              </button>
+                              <button
                                 onClick={() => handleDeleteCoupon(coupon.id)}
-                                className="text-red-600 hover:text-red-900"
+                                className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100"
                               >
                                 Delete
-                              </Button>
-                            </td>
-                          </tr>
+                              </button>
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No coupon codes created yet.
-                  </div>
-                )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
         ) : (
           <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+            <div className="border-l-4 border-yellow-400 bg-yellow-50 p-4">
               <div className="flex">
-                <CreditCard className="h-6 w-6 text-gray-600 mr-3" />
-                <div>
-                  <h3 className="font-medium">Accept payments with Stripe</h3>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Connect your Stripe account to accept payments for classes, sessions, and memberships.
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    Stripe integration is currently not active. Enable it to accept payments for classes and memberships.
                   </p>
                 </div>
               </div>
             </div>
             
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-b pb-2">
                 <div>
-                  <h3 className="text-lg font-medium">Live Mode</h3>
-                  <p className="text-sm text-gray-500">
-                    Use live keys to process real payments
-                  </p>
+                  <p className="font-medium">Enable Live Mode</p>
+                  <p className="text-sm text-gray-500">Use live keys to process real payments</p>
                 </div>
                 <Switch
                   checked={isLiveMode}
                   onCheckedChange={setIsLiveMode}
                 />
-              </div>
-              
-              <div className={`p-4 rounded-md border ${isLiveMode ? 'border-red-200 bg-red-50' : 'border-yellow-200 bg-yellow-50'}`}>
-                <div className="flex items-start">
-                  <AlertTriangle className={`h-5 w-5 mr-2 ${isLiveMode ? 'text-red-500' : 'text-yellow-500'}`} />
-                  <p className="text-sm">
-                    {isLiveMode
-                      ? "You are in LIVE mode. Real payments will be processed."
-                      : "You are in TEST mode. No real payments will be processed."}
-                  </p>
-                </div>
               </div>
               
               <div className="space-y-4">
@@ -523,7 +572,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                         onChange={(e) => setApiKey(e.target.value)}
                         placeholder="sk_live_..."
                       />
-                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                     </div>
                     
                     <div className="space-y-2">
@@ -534,7 +582,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                         onChange={(e) => setPublishableKey(e.target.value)}
                         placeholder="pk_live_..."
                       />
-                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                     </div>
                   </>
                 ) : (
@@ -548,7 +595,6 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                         onChange={(e) => setTestApiKey(e.target.value)}
                         placeholder="sk_test_..."
                       />
-                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                     </div>
                     
                     <div className="space-y-2">
@@ -559,15 +605,16 @@ const StripePaymentIntegration: React.FC<StripePaymentIntegrationProps> = ({
                         onChange={(e) => setTestPublishableKey(e.target.value)}
                         placeholder="pk_test_..."
                       />
-                      <p className="text-xs text-gray-500">Get this from your Stripe Dashboard API keys section</p>
                     </div>
                   </>
                 )}
               </div>
               
-              <Button onClick={handleSaveSettings} className="w-full">
-                Connect Stripe
-              </Button>
+              <div className="flex justify-end mt-6">
+                <Button onClick={handleSaveSettings}>
+                  Activate Stripe Integration
+                </Button>
+              </div>
             </div>
           </div>
         )}
