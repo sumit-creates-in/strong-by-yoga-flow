@@ -11,4 +11,11 @@ export interface SupabaseFunctions {
     };
     Returns: void;
   };
+  admin_update_user_role: {
+    Args: {
+      user_id: string;
+      new_role: string;
+    };
+    Returns: void;
+  };
 } 

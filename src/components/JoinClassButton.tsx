@@ -35,24 +35,31 @@ const JoinClassButton: React.FC<JoinClassButtonProps> = ({
   const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false);
   const [isJoinPromptOpen, setIsJoinPromptOpen] = useState(false);
   
-  // Force admin status for specific emails
+  // Check for special roles that don't need membership
   const isAdmin = user?.email === 'sumit_204@yahoo.com' || user?.email === 'admin@strongbyyoga.com' || user?.role === 'admin';
+  const isTeacher = user?.role === 'teacher';
   const isLive = isClassLive(yogaClass);
   
-  // Debug log for admin detection
+  // Debug log for role detection
   useEffect(() => {
     console.log('User email:', user?.email);
     console.log('User role:', user?.role);
     console.log('Is admin detected:', isAdmin);
-  }, [user, isAdmin]);
+    console.log('Is teacher detected:', isTeacher);
+  }, [user, isAdmin, isTeacher]);
   
   const handleClick = () => {
     // Force admin check for specific email addresses
     const isAdminEmail = user?.email === 'sumit_204@yahoo.com' || user?.email === 'admin@strongbyyoga.com';
     
-    // Check if user is admin or has membership
-    if (isAdminEmail || isAdmin || userMembership.active) {
-      console.log('Proceeding as admin or member', { isAdmin, isAdminEmail, hasMembership: userMembership.active });
+    // Check if user is admin, teacher, or has membership
+    if (isAdminEmail || isAdmin || isTeacher || userMembership.active) {
+      console.log('Proceeding as admin, teacher, or member', { 
+        isAdmin, 
+        isTeacher,
+        isAdminEmail, 
+        hasMembership: userMembership.active 
+      });
       
       const classDate = new Date(yogaClass.date);
       const now = new Date();
@@ -70,7 +77,7 @@ const JoinClassButton: React.FC<JoinClassButtonProps> = ({
         setIsJoinPromptOpen(true);
       }
     } else {
-      console.log('Showing membership dialog', { isAdmin, hasMembership: userMembership.active, email: user?.email });
+      console.log('Showing membership dialog', { isAdmin, isTeacher, hasMembership: userMembership.active, email: user?.email });
       // User doesn't have membership - show membership required dialog
       setIsMembershipDialogOpen(true);
     }
@@ -83,8 +90,16 @@ const JoinClassButton: React.FC<JoinClassButtonProps> = ({
         className={`${className}`}
         onClick={handleClick}
       >
-        {buttonText}
-        {showIcon && <ChevronRight size={16} className="ml-1" />}
+        {isTeacher && !userMembership.active ? (
+          <>
+            {buttonText} <span className="ml-1 text-xs">(Teacher Access)</span>
+          </>
+        ) : (
+          <>
+            {buttonText}
+            {showIcon && <ChevronRight size={16} className="ml-1" />}
+          </>
+        )}
       </Button>
       
       {/* Membership Required Dialog */}

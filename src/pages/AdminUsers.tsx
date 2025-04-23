@@ -42,6 +42,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, fetchAllUsers } from '@/integrations/supabase/client';
 import { useTeachers } from '@/contexts/TeacherContext';
+import { SupabaseFunctions } from '@/types/supabase';
 import {
   Table,
   TableBody,
@@ -940,15 +941,38 @@ const AdminUsers = () => {
     setIsViewCreditsOpen(true);
   };
 
+  // Define a separate function to handle the direct API call to avoid TypeScript errors
+  const updateUserRoleInDatabase = async (userId: string, newRole: string) => {
+    // First try the direct update to profiles
+    try {
+      const updateData = {
+        is_admin: newRole === 'admin',
+        is_teacher: newRole === 'teacher'
+      };
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData as any)  // Use type assertion to bypass TypeScript checks
+        .eq('id', userId);
+        
+      if (error) {
+        console.error("Error updating profile:", error);
+        throw error;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error("Error in updateUserRoleInDatabase:", err);
+      throw err;
+    }
+  };
+
   const handleChangeRole = async (user: AppUser, newRole: 'admin' | 'user' | 'teacher') => {
     try {
-      // Update user role in Supabase auth metadata
-      const { error } = await supabase.auth.admin.updateUserById(
-        user.id,
-        { user_metadata: { role: newRole } }
-      );
+      setIsLoading(true);
       
-      if (error) throw error;
+      // Update the role in database
+      await updateUserRoleInDatabase(user.id, newRole);
       
       // Update local state
       setUsers(prev => 
@@ -968,8 +992,10 @@ const AdminUsers = () => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to change user role',
+        description: error.message || 'Failed to change user role',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

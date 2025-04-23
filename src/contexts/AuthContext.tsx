@@ -11,11 +11,13 @@ export type Profile = {
   last_name: string | null;
   avatar_url: string | null;
   phone?: string | null;
+  is_admin?: boolean;
+  is_teacher?: boolean;
 };
 
 export type UserWithProfile = User & {
   profile?: Profile;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'teacher';
 };
 
 // Create the context
@@ -49,6 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Get user metadata
       const metadata = userData.user_metadata || {};
       
+      // Determine role flags
+      const userRole = metadata.role;
+      const isAdminEmail = userData.email === 'admin@strongbyyoga.com' || userData.email === 'sumit_204@yahoo.com';
+      const is_admin = userRole === 'admin' || isAdminEmail;
+      const is_teacher = userRole === 'teacher';
+      
       // Create profile data object
       const profileData = {
         id: userData.id,
@@ -57,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: userData.email || '',
         phone: metadata.phone || null,
         avatar_url: null,
+        is_admin,
+        is_teacher,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -108,15 +118,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Now fetch the profile
       const profile = await fetchUserProfile(session.user.id);
       
-      // Determine if user is admin
-      const isAdmin = 
+      // Check for role in metadata first
+      const userRole = session.user.user_metadata?.role;
+      
+      // Determine if user is admin based on email
+      const isAdminEmail = 
         session.user.email === 'admin@strongbyyoga.com' || 
         session.user.email === 'sumit_204@yahoo.com';
+      
+      // Determine final role (prioritize metadata)
+      let role: 'user' | 'admin' | 'teacher' = 'user';
+      
+      if (userRole === 'admin' || isAdminEmail) {
+        role = 'admin';
+      } else if (userRole === 'teacher' || profile?.is_teacher) {
+        role = 'teacher';
+      }
       
       setUser({
         ...session.user,
         profile,
-        role: isAdmin ? 'admin' : 'user'
+        role
       });
     } else {
       setUser(null);
