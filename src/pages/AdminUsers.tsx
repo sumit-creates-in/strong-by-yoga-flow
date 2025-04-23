@@ -32,6 +32,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, fetchAllUsers } from '@/integrations/supabase/client';
 import { useTeachers } from '@/contexts/TeacherContext';
@@ -49,7 +56,7 @@ interface AppUser {
   name: string;
   email: string;
   phone: string | null;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'teacher';
   status: 'active' | 'inactive';
   joinedDate: string;
 }
@@ -87,6 +94,10 @@ const UserDialog: React.FC<UserDialogProps> = ({ user, isOpen, onClose, mode, on
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
+  const handleRoleChange = (value: string) => {
+    setFormData(prev => ({ ...prev, role: value as 'admin' | 'user' | 'teacher' }));
+  };
+  
   const handleSave = () => {
     if (onSave && user) {
       onSave({
@@ -94,7 +105,7 @@ const UserDialog: React.FC<UserDialogProps> = ({ user, isOpen, onClose, mode, on
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        role: formData.role as 'admin' | 'user'
+        role: formData.role as 'admin' | 'user' | 'teacher'
       });
     }
     onClose();
@@ -146,13 +157,28 @@ const UserDialog: React.FC<UserDialogProps> = ({ user, isOpen, onClose, mode, on
           
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Input 
-              id="role" 
-              name="role" 
-              value={formData.role} 
-              onChange={handleInputChange}
-              readOnly={mode === 'view'} 
-            />
+            {mode === 'view' ? (
+              <Input 
+                id="role" 
+                name="role" 
+                value={formData.role} 
+                readOnly 
+              />
+            ) : (
+              <Select 
+                value={formData.role} 
+                onValueChange={handleRoleChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
         
@@ -181,9 +207,11 @@ const ResetPasswordDialog: React.FC<{isOpen: boolean; onClose: () => void; userI
 
     try {
       // Use the correct admin API endpoint with service role key
-      const { error: updateError } = await supabase.rpc('admin_update_user_password', {
-        user_id: userId,
-        new_password: newPassword
+      const { data, error: updateError } = await supabase.functions.invoke('admin-reset-password', {
+        body: {
+          userId: userId,
+          newPassword: newPassword
+        }
       });
       
       if (updateError) throw updateError;
@@ -610,9 +638,10 @@ const AdminUsers = () => {
         if (!authError && authData?.users) {
           console.log(`Found ${authData.users.length} users in auth.users`);
           
+          // Fetch profiles with email information
           const { data: profiles } = await supabase
             .from('profiles')
-            .select('*');
+            .select('*, auth_email:email');
           
           const profilesMap = new Map();
           if (profiles) {
@@ -627,16 +656,23 @@ const AdminUsers = () => {
             const lastName = profile?.last_name || authUser.user_metadata?.last_name || '';
             const fullName = `${firstName} ${lastName}`.trim();
             
-            const userRole = authUser.email === 'admin@strongbyyoga.com' || 
-              authUser.email === 'sumit_204@yahoo.com' ||
-              authUser.user_metadata?.role === 'admin'
-              ? 'admin' as const
-              : 'user' as const;
+            // Prioritize email from profiles table
+            const email = profile?.auth_email || authUser.email || '';
+            
+            // Check if user role is explicitly set in metadata
+            let userRole: 'admin' | 'user' | 'teacher' = 'user';
+            if (authUser.user_metadata?.role === 'admin') {
+              userRole = 'admin';
+            } else if (authUser.user_metadata?.role === 'teacher') {
+              userRole = 'teacher';
+            } else if (email === 'admin@strongbyyoga.com' || email === 'sumit_204@yahoo.com') {
+              userRole = 'admin';
+            }
             
             return {
               id: authUser.id,
-              name: fullName || authUser.email?.split('@')[0] || 'Unknown User',
-              email: authUser.email || '',
+              name: fullName || email.split('@')[0] || 'Unknown User',
+              email: email,
               phone: profile?.phone || authUser.phone || null,
               role: userRole,
               status: authUser.banned ? 'inactive' as const : 'active' as const,
@@ -653,9 +689,10 @@ const AdminUsers = () => {
         console.log('Admin API access failed, falling back to profiles:', err);
       }
       
+      // Fetch profiles with email information
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*, auth_email:email');
       
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
@@ -672,22 +709,28 @@ const AdminUsers = () => {
       console.log(`Found ${profiles.length} users in profiles table`);
       
       const mappedUsers: AppUser[] = profiles.map((profile: any) => {
-        const emailKey = `user_email_${profile.id}`;
-        const storedEmail = localStorage.getItem(emailKey) || '';
+        // Use email from profiles table
+        const email = profile.auth_email || '';
         
         const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-        const email = storedEmail || profile.email || '';
         
-        const isAdmin = 
-          email === 'admin@strongbyyoga.com' || 
-          email === 'sumit_204@yahoo.com';
+        // Determine user role
+        let userRole: 'admin' | 'user' | 'teacher' = 'user';
+        
+        if (email === 'admin@strongbyyoga.com' || email === 'sumit_204@yahoo.com') {
+          userRole = 'admin';
+        } else if (profile.is_teacher) {
+          userRole = 'teacher';
+        } else if (profile.is_admin) {
+          userRole = 'admin';
+        }
         
         return {
           id: profile.id,
           name: fullName || email.split('@')[0] || 'Unknown User',
           email: email,
           phone: profile.phone || null,
-          role: isAdmin ? 'admin' as const : 'user' as const,
+          role: userRole,
           status: 'active' as const,
           joinedDate: profile.created_at || new Date().toISOString()
         };
@@ -730,6 +773,7 @@ const AdminUsers = () => {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
+      // Update profile information
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -739,6 +783,16 @@ const AdminUsers = () => {
         .eq('id', userData.id);
 
       if (profileError) throw profileError;
+
+      // Update user role if it has changed
+      if (userData.role && selectedUser?.role !== userData.role) {
+        const { error: roleError } = await supabase.auth.admin.updateUserById(
+          userData.id,
+          { user_metadata: { role: userData.role } }
+        );
+        
+        if (roleError) throw roleError;
+      }
 
       toast({
         title: "User updated",
@@ -764,35 +818,53 @@ const AdminUsers = () => {
   const confirmDeleteUser = async () => {
     if (selectedUser) {
       try {
+        setIsLoading(true);
+        
+        // First try to delete the user from the auth system
         const { error: authError } = await supabase.auth.admin.deleteUser(
           selectedUser.id
         );
-        
-        if (authError) {
-          console.error('Error deleting user auth account:', authError);
-          const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', selectedUser.id);
 
-          if (error) throw error;
+        if (authError) {
+          console.error('Error deleting user from auth system:', authError);
+          // If auth deletion fails, we'll still try to clean up the profile
+        }
+
+        // Then delete from profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', selectedUser.id);
+
+        if (profileError && !authError) {
+          // Only throw if we haven't already had an auth error
+          console.error('Error deleting user profile:', profileError);
+          throw profileError;
+        }
+
+        if (authError && profileError) {
+          // Both operations failed
+          throw new Error('Failed to delete user from both auth system and profiles');
         }
 
         toast({
           title: "User deleted",
-          description: "User profile has been deleted."
+          description: "User has been successfully deleted from the system."
         });
 
-        fetchUsers();
+        // Remove user from local state to update UI immediately
+        setUsers(prev => prev.filter(user => user.id !== selectedUser.id));
       } catch (error: any) {
         console.error('Error deleting user:', error);
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Failed to delete user. Please try again.'
+          description: error.message || 'Failed to delete user. Please try again.'
         });
+      } finally {
+        setIsLoading(false);
+        setIsDeleteDialogOpen(false);
       }
-      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -868,6 +940,39 @@ const AdminUsers = () => {
     setIsViewCreditsOpen(true);
   };
 
+  const handleChangeRole = async (user: AppUser, newRole: 'admin' | 'user' | 'teacher') => {
+    try {
+      // Update user role in Supabase auth metadata
+      const { error } = await supabase.auth.admin.updateUserById(
+        user.id,
+        { user_metadata: { role: newRole } }
+      );
+      
+      if (error) throw error;
+      
+      // Update local state
+      setUsers(prev => 
+        prev.map(u => 
+          u.id === user.id 
+            ? { ...u, role: newRole } 
+            : u
+        )
+      );
+      
+      toast({
+        title: 'Success',
+        description: `User role changed to ${newRole} successfully`,
+      });
+    } catch (error: any) {
+      console.error('Error changing user role:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to change user role',
+      });
+    }
+  };
+
   return (
     <AdminGuard>
       <Layout>
@@ -930,7 +1035,9 @@ const AdminUsers = () => {
                             </TableCell>
                             <TableCell>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                user.role === 'admin' ? 'bg-yoga-yellow text-gray-800' : 'bg-gray-100'
+                                user.role === 'admin' ? 'bg-yoga-yellow text-gray-800' :
+                                user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
                               }`}>
                                 {user.role}
                               </span>
@@ -955,6 +1062,23 @@ const AdminUsers = () => {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => handleViewProfile(user)}>View Profile</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleEditUser(user)}>Edit User</DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {user.role !== 'admin' && (
+                                    <DropdownMenuItem onClick={() => handleChangeRole(user, 'admin')} className="text-blue-600">
+                                      Make Admin
+                                    </DropdownMenuItem>
+                                  )}
+                                  {user.role !== 'teacher' && (
+                                    <DropdownMenuItem onClick={() => handleChangeRole(user, 'teacher')} className="text-green-600">
+                                      Make Teacher
+                                    </DropdownMenuItem>
+                                  )}
+                                  {user.role !== 'user' && (
+                                    <DropdownMenuItem onClick={() => handleChangeRole(user, 'user')} className="text-gray-600">
+                                      Make User
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleAddMembership(user)}>Add Membership</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleAddCredits(user)}>Add Credits</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleViewCredits(user)}>View Credits</DropdownMenuItem>
